@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
+    "@pdc/shared-types": "workspace:*",
     "@pdc/x402-adapter": "workspace:*",
     "@supabase/supabase-js": "^2.47.0",
     "hono": "^4.12.0",

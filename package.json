@@ -9,6 +9,9 @@
   },
   "scripts": {
     "dev:directory-api": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/directory-api dev",
+    "dev:pilot-endpoint": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/pilot-endpoint dev",
+    "dev:sbp-agent": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/sbp-agent dev",
+    "seed-pilot": "pnpm --filter @pdc/scripts seed-pilot",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"

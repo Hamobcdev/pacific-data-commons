@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, NotFoundError } from "../lib/errors.js";
-import type { ProvenanceCertificateRow } from "../lib/dbTypes.js";
+import type { ProvenanceCertificate as ProvenanceCertificateRow } from "@pdc/shared-types";
 
 export interface CertificateVerification {
   certHash: string;

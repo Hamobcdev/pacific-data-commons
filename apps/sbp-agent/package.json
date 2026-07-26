@@ -1,8 +1,8 @@
 {
-  "name": "@pdc/pilot-endpoint",
+  "name": "@pdc/sbp-agent",
   "version": "0.1.0",
   "private": true,
-  "description": "Pacific Data Commons — Pilot Provider Endpoint (Component 5). Synthetic Pacific fisheries data, all 5 x402 pricing tiers, Algorand Mainnet. Competition entry baseline.",
+  "description": "SBP's own scheduled agent — queries the PDC directory and pilot endpoint on an interval, dogfooding the platform and generating baseline x402-global-challenge leaderboard volume.",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
-    "@pdc/shared-types": "workspace:*",
     "@pdc/x402-adapter": "workspace:*",
     "hono": "^4.12.0",
     "zod": "^3.24.0"

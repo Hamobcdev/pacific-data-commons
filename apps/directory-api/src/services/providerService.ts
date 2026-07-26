@@ -1,12 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, NotFoundError } from "../lib/errors.js";
-import type { EndpointRow, ProviderRow } from "../lib/dbTypes.js";
-import { toPublicEndpoint, toPublicProvider, type PublicEndpoint, type PublicProvider } from "./publicProjections.js";
+import type { Endpoint as EndpointRow, Provider as ProviderRow, PublicProviderProfile } from "@pdc/shared-types";
+import { toPublicEndpoint, toPublicProvider } from "./publicProjections.js";
 
-export interface PublicProviderProfile {
-  provider: PublicProvider;
-  endpoints: PublicEndpoint[];
-}
+export type { PublicProviderProfile } from "@pdc/shared-types";
 
 export async function getPublicProviderProfile(
   supabase: SupabaseClient,

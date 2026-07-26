@@ -17,6 +17,7 @@ import {
   type RoutesConfig,
 } from "@x402/core/server";
 import { x402Client } from "@x402/core/client";
+import { decodePaymentResponseHeader } from "@x402/core/http";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import type { Network } from "@x402/core/types";
 import {
@@ -232,4 +233,38 @@ export function createManualPaymentFetch(config: ManualPaymentFetchConfig): type
   const signer = toClientAvmSigner(config.privateKeyBase64);
   const client = new x402Client().register(CAIP2_BY_NETWORK[config.network], new ExactAvmClientScheme(signer));
   return wrapFetchWithPayment(fetch, client);
+}
+
+/**
+ * Derives the Algorand address for a manual-payment private key, without
+ * the caller needing its own Algorand SDK. Used by dev/agent tooling that
+ * needs to log or balance-check "the wallet we're paying from" alongside
+ * createManualPaymentFetch.
+ */
+export function getManualPaymentAddress(privateKeyBase64: string): string {
+  return toClientAvmSigner(privateKeyBase64).address;
+}
+
+export interface DecodedSettlement {
+  algoTxId: string;
+  payerAddress: string | undefined;
+}
+
+/**
+ * Reads the `PAYMENT-RESPONSE` header a settled x402 response carries and
+ * decodes it, for callers on the *client* side of a payment (e.g. a
+ * scheduled agent using createManualPaymentFetch) that want the settled
+ * transaction id without re-deriving it themselves. Returns null if the
+ * header is missing or the settlement failed — never throws.
+ */
+export function decodeSettlementFromResponse(response: Response): DecodedSettlement | null {
+  const header = response.headers.get("PAYMENT-RESPONSE") ?? response.headers.get("payment-response");
+  if (!header) return null;
+  try {
+    const settleResponse = decodePaymentResponseHeader(header);
+    if (!settleResponse.success) return null;
+    return { algoTxId: settleResponse.transaction, payerAddress: settleResponse.payer };
+  } catch {
+    return null;
+  }
 }

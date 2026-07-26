@@ -1,0 +1,20 @@
+{
+  "name": "@pdc/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One-off operational scripts run by hand against a live Supabase project — not deployed, not started as a service.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "seed-pilot": "tsx seed-pilot.ts"
+  },
+  "dependencies": {
+    "@pdc/shared-types": "workspace:*",
+    "@supabase/supabase-js": "^2.47.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

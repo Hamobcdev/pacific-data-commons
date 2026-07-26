@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toPublicEndpoint, toPublicProvider } from "../services/publicProjections.js";
-import type { EndpointRow, ProviderRow } from "../lib/dbTypes.js";
+import type { Endpoint as EndpointRow, Provider as ProviderRow } from "@pdc/shared-types";
 
 const providerRow: ProviderRow = {
   id: "prov-1",
@@ -9,15 +9,31 @@ const providerRow: ProviderRow = {
   provider_track: "international",
   country: "Fiji",
   verified_domain: "usp.ac.fj",
+  contact_email: "data@usp.ac.fj",
+  contact_name: "USP Data Office",
   wallet_address: "AAAAUSPADDRESS",
   usdc_opted_in: true,
+  wallet_verified_at: "2025-12-01T00:00:00.000Z",
   trust_tier: "silver",
   verified_government: false,
-  is_active: true,
+  provider_pct: 97,
+  sbp_fee_pct: 3,
+  fee_collection_consent: true,
+  tier12_earnings_accrued: 0,
+  fee_threshold_usdc: 10,
+  last_fee_settled_at: null,
+  fee_settlement_due_at: null,
+  onboarding_status: "active",
+  onboarding_started_at: "2025-12-01T00:00:00.000Z",
   went_live_at: "2026-01-01T00:00:00.000Z",
+  is_active: true,
+  suspended_reason: null,
+  suspended_at: null,
   total_queries_served: 42,
+  total_revenue_usdc: 0,
   last_query_at: null,
   created_at: "2025-12-01T00:00:00.000Z",
+  updated_at: "2025-12-01T00:00:00.000Z",
 };
 
 const endpointRow: EndpointRow = {
@@ -32,6 +48,7 @@ const endpointRow: EndpointRow = {
   description: "Annual tuna stock assessment for the Fiji EEZ",
   geography_country: ["Fiji"],
   geography_region: "Pacific",
+  geography_geojson: null,
   time_period_start: 2010,
   time_period_end: 2024,
   update_frequency: "annual",
@@ -41,7 +58,8 @@ const endpointRow: EndpointRow = {
   sample_size: null,
   commercial_eligibility: null,
   sensitivity_level: null,
-  pricing_tiers: [{ tier: 1, name: "Summary", price_usdc: 0.01, path: "/summary" }],
+  personal_data_flag: null,
+  pricing_tiers: [{ tier: 1, name: "Summary", description: "Key findings", price_usdc: 0.01, path: "/summary" }],
   max_tier_at_bronze: 2,
   sample_response: { note: "sample" },
   query_parameters: null,
@@ -55,11 +73,17 @@ const endpointRow: EndpointRow = {
   attribution_format: "Cite USP Fisheries",
   commercial_licence_req: false,
   donor_conditions: null,
+  community_consent_doc: null,
+  traditional_knowledge: false,
   competition_tag: "x402-global-challenge",
   bazaar_registered: true,
+  bazaar_registered_at: null,
+  skills_file_agentmarket: null,
+  skills_file_pdp: null,
   skills_file_url: "https://usp-fisheries.example/skills.json",
   health_status: "healthy",
   last_health_check_at: null,
+  consecutive_health_fails: 0,
   total_queries: 10,
   total_revenue_usdc: 1.2,
   last_queried_at: null,
@@ -67,6 +91,7 @@ const endpointRow: EndpointRow = {
   paused_reason: null,
   paused_at: null,
   created_at: "2025-12-01T00:00:00.000Z",
+  updated_at: "2025-12-01T00:00:00.000Z",
 };
 
 describe("toPublicProvider", () => {
@@ -97,6 +122,8 @@ describe("toPublicEndpoint", () => {
     expect(result.geography).toEqual({ countries: ["Fiji"], region: "Pacific" });
     expect(result.timePeriod).toEqual({ start: 2010, end: 2024 });
     expect(result.sovereignty.commercialLicenceRequired).toBe(false);
-    expect(result.pricingTiers).toEqual([{ tier: 1, name: "Summary", price_usdc: 0.01, path: "/summary" }]);
+    expect(result.pricingTiers).toEqual([
+      { tier: 1, name: "Summary", description: "Key findings", price_usdc: 0.01, path: "/summary" },
+    ]);
   });
 });
