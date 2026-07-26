@@ -1,0 +1,175 @@
+/**
+ * pdc-x402-adapter
+ *
+ * The ONLY module in this monorepo allowed to import @x402/* packages
+ * (CLAUDE.md v2.1, Section 6 stack table + Section 17/18 "always via
+ * pdc-x402-adapter" rule). Every app that needs to gate a route behind an
+ * x402 payment, or read back what a settled payment paid, goes through the
+ * exports below instead of touching @x402/hono, @x402/avm or @x402/core.
+ *
+ * Pinned to @x402/* 2.19.x — bump the pin here, once, when upgrading.
+ */
+import { paymentMiddleware } from "@x402/hono";
+import {
+  x402ResourceServer,
+  HTTPFacilitatorClient,
+  type RouteConfig,
+  type RoutesConfig,
+} from "@x402/core/server";
+import type { Network } from "@x402/core/types";
+import {
+  ALGORAND_MAINNET_CAIP2,
+  ALGORAND_TESTNET_CAIP2,
+  convertFromTokenAmount,
+  USDC_DECIMALS,
+} from "@x402/avm";
+import { ExactAvmScheme } from "@x402/avm/exact/server";
+import type { MiddlewareHandler } from "hono";
+
+export type PdcAlgorandNetwork = "mainnet" | "testnet";
+
+export interface PdcX402GateConfig {
+  /** SBP's Algorand payTo address for this service (directory query fee lands here). */
+  payToAddress: string;
+  /** x402 facilitator base URL (GoPlausible per CLAUDE.md Section 6). */
+  facilitatorUrl: string;
+  network: PdcAlgorandNetwork;
+}
+
+export interface PdcPaidRouteSpec {
+  /** HTTP method, e.g. "GET". */
+  method: string;
+  /** Hono-style path, e.g. "/search". */
+  path: string;
+  /** Price in decimal USDC, e.g. 0.01 for one cent. */
+  priceUsdc: number;
+  description: string;
+  resource: string;
+}
+
+/**
+ * What a route handler needs after an x402 payment settles, with all x402
+ * wire types already stripped away.
+ *
+ * Settlement happens *after* the route handler already returned its JSON
+ * response (x402's exact scheme only charges once the handler succeeds), so
+ * there is no request-scoped hook back into the handler at settle time —
+ * `responseBody` is the same bytes the handler returned, included here so
+ * the app can correlate a settlement with the specific resource it served
+ * (e.g. pull `provider.id` back out) without the adapter needing to know
+ * any app-specific JSON shape.
+ *
+ * `path` is the concrete request path actually hit (e.g. "/provider/<uuid>"),
+ * not the registered pattern ("/provider/:id") — @x402/hono 2.19 does not
+ * thread the matched pattern back through to settlement hooks, only the raw
+ * path. Match on prefix, not equality, when dispatching on it.
+ */
+export interface SettledPdcPayment {
+  method: string;
+  path: string;
+  algoTxId: string;
+  payerAddress: string | undefined;
+  amountUsdc: string;
+  network: PdcAlgorandNetwork;
+  responseBody: unknown;
+}
+
+type SettleListener = (payment: SettledPdcPayment) => void | Promise<void>;
+
+const CAIP2_BY_NETWORK: Record<PdcAlgorandNetwork, Network> = {
+  mainnet: ALGORAND_MAINNET_CAIP2 as Network,
+  testnet: ALGORAND_TESTNET_CAIP2 as Network,
+};
+
+function toAtomicUsdc(priceUsdc: number): string {
+  return Math.round(priceUsdc * 10 ** USDC_DECIMALS).toString();
+}
+
+/**
+ * A payment gate wraps one x402ResourceServer (one facilitator + one
+ * registered scheme/network) and the set of paid routes protected by it.
+ * One instance per app (e.g. one for the directory API) is the expected
+ * usage — do not construct a new instance per request.
+ */
+export class PdcPaymentGate {
+  private readonly resourceServer: x402ResourceServer;
+  private readonly network: PdcAlgorandNetwork;
+  private readonly caip2Network: Network;
+  private readonly payToAddress: string;
+  private readonly routesConfig: Record<string, RouteConfig> = {};
+  private readonly settleListeners: SettleListener[] = [];
+
+  constructor(config: PdcX402GateConfig) {
+    this.network = config.network;
+    this.caip2Network = CAIP2_BY_NETWORK[config.network];
+    this.payToAddress = config.payToAddress;
+
+    const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
+    this.resourceServer = new x402ResourceServer(facilitator).register(
+      this.caip2Network,
+      new ExactAvmScheme(),
+    );
+
+    this.resourceServer.onAfterSettle(async (ctx) => {
+      const transport = ctx.transportContext as
+        | { request?: { path?: string; method?: string }; responseBody?: Buffer }
+        | undefined;
+      const atomicAmount = ctx.result.amount ?? ctx.requirements.amount;
+      const payment: SettledPdcPayment = {
+        method: transport?.request?.method ?? "UNKNOWN",
+        path: transport?.request?.path ?? "unknown",
+        algoTxId: ctx.result.transaction,
+        payerAddress: ctx.result.payer,
+        amountUsdc: convertFromTokenAmount(atomicAmount, USDC_DECIMALS),
+        network: this.network,
+        responseBody: parseJsonSafely(transport?.responseBody),
+      };
+      for (const listener of this.settleListeners) {
+        await listener(payment);
+      }
+    });
+  }
+
+  /** Register a paid route. Call once per route at startup, before `middleware()`. */
+  addRoute(spec: PdcPaidRouteSpec): void {
+    const key = `${spec.method.toUpperCase()} ${spec.path}`;
+    this.routesConfig[key] = {
+      accepts: {
+        scheme: "exact",
+        payTo: this.payToAddress,
+        // Decimal USDC amount — ExactAvmScheme.parsePrice converts this to the
+        // network's default asset (USDC) atomic amount for us.
+        price: spec.priceUsdc,
+        network: this.caip2Network,
+      },
+      resource: spec.resource,
+      description: spec.description,
+    };
+  }
+
+  /** Fired once a protected route's payment has been verified and settled. */
+  onSettled(listener: SettleListener): void {
+    this.settleListeners.push(listener);
+  }
+
+  /** Hono middleware — mount globally; only paths registered via addRoute() are gated. */
+  middleware(): MiddlewareHandler {
+    return paymentMiddleware(this.routesConfig as RoutesConfig, this.resourceServer);
+  }
+}
+
+function parseJsonSafely(buffer: Buffer | undefined): unknown {
+  if (!buffer || buffer.length === 0) return undefined;
+  try {
+    return JSON.parse(buffer.toString("utf-8"));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Atomic-unit helper exposed for tests / invoices that need to reason about
+ * raw USDC amounts without importing @x402/avm directly. */
+export const usdcAtomicUnits = {
+  fromDecimal: toAtomicUsdc,
+  toDecimal: (atomic: string | bigint) => convertFromTokenAmount(atomic, USDC_DECIMALS),
+};

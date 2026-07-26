@@ -1,0 +1,16 @@
+{
+  "name": "pacific-data-commons",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pacific Data Commons — sovereign data exchange infrastructure for the Pacific (x402/Algorand)",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:directory-api": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/directory-api dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
