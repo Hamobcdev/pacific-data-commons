@@ -16,17 +16,30 @@ import {
   type RouteConfig,
   type RoutesConfig,
 } from "@x402/core/server";
+import { x402Client } from "@x402/core/client";
+import { wrapFetchWithPayment } from "@x402/fetch";
 import type { Network } from "@x402/core/types";
 import {
   ALGORAND_MAINNET_CAIP2,
   ALGORAND_TESTNET_CAIP2,
   convertFromTokenAmount,
+  toClientAvmSigner,
   USDC_DECIMALS,
 } from "@x402/avm";
 import { ExactAvmScheme } from "@x402/avm/exact/server";
+import { ExactAvmScheme as ExactAvmClientScheme } from "@x402/avm/exact/client";
 import type { MiddlewareHandler } from "hono";
 
 export type PdcAlgorandNetwork = "mainnet" | "testnet";
+
+/**
+ * Required on every accepts[] entry for every PDC payment route (CLAUDE.md
+ * Section 14, Competition Context: "All endpoints tagged x402-global-challenge
+ * in extra field"). Applied centrally in addRoute() below so no call site can
+ * forget it — this is a platform-wide, non-negotiable requirement, not a
+ * per-route opt-in.
+ */
+const COMPETITION_TAG = "x402-global-challenge";
 
 export interface PdcX402GateConfig {
   /** SBP's Algorand payTo address for this service (directory query fee lands here). */
@@ -45,6 +58,12 @@ export interface PdcPaidRouteSpec {
   priceUsdc: number;
   description: string;
   resource: string;
+  /**
+   * Route-specific metadata merged into accepts[].extra alongside the
+   * mandatory competition tag (e.g. { service, category, tier } for a
+   * provider endpoint). Do not pass `tag` here — it's set automatically.
+   */
+  extra?: Record<string, unknown>;
 }
 
 /**
@@ -141,6 +160,7 @@ export class PdcPaymentGate {
         // network's default asset (USDC) atomic amount for us.
         price: spec.priceUsdc,
         network: this.caip2Network,
+        extra: { tag: COMPETITION_TAG, ...spec.extra },
       },
       resource: spec.resource,
       description: spec.description,
@@ -173,3 +193,43 @@ export const usdcAtomicUnits = {
   fromDecimal: toAtomicUsdc,
   toDecimal: (atomic: string | bigint) => convertFromTokenAmount(atomic, USDC_DECIMALS),
 };
+
+/**
+ * One-shot facilitator reachability check (CLAUDE.md Section 6: GoPlausible
+ * is a SPOF, handle it gracefully). Does not throw — a facilitator outage
+ * should degrade a service's health status, not crash it at startup.
+ * Distinct from PdcPaymentGate: this needs no payTo/route config, just a
+ * yes/no on whether the facilitator is responding.
+ */
+export async function checkFacilitatorHealth(facilitatorUrl: string): Promise<boolean> {
+  try {
+    const facilitator = new HTTPFacilitatorClient({ url: facilitatorUrl });
+    await facilitator.getSupported();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export interface ManualPaymentFetchConfig {
+  /** Base64-encoded 64-byte Algorand private key (32-byte seed + 32-byte public key). */
+  privateKeyBase64: string;
+  network: PdcAlgorandNetwork;
+}
+
+/**
+ * Builds a payment-aware `fetch` for manual/dev end-to-end testing against a
+ * live PDC endpoint (e.g. test/payment-client.ts scripts) — signs and submits
+ * real x402 payments client-side. This is the client-side counterpart to
+ * PdcPaymentGate: same "never import @x402/* outside this file" rule applies
+ * to test tooling too, so this exists instead of scripts reaching for
+ * @x402/fetch or @x402/avm themselves.
+ *
+ * Dev/test use only — never wire this into a server request path (a server
+ * gates payments with PdcPaymentGate; it doesn't make them).
+ */
+export function createManualPaymentFetch(config: ManualPaymentFetchConfig): typeof fetch {
+  const signer = toClientAvmSigner(config.privateKeyBase64);
+  const client = new x402Client().register(CAIP2_BY_NETWORK[config.network], new ExactAvmClientScheme(signer));
+  return wrapFetchWithPayment(fetch, client);
+}
