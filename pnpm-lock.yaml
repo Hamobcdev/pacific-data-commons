@@ -39,12 +39,43 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/pilot-endpoint:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^1.14.0
+        version: 1.19.15(hono@4.12.32)
+      '@pdc/x402-adapter':
+        specifier: workspace:*
+        version: link:../../packages/pdc-x402-adapter
+      hono:
+        specifier: ^4.12.0
+        version: 4.12.32
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.1
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.1)
+
   packages/pdc-x402-adapter:
     dependencies:
       '@x402/avm':
         specifier: ^2.19.0
         version: 2.19.0
       '@x402/core':
+        specifier: ^2.19.0
+        version: 2.19.0
+      '@x402/fetch':
         specifier: ^2.19.0
         version: 2.19.0
       '@x402/hono':
@@ -638,6 +669,9 @@ packages:
 
   '@x402/extensions@2.19.0':
     resolution: {integrity: sha512-lPPBlABFjvgHxhtqm8pFZpW/mo/1wGT2JbhHSc1rXXFx+xEZZ6qHY8vehssNIRM5cMEP1Nx32j1A3+ME8SKeiA==}
+
+  '@x402/fetch@2.19.0':
+    resolution: {integrity: sha512-5FOZP3RKtZSCpA2/zyBqenQyrdaXZ2OXTRb2bJyC2mRNqzM8QEtELhtBTOJB54SD288J9VAXOTq2nb4dFf6JgQ==}
 
   '@x402/hono@2.19.0':
     resolution: {integrity: sha512-t86qO58T4F1V0Rgne4fVukQ7DfK4FBZeM4nA/8D4j9ZJp6bfhq6TAGbe4p3IFGbtX205OxBwK6dj8KU/T7U/6A==}
@@ -1371,6 +1405,10 @@ snapshots:
       - ethers
       - typescript
       - utf-8-validate
+
+  '@x402/fetch@2.19.0':
+    dependencies:
+      '@x402/core': 2.19.0
 
   '@x402/hono@2.19.0(hono@4.12.32)(typescript@5.9.3)':
     dependencies:
