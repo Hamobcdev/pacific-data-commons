@@ -4,5 +4,6 @@ export * from "./certificates.js";
 export * from "./transactions.js";
 export * from "./ratings.js";
 export * from "./ogip.js";
+export * from "./uploads.js";
 export * from "./api.js";
 export * from "./pdp.js";
