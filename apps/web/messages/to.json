@@ -1,0 +1,217 @@
+{
+  "Landing": {
+    "title": "Pacific Data Commons",
+    "subtitle": "A sovereign data exchange for Pacific institutions — your data stays on your servers, buyers pay you directly.",
+    "cta": "Register Your Institution"
+  },
+  "Onboarding": {
+    "shell": {
+      "brand": "Pacific Data Commons",
+      "sectionLabel": "Provider Onboarding",
+      "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP."
+    },
+    "error": {
+      "title": "Something went wrong loading this step.",
+      "description": "Your progress has been saved. Reloading usually fixes this — if it keeps happening, contact SBP and we'll help you finish manually.",
+      "reload": "Reload this page"
+    },
+    "scaffold": {
+      "comingSoon": "This step is coming in the next session."
+    },
+    "steps": {
+      "register": "Registration",
+      "wallet": "Wallet Setup",
+      "upload": "Upload Data",
+      "review": "Review Output",
+      "provenance": "Provenance",
+      "deploy": "Deploy",
+      "complete": "Complete",
+      "stepOf": "Step {current} of {total} — {name}"
+    },
+    "nav": {
+      "back": "Back",
+      "saving": "Saving..."
+    },
+    "save": {
+      "saving": "Saving...",
+      "saved": "Saved"
+    },
+    "resume": {
+      "prompt": "Need to continue later? ",
+      "action": "Send me a link to resume",
+      "emailPlaceholder": "your@institution.edu",
+      "send": "Send link",
+      "sending": "Sending..."
+    },
+    "Register": {
+      "title": "Register Your Institution",
+      "subtitle": "Tell us about your organisation. All fields are saved automatically.",
+      "pilot_notice": "Pacific Data Commons is in pilot mode. By registering you acknowledge SBP is a directory and payment infrastructure operator only — not a quality assessor or dispute arbitrator. Full terms of service are being finalised.",
+      "pilot_terms": "This is a pre-commercial pilot. Your data stays on your servers. Disputes are between you and data buyers directly. SBP earns 3% of transactions as an infrastructure fee.",
+      "continue": "Continue to Wallet Setup",
+      "submitting": "Saving...",
+      "genericError": "Registration failed. Please try again or contact SBP if this persists.",
+      "fields": {
+        "institution_name": "Institution Name",
+        "institution_type": "Institution Type",
+        "country": "Country",
+        "contact_name": "Your Name",
+        "contact_email": "Your Institutional Email",
+        "official_website": "Official Institution Website"
+      },
+      "placeholders": {
+        "institution_name": "e.g. University of the South Pacific",
+        "institution_type": "Select institution type",
+        "country": "Select country",
+        "contact_name": "Dr. Jane Smith",
+        "contact_email": "name@institution.edu",
+        "official_website": "https://www.yourinstitution.edu"
+      },
+      "institutionTypes": {
+        "university": "University or Research Institution",
+        "government": "Government Ministry or Agency",
+        "ngo": "NGO or Civil Society Organisation",
+        "intergovernmental": "Intergovernmental Organisation (SPC, SPREP, etc.)",
+        "private": "Private Company",
+        "cultural": "Cultural Institution"
+      },
+      "domain": {
+        "checking": "Checking domain...",
+        "verified": "Domain verified",
+        "manual": "Domain not verified — your registration will be reviewed manually. This does not block your application."
+      }
+    },
+    "Wallet": {
+      "title": "Set Up Your Payment Wallet",
+      "subtitle": "Your institution needs an Algorand wallet to receive USDC payments.",
+      "continue": "Continue to Data Upload",
+      "genericError": "Could not save your wallet details. Please try again.",
+      "guide": {
+        "step1_title": "Install Pera Wallet",
+        "step1_body": "Pera is a free Algorand wallet app available on iOS and Android.",
+        "step2_title": "Create a new wallet",
+        "step2_body": "Follow the Pera setup guide to create a new wallet.",
+        "seed_warning": "This is the key to your institution's money. Store it like you store the deed to a building. SBP can never recover it for you.",
+        "step3_title": "Opt in to USDC",
+        "step3_body": "You need to opt in to receive USDC (the digital currency used for payments).",
+        "algo_requirement": "You need approximately 0.3 ALGO (less than $0.10 USD) to set up your wallet. Contact SBP if you need help with this.",
+        "confirm": "I've completed this step"
+      },
+      "custody": {
+        "question": "Should this be a personal or institutional wallet?",
+        "recommendation": "We recommend an institutional wallet controlled by your finance or IT department — not a personal wallet.",
+        "guide_download": "Download finance office brief"
+      },
+      "authority": {
+        "label": "I confirm I have the authority to receive payments on behalf of {institutionName}. I understand payments go directly to this wallet and SBP cannot recover them.",
+        "fallbackInstitution": "your institution"
+      },
+      "address": {
+        "label": "Your Algorand Wallet Address",
+        "placeholder": "58-character Algorand address",
+        "checking": "Checking address...",
+        "verified": "Address verified",
+        "usdc_opted_in": "USDC enabled",
+        "usdc_not_opted": "USDC not yet enabled",
+        "usdc_unknown": "Could not check — will verify manually",
+        "not_verified": "This does not look like a valid Algorand address"
+      },
+      "usdcOptIn": {
+        "title": "USDC is not enabled on this wallet yet",
+        "step1": "Open Pera Wallet and select this account",
+        "step2": "Tap \"Add Asset\" and search for USDC",
+        "step3": "Confirm the opt-in transaction (costs a small ALGO fee)",
+        "recheck_note": "You can continue now — we'll note this and you can fix it before your first payment."
+      }
+    },
+    "Upload": {
+      "title": "Upload Your Data",
+      "subtitle": "Upload your dataset and tell us what it contains. Your files are deleted after processing.",
+      "continue": "Continue to Review",
+      "genericError": "Could not save your data description. Please try again.",
+      "formats": "Accepted formats: PDF, Excel, CSV, Word, Markdown, ZIP",
+      "max_size": "Maximum 500MB per file",
+      "drag_drop": "Drag files here or click to browse",
+      "safe_to_close": "Safe to close this window — your upload will continue",
+      "errors": {
+        "rejected_type": "\"{filename}\" is not an accepted file type.",
+        "rejected_size": "\"{filename}\" is over the 500MB limit."
+      },
+      "scanned_pdf": {
+        "question": "Is this a scanned document or does it contain text you can select?",
+        "scanned": "Scanned (image only)",
+        "text": "Text-based (I can select text)",
+        "scanned_note": "Scanned PDFs require additional processing. A $10 surcharge applies."
+      },
+      "status": {
+        "queued": "Queued",
+        "uploading": "Uploading",
+        "paused": "Paused",
+        "complete": "Uploaded",
+        "failed": "Failed"
+      },
+      "resume": {
+        "action": "Select file again to resume",
+        "paused_note": "Upload paused — your progress is saved.",
+        "failed_note": "Upload failed after several attempts — your progress is saved.",
+        "mismatch_error": "That doesn't look like the same file as \"{filename}\" — please select the original file to resume."
+      },
+      "context": {
+        "title": "About Your Data",
+        "data_title": "Dataset Title",
+        "description": "What does this data contain?",
+        "category": "Data Category",
+        "categoryPlaceholder": "Select a category",
+        "geography": "Geographic Coverage",
+        "geographyPlaceholder": "e.g. Samoa EEZ, Pacific-wide",
+        "period_start": "Data From (Year)",
+        "period_end": "Data To (Year)",
+        "frequency": "Update Frequency",
+        "frequencyPlaceholder": "Select update frequency",
+        "methodology": "How was this data collected?"
+      },
+      "categories": {
+        "fisheries": "Fisheries",
+        "climate": "Climate",
+        "trade": "Trade",
+        "demographics": "Demographics",
+        "health": "Health",
+        "agriculture": "Agriculture",
+        "cultural": "Cultural",
+        "remittance": "Remittance",
+        "legal": "Legal",
+        "geospatial": "Geospatial",
+        "energy": "Energy",
+        "carbon": "Carbon",
+        "tourism": "Tourism",
+        "disaster_risk": "Disaster Risk",
+        "biodiversity": "Biodiversity",
+        "ocean": "Ocean",
+        "education": "Education",
+        "other": "Other"
+      },
+      "frequencies": {
+        "real-time": "Real-time",
+        "daily": "Daily",
+        "monthly": "Monthly",
+        "annual": "Annual",
+        "static": "Static (one-time)",
+        "irregular": "Irregular"
+      },
+      "sovereignty": {
+        "title": "Sovereignty and Sensitivity",
+        "subtitle": "Please confirm the following carefully. This information is published alongside your dataset.",
+        "indigenous_question": "Does this data contain indigenous or traditional knowledge?",
+        "indigenous_yes": "Yes",
+        "indigenous_no": "No",
+        "sensitivity_question": "Cultural sensitivity level",
+        "sensitivity_none": "None",
+        "sensitivity_low": "Low",
+        "sensitivity_medium": "Medium",
+        "sensitivity_high": "High",
+        "confirm_label": "I confirm these sensitivity selections are accurate. I understand SBP publishes this information alongside my dataset listing.",
+        "cultural_coming_soon": "Cultural and indigenous data requires additional community consent steps. SBP will contact you directly to discuss the process before your data is listed."
+      }
+    }
+  }
+}

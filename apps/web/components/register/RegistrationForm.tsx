@@ -1,0 +1,200 @@
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { registerProvider } from "@/actions/onboarding/register";
+import { verifyDomain } from "@/actions/onboarding/verify-domain";
+import { loadLocalState, saveLocalState, defaultState, type OnboardingState } from "@/lib/onboarding/state";
+import { registrationSchema } from "@/lib/onboarding/validation";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { DomainChecker, type DomainStatus } from "./DomainChecker";
+import { SaveIndicator, type SaveStatus } from "@/components/onboarding/SaveIndicator";
+import { StepNav } from "@/components/onboarding/StepNav";
+import { ResumeLink } from "@/components/onboarding/ResumeLink";
+
+type RegistrationForm = OnboardingState["registration"];
+
+const INSTITUTION_TYPE_VALUES = ["university", "government", "ngo", "intergovernmental", "private", "cultural"] as const;
+
+const PACIFIC_COUNTRIES = [
+  "Samoa", "Fiji", "Tonga", "Vanuatu", "Papua New Guinea",
+  "Solomon Islands", "Kiribati", "Tuvalu", "Nauru", "Palau",
+  "Marshall Islands", "Micronesia", "Cook Islands", "Niue",
+  "New Caledonia", "French Polynesia", "Wallis and Futuna",
+  "Timor-Leste", "Australia", "New Zealand", "Other",
+];
+
+export function RegistrationForm() {
+  const t = useTranslations("Onboarding.Register");
+  const tTypes = useTranslations("Onboarding.Register.institutionTypes");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [domainStatus, setDomainStatus] = useState<DomainStatus>("unchecked");
+
+  const [form, setForm] = useState<RegistrationForm>(() => loadLocalState()?.registration ?? defaultState().registration);
+
+  const updateField = useCallback(<K extends keyof RegistrationForm>(field: K, value: RegistrationForm[K]) => {
+    setSaveStatus("saving");
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      const state = loadLocalState() ?? defaultState();
+      saveLocalState({ ...state, registration: updated });
+      return updated;
+    });
+    setTimeout(() => setSaveStatus("saved"), 500);
+  }, []);
+
+  // Debounced domain verification whenever the website URL changes.
+  useEffect(() => {
+    let cancelled = false;
+    let domain: string;
+    try {
+      domain = new URL(form.officialWebsite).hostname;
+      if (!domain || domain.length < 4) return;
+    } catch {
+      return; // not a valid URL yet — nothing to check
+    }
+
+    setDomainStatus("checking");
+    const timeout = setTimeout(() => {
+      verifyDomain(domain).then((result) => {
+        if (cancelled) return;
+        setDomainStatus(result.verified ? "verified" : "manual");
+        updateField("domainVerified", result.verified);
+      });
+    }, 800);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.officialWebsite]);
+
+  const parsedForm = registrationSchema.safeParse(form);
+  const canSubmit = parsedForm.success;
+
+  const handleSubmit = () => {
+    setError(null);
+    if (!parsedForm.success) return;
+    startTransition(async () => {
+      const result = await registerProvider(parsedForm.data);
+      if (result.success && result.providerId) {
+        const state = loadLocalState() ?? defaultState();
+        saveLocalState({ ...state, providerId: result.providerId, registration: form, currentStep: "wallet" });
+        router.push("/onboarding/wallet");
+      } else {
+        setError(result.error ?? t("genericError"));
+      }
+    });
+  };
+
+  return (
+    <form
+      className="mt-6 space-y-6"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+    >
+      <SaveIndicator status={saveStatus} />
+
+      <div>
+        <label htmlFor="institutionName" className="block text-sm font-medium text-gray-700">
+          {t("fields.institution_name")}
+        </label>
+        <Input
+          id="institutionName"
+          value={form.institutionName}
+          onChange={(e) => updateField("institutionName", e.target.value)}
+          placeholder={t("placeholders.institution_name")}
+          required
+        />
+      </div>
+
+      <div>
+        <label htmlFor="institutionType" className="block text-sm font-medium text-gray-700">
+          {t("fields.institution_type")}
+        </label>
+        <Select
+          id="institutionType"
+          value={form.institutionType}
+          onChange={(e) => updateField("institutionType", e.target.value as RegistrationForm["institutionType"])}
+          options={INSTITUTION_TYPE_VALUES.map((value) => ({ value, label: tTypes(value) }))}
+          placeholder={t("placeholders.institution_type")}
+          required
+        />
+      </div>
+
+      <div>
+        <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+          {t("fields.country")}
+        </label>
+        <Select
+          id="country"
+          value={form.country}
+          onChange={(e) => updateField("country", e.target.value)}
+          options={PACIFIC_COUNTRIES.map((c) => ({ value: c, label: c }))}
+          placeholder={t("placeholders.country")}
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="contactName" className="block text-sm font-medium text-gray-700">
+            {t("fields.contact_name")}
+          </label>
+          <Input
+            id="contactName"
+            value={form.contactName}
+            onChange={(e) => updateField("contactName", e.target.value)}
+            placeholder={t("placeholders.contact_name")}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700">
+            {t("fields.contact_email")}
+          </label>
+          <Input
+            id="contactEmail"
+            type="email"
+            value={form.contactEmail}
+            onChange={(e) => updateField("contactEmail", e.target.value)}
+            placeholder={t("placeholders.contact_email")}
+            required
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="officialWebsite" className="block text-sm font-medium text-gray-700">
+          {t("fields.official_website")}
+        </label>
+        <Input
+          id="officialWebsite"
+          type="url"
+          value={form.officialWebsite}
+          onChange={(e) => updateField("officialWebsite", e.target.value)}
+          placeholder={t("placeholders.official_website")}
+          required
+        />
+        <DomainChecker status={domainStatus} />
+      </div>
+
+      <Alert variant="warning">{t("pilot_terms")}</Alert>
+
+      {error && <Alert variant="error">{error}</Alert>}
+
+      <StepNav nextType="submit" nextDisabled={!canSubmit} nextLabel={t("continue")} isSubmitting={isPending} submittingLabel={t("submitting")} />
+
+      <ResumeLink defaultEmail={form.contactEmail || undefined} />
+    </form>
+  );
+}
