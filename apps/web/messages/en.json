@@ -212,6 +212,184 @@
         "confirm_label": "I confirm these sensitivity selections are accurate. I understand SBP publishes this information alongside my dataset listing.",
         "cultural_coming_soon": "Cultural and indigenous data requires additional community consent steps. SBP will contact you directly to discuss the process before your data is listed."
       }
+    },
+    "Review": {
+      "title": "Review Your Data",
+      "subtitle": "Check every field below before it goes into your listing. Nothing here is published until you confirm it.",
+      "genericError": "Could not save your review. Please try again.",
+      "acceptAll": "Accept all AI suggestions (excluding sensitivity declarations)",
+      "continue": "Proceed to Provenance",
+      "original": {
+        "title": "What You Uploaded",
+        "loading": "Loading your upload details...",
+        "empty": "No upload details are available yet.",
+        "format": "Format",
+        "fieldCount": "Detected fields",
+        "fieldCountUnavailable": "Not yet available",
+        "uploadedAt": "Uploaded"
+      },
+      "structured": {
+        "title": "Your Listing",
+        "fields": {
+          "title": "Title",
+          "description": "Description",
+          "category": "Category",
+          "categoryPlaceholder": "Select a category",
+          "subCategory": "Sub-category",
+          "geography": "Geographic Coverage",
+          "geographyPlaceholder": "e.g. Samoa EEZ, Pacific-wide",
+          "periodStart": "Data From (Year)",
+          "periodEnd": "Data To (Year)"
+        }
+      },
+      "pricing": {
+        "title": "Pricing by Tier",
+        "tierLabel": "Tier {tier}",
+        "aiSuggested": "AI suggested",
+        "override": "Your price (USDC)",
+        "capWarning": "Bronze tier providers are capped at ${cap} for Tier 1-2 unless your institution is a verified government provider."
+      },
+      "sensitivity": {
+        "title": "Sensitivity and Sovereignty",
+        "subtitle": "Each item below must be confirmed individually — this section is never filled in by \"Accept all suggestions.\"",
+        "items": {
+          "noPersonalData": "This data does not contain personally identifiable information",
+          "noTraditionalKnowledge": "This data does not contain traditional ecological knowledge requiring community consent",
+          "noCulturallySensitive": "This data does not contain culturally sensitive material",
+          "rightsHeld": "I hold the rights to publish and license this dataset",
+          "exportControlReviewed": "I have reviewed the export control requirements for this data"
+        }
+      }
+    },
+    "Provenance": {
+      "title": "Provenance Declaration",
+      "subtitle": "Tell us how this data was produced. This helps buyers assess it — SBP does not assess scientific quality.",
+      "genericError": "Could not save your provenance declaration. Please try again.",
+      "continue": "Continue to Deploy",
+      "fields": {
+        "methodology": "Methodology",
+        "methodologyGuidance": "How was this data collected? What instruments, surveys, or sources were used? What are the known limitations of the collection method?",
+        "researchers": "Researchers",
+        "researcherName": "Researcher {index} name",
+        "researcherOrcid": "ORCID iD (optional)",
+        "remove": "Remove",
+        "addResearcher": "Add another researcher",
+        "peerReviewStatus": "Peer review status",
+        "peerReviewNone": "None",
+        "peerReviewUnderReview": "Under review",
+        "peerReviewPublished": "Published",
+        "peerReviewVenue": "Journal or venue",
+        "fundingSource": "Funding source",
+        "knownLimitations": "Known limitations"
+      },
+      "orcid": {
+        "label": "ORCID iD",
+        "placeholder": "0000-0000-0000-0000",
+        "checking": "Checking ORCID...",
+        "verified": "ORCID verified — {name}",
+        "manual": "Could not verify — will be reviewed manually"
+      },
+      "doi": {
+        "label": "DOI (optional)",
+        "placeholder": "10.1000/xyz123",
+        "checking": "Checking DOI...",
+        "verified": "DOI verified",
+        "manual": "Could not verify — will be reviewed manually"
+      },
+      "trustTier": {
+        "heading": "What this means for your trust tier",
+        "bronzeOnly": "Based on what you have provided, this dataset will list as Bronze (Identity Verified). Adding a verified DOI and peer review details would qualify you for Gold tier review.",
+        "goldEligible": "With a verified DOI this dataset is eligible for Gold tier review ($25 one-time fee). Gold review is clerical only — SBP does not assess scientific quality.",
+        "silverNote": "Silver tier is earned separately, through 3 verified purchaser upvotes after your endpoint goes live — not through anything declared here."
+      }
+    },
+    "Deploy": {
+      "title": "Deploy Your Endpoint",
+      "subtitle": "Choose how your data endpoint gets hosted.",
+      "continue": "Continue to Finish",
+      "pathSelector": {
+        "recommended": "Recommended",
+        "sbpManaged": {
+          "title": "SBP Managed",
+          "description": "SBP hosts and manages your endpoint during the pilot. No infrastructure to set up yourself."
+        },
+        "selfHosted": {
+          "title": "Self-Hosted",
+          "description": "Download a ready-to-deploy package and host your endpoint on your own Railway, Render, or VPS account."
+        }
+      },
+      "sbpManaged": {
+        "description": "SBP will set up and manage your endpoint on your behalf during the pilot period.",
+        "submit": "Submit deployment request",
+        "submitting": "Submitting...",
+        "genericError": "Could not submit your deployment request. Please try again.",
+        "confirmed": {
+          "title": "We are setting up your endpoint",
+          "deploymentId": "Deployment ID: {id}",
+          "timeline": "SBP will review and activate your endpoint within 2 business days.",
+          "dashboardLink": "Go to Provider Dashboard (available once active)"
+        }
+      },
+      "selfHosted": {
+        "description": "Download a package pre-filled with your approved listing details, ready to deploy on your own infrastructure.",
+        "download": "Download endpoint package",
+        "generating": "Generating package...",
+        "genericError": "Could not generate your endpoint package. Please try again.",
+        "downloaded": "Your package has downloaded. See the included README.md for deployment instructions."
+      }
+    },
+    "Complete": {
+      "title": "You're Almost Live",
+      "loading": "Finishing up...",
+      "dashboardLink": "Go to Provider Dashboard",
+      "card": {
+        "title": "Congratulations!",
+        "body": "{institutionName}, your listing \"{datasetTitle}\" has been submitted.",
+        "untitled": "your dataset",
+        "underReview": "Your listing is under review.",
+        "listingUrlLabel": "Your listing URL (active once SBP review is complete)",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
+      "timeline": {
+        "title": "What happens next",
+        "review": "SBP reviews your registration (1-2 business days)",
+        "activation": "Your endpoint is activated and listed in the directory",
+        "discovery": "AI agents and researchers can discover and query your data",
+        "payment": "You receive USDC directly to your Algorand wallet for each paid query",
+        "silver": "After 3 verified purchaser queries, you become eligible for Silver tier"
+      },
+      "usdcReality": {
+        "heading": "About receiving USDC payments",
+        "body": "Your earnings will be paid in USDC, a USD-pegged digital currency, directly to your Algorand wallet. USDC is not the same as cash in a bank account. Options for accessing value from your USDC: hold as a digital treasury asset, peer-to-peer exchange with contacts who hold USDC, or through an international exchange if your institution has a foreign bank account. Synergy Blockchain Pacific is actively consulting with the Central Bank of Samoa on a formal USDC-to-WST conversion pathway. We will notify all providers when this pathway becomes available."
+      }
+    }
+  },
+  "actions": {
+    "register": {
+      "invalidWebsite": "That website URL doesn't look valid.",
+      "genericError": "Registration failed. Please try again or contact SBP if this persists."
+    },
+    "verifyDomain": {
+      "checkFailed": "Could not check domain — will be verified manually",
+      "verified": "Domain verified",
+      "noRecords": "No email records found for this domain. Your registration will be reviewed manually — this does not block your application.",
+      "unavailable": "Domain check unavailable — will be verified manually"
+    },
+    "saveWallet": {
+      "genericError": "Could not save wallet address. Please try again."
+    },
+    "saveReview": {
+      "noUploadFound": "Could not find your uploaded data. Please return to the upload step.",
+      "genericError": "Could not save your review. Please try again.",
+      "endpointSaveError": "Could not save your endpoint listing. Please try again."
+    },
+    "saveProvenance": {
+      "genericError": "Could not save your provenance declaration. Please try again."
+    },
+    "createDeployment": {
+      "noEndpointFound": "Could not find your approved listing. Please complete Step 4 (Review) first.",
+      "genericError": "Could not submit your deployment request. Please try again."
     }
   }
 }

@@ -14,6 +14,7 @@ import { searchRoute } from "./routes/search.js";
 import { providerRoute } from "./routes/provider.js";
 import { endpointRoute } from "./routes/endpoint.js";
 import { verifyRoute } from "./routes/verify.js";
+import { discoveryRoute } from "./routes/discovery.js";
 import type { AppBindings } from "./types.js";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
@@ -67,6 +68,7 @@ function main(): void {
   app.use("*", paymentGate.middleware());
 
   app.route("/", healthRoute);
+  app.route("/", discoveryRoute);
   app.route("/", categoriesRoute);
   app.route("/", countriesRoute);
   app.route("/", searchRoute);

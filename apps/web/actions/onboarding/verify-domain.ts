@@ -1,5 +1,7 @@
 "use server";
 
+import { getServerMessage } from "@/lib/i18n/server-messages";
+
 export interface DomainCheckResult {
   verified: boolean;
   message: string;
@@ -25,22 +27,22 @@ export async function verifyDomain(domain: string): Promise<DomainCheckResult> {
     });
 
     if (!response.ok) {
-      return { verified: false, message: "Could not check domain — will be verified manually", manualReviewPath: true };
+      return { verified: false, message: getServerMessage("actions.verifyDomain.checkFailed"), manualReviewPath: true };
     }
 
     const data = (await response.json()) as DnsOverHttpsResponse;
     const hasMX = Boolean(data.Answer && data.Answer.length > 0);
 
     if (hasMX) {
-      return { verified: true, message: "Domain verified", manualReviewPath: false };
+      return { verified: true, message: getServerMessage("actions.verifyDomain.verified"), manualReviewPath: false };
     }
 
     return {
       verified: false,
-      message: "No email records found for this domain. Your registration will be reviewed manually — this does not block your application.",
+      message: getServerMessage("actions.verifyDomain.noRecords"),
       manualReviewPath: true,
     };
   } catch {
-    return { verified: false, message: "Domain check unavailable — will be verified manually", manualReviewPath: true };
+    return { verified: false, message: getServerMessage("actions.verifyDomain.unavailable"), manualReviewPath: true };
   }
 }

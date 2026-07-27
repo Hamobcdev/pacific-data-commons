@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { walletSchema } from "@/lib/onboarding/validation";
+import { getServerMessage } from "@/lib/i18n/server-messages";
 
 const USDC_MAINNET_ASA_ID = 31566704;
 
@@ -56,7 +57,7 @@ export async function saveWallet(
     .eq("id", providerId);
 
   if (error) {
-    return { success: false, walletVerified: false, usdcOptedIn, error: "Could not save wallet address. Please try again." };
+    return { success: false, walletVerified: false, usdcOptedIn, error: getServerMessage("actions.saveWallet.genericError") };
   }
 
   return { success: true, walletVerified: true, usdcOptedIn };
