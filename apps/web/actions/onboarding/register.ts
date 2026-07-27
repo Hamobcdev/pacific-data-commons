@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { registrationSchema, type RegistrationData } from "@/lib/onboarding/validation";
+import { getServerMessage } from "@/lib/i18n/server-messages";
 
 export interface RegisterResult {
   success: boolean;
@@ -38,7 +39,7 @@ export async function registerProvider(data: RegistrationData): Promise<Register
   try {
     verifiedDomain = new URL(parsed.data.officialWebsite).hostname;
   } catch {
-    return { success: false, error: "That website URL doesn't look valid.", field: "officialWebsite" };
+    return { success: false, error: getServerMessage("actions.register.invalidWebsite"), field: "officialWebsite" };
   }
 
   const { data: provider, error } = await supabase
@@ -62,7 +63,7 @@ export async function registerProvider(data: RegistrationData): Promise<Register
 
   if (error || !provider) {
     console.error("Provider registration failed:", error);
-    return { success: false, error: "Registration failed. Please try again or contact SBP if this persists." };
+    return { success: false, error: getServerMessage("actions.register.genericError") };
   }
 
   return { success: true, providerId: provider.id as string };

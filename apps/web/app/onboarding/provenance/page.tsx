@@ -1,12 +1,18 @@
 import { getTranslations } from "next-intl/server";
 import { StepIndicator } from "@/components/onboarding/StepIndicator";
+import { ProvenanceForm } from "@/components/provenance/ProvenanceForm";
 
 export default async function ProvenancePage() {
-  const t = await getTranslations("Onboarding.scaffold");
+  const t = await getTranslations("Onboarding.Provenance");
+
   return (
     <div>
       <StepIndicator currentStep={5} totalSteps={7} />
-      <div className="mt-8 rounded-lg border border-dashed border-gray-300 p-8 text-center text-gray-500">{t("comingSoon")}</div>
+      <div className="mt-8">
+        <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>
+        <p className="mt-2 text-gray-600">{t("subtitle")}</p>
+      </div>
+      <ProvenanceForm />
     </div>
   );
 }

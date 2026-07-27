@@ -101,6 +101,19 @@ const CAIP2_BY_NETWORK: Record<PdcAlgorandNetwork, Network> = {
   testnet: ALGORAND_TESTNET_CAIP2 as Network,
 };
 
+/**
+ * Resolves a PdcAlgorandNetwork ("mainnet"/"testnet") to its CAIP-2 network
+ * identifier — added for apps/directory-api's agent discovery route
+ * (`/.well-known/x402-directory.json`, Session 6), which needs to publish
+ * the network string without importing @x402/avm directly (the "only this
+ * module imports @x402/*" rule at the top of this file). Not previously
+ * exported because no caller outside PdcPaymentGate needed the raw CAIP-2
+ * string before now.
+ */
+export function getCaip2Network(network: PdcAlgorandNetwork): Network {
+  return CAIP2_BY_NETWORK[network];
+}
+
 function toAtomicUsdc(priceUsdc: number): string {
   return Math.round(priceUsdc * 10 ** USDC_DECIMALS).toString();
 }

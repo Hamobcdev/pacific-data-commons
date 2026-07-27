@@ -88,3 +88,84 @@ export const uploadContextSchema = z.object({
 export type RegistrationData = z.infer<typeof registrationSchema>;
 export type WalletData = z.infer<typeof walletSchema>;
 export type UploadContextData = z.infer<typeof uploadContextSchema>;
+
+// ============================================================================
+// Step 4 — Review
+// ============================================================================
+
+const reviewPricingRowSchema = z.object({
+  tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+  name: z.string(),
+  description: z.string(),
+  aiSuggestedPriceUsdc: z.number(),
+  overridePriceUsdc: z.string(),
+});
+
+/**
+ * R7 / CLAUDE.md P9: each sensitivity confirmation must be individually
+ * `true` — z.literal(true) on every field means a partially-confirmed form
+ * fails validation with a field-specific error, never a silent bulk pass.
+ */
+const reviewSensitivitySchema = z.object({
+  noPersonalData: z.literal(true, { errorMap: () => ({ message: "Please confirm this data does not contain personally identifiable information" }) }),
+  noTraditionalKnowledge: z.literal(true, {
+    errorMap: () => ({ message: "Please confirm this data does not contain traditional ecological knowledge requiring community consent" }),
+  }),
+  noCulturallySensitive: z.literal(true, { errorMap: () => ({ message: "Please confirm this data does not contain culturally sensitive material" }) }),
+  rightsHeld: z.literal(true, { errorMap: () => ({ message: "Please confirm you hold the rights to publish and license this dataset" }) }),
+  exportControlReviewed: z.literal(true, { errorMap: () => ({ message: "Please confirm you have reviewed the export control requirements for this data" }) }),
+});
+
+export const reviewSchema = z
+  .object({
+    title: z.string().min(5, "Please provide a descriptive title").max(200),
+    description: z.string().min(20, "Please describe your data in more detail").max(500),
+    category: z.enum(DATA_CATEGORIES, { required_error: "Please select a data category" }),
+    subCategory: z.string().max(200).optional().default(""),
+    geography: z.string().min(2, "Geographic coverage is required"),
+    timePeriodStart: z.string().regex(/^\d{4}$/, "Enter a 4-digit year"),
+    timePeriodEnd: z.string().regex(/^\d{4}$/, "Enter a 4-digit year"),
+    pricing: z
+      .array(reviewPricingRowSchema)
+      .refine((rows) => rows.some((row) => Number(row.overridePriceUsdc) > 0), {
+        message: "At least one pricing tier must have a price greater than $0",
+      }),
+    sensitivity: reviewSensitivitySchema,
+  })
+  .refine((data) => Number(data.timePeriodStart) <= Number(data.timePeriodEnd), {
+    message: "Start year must be before or the same as the end year",
+    path: ["timePeriodEnd"],
+  });
+
+export type ReviewData = z.infer<typeof reviewSchema>;
+
+// ============================================================================
+// Step 5 — Provenance
+// ============================================================================
+
+export const provenanceSchema = z.object({
+  methodology: z.string().min(20, "Please describe your methodology in more detail").max(2000),
+  researchers: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        orcid: z.string(),
+        orcidStatus: z.enum(["unchecked", "checking", "verified", "manual"]),
+        orcidVerifiedName: z.string().nullable(),
+      }),
+    )
+    .min(1, "Please add at least one researcher")
+    .refine((researchers) => researchers.some((r) => r.name.trim().length > 0), {
+      message: "Please provide at least one researcher name",
+    }),
+  doi: z.string().optional().default(""),
+  doiStatus: z.enum(["unchecked", "checking", "verified", "manual"]),
+  doiVerifiedTitle: z.string().nullable(),
+  peerReviewStatus: z.enum(["none", "under-review", "published", ""]),
+  peerReviewVenue: z.string().optional().default(""),
+  fundingSource: z.string().optional().default(""),
+  knownLimitations: z.string().max(2000).optional().default(""),
+});
+
+export type ProvenanceData = z.infer<typeof provenanceSchema>;
