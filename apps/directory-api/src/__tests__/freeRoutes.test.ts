@@ -40,12 +40,13 @@ describe("GET /health", () => {
     expect(body.status).toBe("ok");
   });
 
-  it("returns 503 degraded when the database errors", async () => {
+  it("returns 200 with a degraded body when the database errors — Railway's healthcheck must not restart-loop over a Supabase outage it can't fix", async () => {
     const app = buildTestApp(createFakeSupabase({ providers: { data: null, error: { message: "down" } } }));
     const res = await app.request("/health");
-    expect(res.status).toBe(503);
-    const body = (await res.json()) as { status: string };
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string; database: string };
     expect(body.status).toBe("degraded");
+    expect(body.database).toBe("unreachable");
   });
 });
 

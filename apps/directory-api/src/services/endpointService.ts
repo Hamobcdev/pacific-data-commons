@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, NotFoundError } from "../lib/errors.js";
-import type { EndpointRow } from "../lib/dbTypes.js";
+import type { Endpoint as EndpointRow } from "@pdc/shared-types";
 import { toPublicEndpoint, type PublicEndpoint } from "./publicProjections.js";
 
 /**

@@ -1,4 +1,6 @@
-import type { EndpointRow, ProviderRow } from "../lib/dbTypes.js";
+import type { Endpoint as EndpointRow, Provider as ProviderRow, PublicEndpoint, PublicProvider } from "@pdc/shared-types";
+
+export type { PublicEndpoint, PublicProvider } from "@pdc/shared-types";
 
 /**
  * Buyer/agent-facing shapes. Internal operational fields (fee accrual,
@@ -6,21 +8,10 @@ import type { EndpointRow, ProviderRow } from "../lib/dbTypes.js";
  * left out — those belong to the provider dashboard (Component 6), not the
  * public/PDC directory (CLAUDE.md P10: SBP verifies identity and records
  * signals, nothing about a provider's internal billing state is the buyer's
- * business).
+ * business). Shapes live in @pdc/shared-types/api.ts; the mapping logic
+ * (DB row -> public shape) stays here since it's app-specific behaviour, not
+ * a shared type.
  */
-export interface PublicProvider {
-  id: string;
-  institutionName: string;
-  institutionType: string;
-  country: string;
-  verifiedDomain: string | null;
-  walletAddress: string | null;
-  trustTier: "bronze" | "silver" | "gold";
-  verifiedGovernment: boolean;
-  liveSince: string | null;
-  totalQueriesServed: number;
-}
-
 export function toPublicProvider(row: ProviderRow): PublicProvider {
   return {
     id: row.id,
@@ -34,44 +25,6 @@ export function toPublicProvider(row: ProviderRow): PublicProvider {
     liveSince: row.went_live_at,
     totalQueriesServed: row.total_queries_served,
   };
-}
-
-export interface PublicEndpoint {
-  id: string;
-  providerId: string;
-  dataCategory: string;
-  dataSubCategory: string | null;
-  title: string;
-  description: string;
-  geography: { countries: string[] | null; region: string | null };
-  timePeriod: { start: number | null; end: number | null };
-  updateFrequency: string | null;
-  spatialResolution: string | null;
-  dataFormat: string | null;
-  languages: string[] | null;
-  pricingTiers: unknown;
-  maxTierAtBronze: number;
-  sampleResponse: unknown;
-  queryParameters: unknown;
-  rateLimit: string | null;
-  responseTimeSla: string | null;
-  sovereignty: {
-    indigenousDataFlag: boolean;
-    culturalSensitivity: string;
-    permittedUseCases: string[] | null;
-    attributionRequired: boolean;
-    attributionFormat: string | null;
-    commercialLicenceRequired: boolean;
-    donorConditions: string | null;
-  };
-  competitionTag: string | null;
-  skillsFileUrl: string | null;
-  healthStatus: string;
-  totalQueries: number;
-  isActive: boolean;
-  pausedReason: string | null;
-  endpointUrl: string | null;
-  integrityUrl: string | null;
 }
 
 export function toPublicEndpoint(row: EndpointRow): PublicEndpoint {

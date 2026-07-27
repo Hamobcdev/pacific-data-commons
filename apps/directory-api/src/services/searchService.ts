@@ -1,8 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isDataCategory } from "../lib/dataCategories.js";
 import { AppError } from "../lib/errors.js";
-import type { EndpointRow, ProviderRow } from "../lib/dbTypes.js";
-import { toPublicEndpoint, toPublicProvider, type PublicEndpoint } from "./publicProjections.js";
+import type {
+  DirectorySearchResult as SearchResult,
+  DirectorySearchResultItem as SearchResultItem,
+  Endpoint as EndpointRow,
+  Provider as ProviderRow,
+} from "@pdc/shared-types";
+import { toPublicEndpoint, toPublicProvider } from "./publicProjections.js";
+
+export type { DirectorySearchResult as SearchResult, DirectorySearchResultItem as SearchResultItem } from "@pdc/shared-types";
 
 export interface SearchFilters {
   category?: string;
@@ -13,18 +20,6 @@ export interface SearchFilters {
   keywords?: string;
   page: number;
   limit: number;
-}
-
-export interface SearchResultItem {
-  endpoint: PublicEndpoint;
-  provider: ReturnType<typeof toPublicProvider>;
-}
-
-export interface SearchResult {
-  results: SearchResultItem[];
-  page: number;
-  limit: number;
-  totalCount: number;
 }
 
 const MAX_LIMIT = 100;

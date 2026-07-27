@@ -1,3 +1,4 @@
+import type { PDPQueryBlock, PDPProviderBlock, PDPResponseBase } from "@pdc/shared-types";
 import { DATASET_METADATA, FISHERIES_RECORDS, type FisheriesRecord } from "../data/fisheries.js";
 
 export type PaidTier = "summary" | "slice" | "full" | "expert";
@@ -28,33 +29,18 @@ export interface ExpertAnnotations {
   pdp_compliance: string;
 }
 
-export interface PDPResponse {
-  schema_version: "pdp-1.0";
+/**
+ * This endpoint's narrowing of @pdc/shared-types's PDPResponseBase: fixed
+ * category/sub_category (this is a single-category demo endpoint), `data`
+ * typed to what this endpoint actually returns, and `paid_tier` narrowed
+ * from `string` to the 4 real tiers (excludes "commission" — /commission
+ * returns its own confirmation shape, not a PDP envelope at all).
+ */
+export interface PDPResponse extends Omit<PDPResponseBase, "category" | "sub_category" | "data" | "paid_tier"> {
   category: "fisheries";
   sub_category: "tuna_stock_assessment";
-  /** Always present — R6: no paid response may omit the synthetic-data notice. */
-  data_warning: string;
-  provider: {
-    institution: string;
-    country: string;
-    trust_tier: "bronze";
-    competition_tag: string;
-    /** The canonical dataset hash — computed once at startup, never per-request. */
-    provenance_hash: string;
-    integrity_url: string;
-  };
-  query: {
-    parameters_received: Record<string, string>;
-    parameters_applied: Record<string, string>;
-    records_returned: number;
-    records_total: number;
-  };
   data: FisheriesRecord[] | SummaryData;
-  methodology_summary: string;
-  citation: string;
-  accessed_at: string;
   paid_tier: PaidTier;
-  amount_paid_usdc: number;
 }
 
 /**
@@ -75,27 +61,31 @@ export function buildPDPResponse(params: {
 }): PDPResponse {
   const recordsReturned = Array.isArray(params.data) ? params.data.length : params.data.total_records;
 
+  const provider: PDPProviderBlock = {
+    institution: DATASET_METADATA.institution,
+    country: DATASET_METADATA.country,
+    trust_tier: "bronze",
+    competition_tag: DATASET_METADATA.competition_tag,
+    provenance_hash: params.datasetHash,
+    integrity_url: `${params.publicUrl}/integrity`,
+  };
+
+  const query: PDPQueryBlock = {
+    parameters_received: params.queryReceived,
+    parameters_applied: params.queryApplied,
+    records_returned: recordsReturned,
+    // Always the full dataset size, regardless of tier — "how many exist"
+    // as context for "how many you got back" (query.records_returned).
+    records_total: FISHERIES_RECORDS.length,
+  };
+
   return {
     schema_version: "pdp-1.0",
     category: "fisheries",
     sub_category: "tuna_stock_assessment",
     data_warning: DATASET_METADATA.data_warning,
-    provider: {
-      institution: DATASET_METADATA.institution,
-      country: DATASET_METADATA.country,
-      trust_tier: "bronze",
-      competition_tag: DATASET_METADATA.competition_tag,
-      provenance_hash: params.datasetHash,
-      integrity_url: `${params.publicUrl}/integrity`,
-    },
-    query: {
-      parameters_received: params.queryReceived,
-      parameters_applied: params.queryApplied,
-      records_returned: recordsReturned,
-      // Always the full dataset size, regardless of tier — "how many exist"
-      // as context for "how many you got back" (query.records_returned).
-      records_total: FISHERIES_RECORDS.length,
-    },
+    provider,
+    query,
     data: params.data,
     methodology_summary: DATASET_METADATA.methodology_summary,
     citation: DATASET_METADATA.citation,

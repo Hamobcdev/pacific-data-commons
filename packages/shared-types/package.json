@@ -1,0 +1,22 @@
+{
+  "name": "@pdc/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript interfaces shared across PDC apps, matching supabase/migrations/session1_migration.sql + session2_rls_fix.sql exactly. Types only — no runtime code, no dependencies.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  }
+}
