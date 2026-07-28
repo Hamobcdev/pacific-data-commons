@@ -1,10 +1,22 @@
 /**
  * OGIP-layer types only. Jurisdiction exists ONLY here — never on PDC
  * international layer types (Provider, Endpoint in providers.ts/endpoints.ts)
- * per P3 / Decision 19. Mirrors session1_migration.sql DOMAIN 6.
+ * per P3 / Decision 19. Mirrors session1_migration.sql DOMAIN 6, extended by
+ * supabase/migrations/session6_1_agent_schema.sql §7 (territory type +
+ * sovereignty profile fields).
  */
 
-export type JurisdictionType = "nation" | "regional" | "intergovernmental";
+export type JurisdictionType = "nation" | "regional" | "intergovernmental" | "territory";
+
+export type SovereigntyProfile =
+  | "non_self_governing"
+  | "freely_associated"
+  | "overseas_collectivity"
+  | "independent_nation"
+  | "regional_body"
+  | "intergovernmental_body";
+
+export type TreatyCapacity = "full" | "limited" | "none";
 
 export interface OgipJurisdiction {
   code: string;
@@ -13,6 +25,18 @@ export interface OgipJurisdiction {
   fund_wallet_address: string | null;
   ogip_active: boolean;
   created_at: string;
+
+  // Sovereignty profile fields (territory jurisdictions only — NULL for
+  // nation/regional/intergovernmental rows predating session6_1)
+  sovereignty_profile: SovereigntyProfile | null;
+  administering_state: string | null;
+  un_c24_listed: boolean;
+  treaty_capacity: TreatyCapacity;
+  /** Community-provided characterisation — platform never pre-fills this. */
+  self_description: string | null;
+  profile_basis_refs: Record<string, unknown> | null;
+  profile_reviewed_at: string | null;
+  profile_reviewed_by: string | null;
 }
 
 export type MinistryType =

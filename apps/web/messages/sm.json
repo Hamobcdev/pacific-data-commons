@@ -391,5 +391,23 @@
       "noEndpointFound": "Could not find your approved listing. Please complete Step 4 (Review) first.",
       "genericError": "Could not submit your deployment request. Please try again."
     }
+  },
+  "Agents": {
+    "title": "Pacific AI Agent Marketplace",
+    "subtitle": "Pre-built AI agents that query verified Pacific data on your behalf. Your earnings wallet funds your queries — the Pacific data economy, self-sustaining.",
+    "coming_soon": "Agent Marketplace — Coming Soon",
+    "coming_soon_detail": "SBP is building six specialist agents for Pacific trade, climate, fisheries, agriculture, remittance, and grant intelligence. Agents use your PDC earnings to query data directly.",
+    "nav": {
+      "label": "Marketplace",
+      "linkLabel": "Explore the Agent Marketplace"
+    },
+    "detail": {
+      "notFound": "This agent isn't listed yet.",
+      "comingSoon": "Agent details are coming in a future session."
+    },
+    "use": {
+      "title": "Use an Agent",
+      "comingSoon": "The agent-use flow is coming in a future session."
+    }
   }
 }

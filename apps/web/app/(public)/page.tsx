@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 // see Session 5 report for why app/page.tsx doesn't exist.
 export default async function LandingPage() {
   const t = await getTranslations("Landing");
+  const tAgents = await getTranslations("Agents.nav");
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 text-center">
@@ -16,6 +17,9 @@ export default async function LandingPage() {
       <p className="max-w-md text-gray-600">{t("subtitle")}</p>
       <Link href="/onboarding/register">
         <Button>{t("cta")}</Button>
+      </Link>
+      <Link href="/agents" className="text-sm text-ocean hover:underline">
+        {tAgents("linkLabel")}
       </Link>
     </main>
   );
