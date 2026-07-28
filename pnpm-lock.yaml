@@ -25,6 +25,9 @@ importers:
       hono:
         specifier: ^4.12.0
         version: 4.12.32
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
       zod:
         specifier: ^3.24.0
         version: 3.25.76
