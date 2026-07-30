@@ -40,6 +40,9 @@ export type PersonalDataFlag = "non_personal" | "anonymised" | "pseudonymised" |
 
 export type CommercialEligibility = "fully_commercial" | "research_only" | "government_only" | "community_consent";
 
+/** Decision 34 — provider-configured agent caching policy. */
+export type AgentReusePolicy = "per_run" | "ttl_cache" | "unrestricted";
+
 /** JSONB — not a foreign-keyed table, so this shape is a convention, not a
  * schema constraint. tier/price_usdc/path are load-bearing (read by search
  * filtering and provider endpoint templates); name/description are
@@ -123,6 +126,11 @@ export interface Endpoint {
   is_active: boolean;
   paused_reason: string | null;
   paused_at: string | null;
+
+  /** Decision 34 (session6_1_agent_schema.sql DOMAIN 9) — missing from this
+   * file until Session 7 added it, same gap as Provider.agent_spend_usdc. */
+  cache_ttl_seconds: number;
+  agent_reuse_policy: AgentReusePolicy;
 
   created_at: string;
   updated_at: string;

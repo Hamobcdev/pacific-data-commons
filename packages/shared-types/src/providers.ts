@@ -59,6 +59,12 @@ export interface Provider {
   total_revenue_usdc: number;
   last_query_at: string | null;
 
+  /** Bidirectional wallet (Part 6 §1A) — running total this provider's
+   * wallet has spent querying agents. Added by
+   * session6_1_agent_schema.sql DOMAIN 8; missing from this file until
+   * Session 7 added it. */
+  agent_spend_usdc: number;
+
   created_at: string;
   updated_at: string;
 }

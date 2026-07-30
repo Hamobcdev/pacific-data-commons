@@ -6,10 +6,12 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "seed-pilot": "tsx seed-pilot.ts"
+    "seed-pilot": "tsx seed-pilot.ts",
+    "register-agents": "tsx register-agents.ts"
   },
   "dependencies": {
     "@pdc/shared-types": "workspace:*",
+    "@pdc/x402-adapter": "workspace:*",
     "@supabase/supabase-js": "^2.47.0"
   },
   "devDependencies": {
