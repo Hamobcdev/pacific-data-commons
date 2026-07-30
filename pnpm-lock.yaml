@@ -8,6 +8,25 @@ importers:
 
   .: {}
 
+  apps/agents:
+    dependencies:
+      '@algorandfoundation/algokit-utils':
+        specifier: 10.0.0-alpha.46
+        version: 10.0.0-alpha.46
+      '@pdc/x402-adapter':
+        specifier: workspace:*
+        version: link:../../packages/pdc-x402-adapter
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.1)
+
   apps/directory-api:
     dependencies:
       '@hono/node-server':

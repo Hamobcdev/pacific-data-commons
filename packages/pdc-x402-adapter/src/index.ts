@@ -232,15 +232,20 @@ export interface ManualPaymentFetchConfig {
 }
 
 /**
- * Builds a payment-aware `fetch` for manual/dev end-to-end testing against a
- * live PDC endpoint (e.g. test/payment-client.ts scripts) — signs and submits
- * real x402 payments client-side. This is the client-side counterpart to
- * PdcPaymentGate: same "never import @x402/* outside this file" rule applies
- * to test tooling too, so this exists instead of scripts reaching for
- * @x402/fetch or @x402/avm themselves.
+ * Builds a payment-aware `fetch` that signs and submits real x402 payments
+ * client-side from an Algorand private key — the official Algorand x402
+ * tutorial's `wrapFetchWithPayment` + `toClientAvmSigner` pattern
+ * (https://dev.algorand.co/resources/x402-on-algorand/), GoPlausible-facilitator
+ * compatible. This is the client-side counterpart to PdcPaymentGate: same
+ * "never import @x402/* outside this file" rule applies to every caller, so
+ * this exists instead of callers reaching for @x402/fetch or @x402/avm
+ * themselves.
  *
- * Dev/test use only — never wire this into a server request path (a server
- * gates payments with PdcPaymentGate; it doesn't make them).
+ * Used by manual/dev end-to-end test tooling (test/payment-client.ts scripts)
+ * *and* by production apps that spend from an operational wallet (e.g.
+ * apps/sbp-agent, apps/agents) — any client-side payer, not dev-only.
+ * Server-side is different: a server gates payments with PdcPaymentGate, it
+ * doesn't make them, so never wire this into a server request path.
  */
 export function createManualPaymentFetch(config: ManualPaymentFetchConfig): typeof fetch {
   const signer = toClientAvmSigner(config.privateKeyBase64);
