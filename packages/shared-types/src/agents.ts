@@ -4,6 +4,8 @@
  * agent_run_endpoints, seasonal_contexts). Field-for-field — do not add
  * convenience fields here; that's what per-app projection types are for.
  */
+import type { CulturalSensitivity } from "./endpoints.js";
+import type { TrustTier } from "./providers.js";
 
 export type AgentType =
   | "trade_intelligence"
@@ -113,4 +115,77 @@ export interface AttributionRequest {
   signature: string;
   nonce: string;
   timestamp: string;
+}
+
+/**
+ * Agent run request/response shapes (Session 7 — Part 6 §1A, Decisions
+ * 32-38). Shared between apps/agents (produces AgentOutput) and apps/web
+ * (consumes it in server actions + renders it) so both sides of the HTTP
+ * boundary use one definition instead of two independently-drifting copies.
+ */
+
+export interface AgentInput {
+  agent_type: AgentType;
+  parameters: Record<string, string>;
+  /** Algorand address — user's identity, used only for the attribution
+   * record's wallet hash. The user's wallet never pays endpoints (R2/Model F). */
+  user_wallet: string;
+  /** Always "en" at launch — Decision 33. */
+  output_language: string;
+  /** Preview endpoints/cost without paying (R8). */
+  dry_run: boolean;
+}
+
+export interface EndpointPreview {
+  endpoint_id: string;
+  title: string;
+  tier: number;
+  price_usdc: number;
+  /** Why this endpoint is being queried — shown to the user before they confirm. */
+  reason: string;
+}
+
+export interface DataCitation {
+  endpoint_id: string;
+  endpoint_title: string;
+  provider_institution: string;
+  trust_tier: TrustTier;
+  /** On-chain proof of payment. */
+  algo_tx_id: string;
+  amount_usdc: number;
+  /** Dataset content hash (certificate v1.1 / PDPProviderBlock.provenance_hash). */
+  provenance_hash: string;
+}
+
+export interface SovereigntyFlag {
+  endpoint_id: string;
+  indigenous_data_flag: boolean;
+  cultural_sensitivity: CulturalSensitivity;
+  note: string;
+}
+
+export interface AgentOutput {
+  agent_type: AgentType;
+  run_id: string;
+  dry_run: boolean;
+
+  /** Present only when dry_run is true. */
+  preview?: {
+    endpoints_to_query: EndpointPreview[];
+    estimated_cost_usdc: number;
+    output_shape: string;
+  };
+
+  /** Present only when dry_run is false and the run succeeded. */
+  synthesis?: string;
+  /** Claude's best-effort JSON parse of the synthesis output — shape varies
+   * per agent (most return an object; grant_matcher returns an array), so
+   * this is intentionally not narrowed further than `unknown`. */
+  structured_data?: unknown;
+  citations: DataCitation[];
+  total_cost_usdc: number;
+  generated_at: string;
+
+  data_warning?: string;
+  sovereignty_flags?: SovereigntyFlag[];
 }

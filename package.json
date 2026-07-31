@@ -12,8 +12,10 @@
     "dev:pilot-endpoint": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/pilot-endpoint dev",
     "dev:sbp-agent": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/sbp-agent dev",
     "dev:web": "pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/web dev",
+    "dev:agents": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/agents dev",
     "build:web": "pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/web build",
     "seed-pilot": "pnpm --filter @pdc/scripts seed-pilot",
+    "register-agents": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/scripts register-agents",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"

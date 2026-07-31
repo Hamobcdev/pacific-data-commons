@@ -32,6 +32,7 @@ const providerRow: ProviderRow = {
   total_queries_served: 42,
   total_revenue_usdc: 0,
   last_query_at: null,
+  agent_spend_usdc: 0,
   created_at: "2025-12-01T00:00:00.000Z",
   updated_at: "2025-12-01T00:00:00.000Z",
 };
@@ -90,6 +91,8 @@ const endpointRow: EndpointRow = {
   is_active: true,
   paused_reason: null,
   paused_at: null,
+  cache_ttl_seconds: 86400,
+  agent_reuse_policy: "ttl_cache",
   created_at: "2025-12-01T00:00:00.000Z",
   updated_at: "2025-12-01T00:00:00.000Z",
 };

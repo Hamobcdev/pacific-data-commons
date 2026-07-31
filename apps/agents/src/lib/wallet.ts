@@ -15,15 +15,15 @@ export interface OperationalWalletBalance {
 }
 
 /**
- * Checks a PDC agent's operational wallet USDC balance via algokit-utils'
- * AssetManager, so an agent can decide it has enough funds before running a
- * query cycle rather than discovering a payment failure mid-cycle. Point
+ * Checks the agent operational wallet's USDC balance via algokit-utils'
+ * AssetManager, so the service can refuse a live run early (with a clear
+ * error) rather than let an unfunded wallet fail mid-payment. Point
  * `algodUrl` at the Nodely primary / AlgoNode failover per CLAUDE.md Section
  * 6 — this module takes no position on which node to use.
  *
  * Never throws: an unfunded or not-opted-in wallet is a valid (zero
  * balance, reported error) status, and an algod outage degrades the caller
- * to "balance unknown" rather than crashing the agent.
+ * to "balance unknown" rather than crashing the service.
  */
 export async function getUsdcBalance(params: {
   address: string;
