@@ -2,10 +2,10 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/directory-api build"
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/directory-api build"
   },
   "deploy": {
-    "startCommand": "node dist/index.js",
+    "startCommand": "node apps/directory-api/dist/index.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
