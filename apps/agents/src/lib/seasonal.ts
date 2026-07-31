@@ -1,12 +1,58 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  createClient,
+  type SupabaseClient,
+  type WebSocketLike,
+  type WebSocketLikeConstructor,
+} from "@supabase/supabase-js";
 
 export type SeasonalDomain = "fisheries" | "agriculture" | "climate";
+
+/**
+ * Satisfies @supabase/realtime-js's WebSocketLikeConstructor shape without
+ * ever opening a socket. This module only ever does plain database reads
+ * (.from("seasonal_contexts").select(...)) — never .channel()/.subscribe()
+ * — but SupabaseClient's constructor unconditionally builds a
+ * RealtimeClient regardless, which eagerly calls
+ * WebSocketFactory.getWebSocketConstructor() and throws immediately on any
+ * Node runtime without a native global WebSocket (stable only from Node
+ * 22). That crash happens at createClient() time, not first use — the same
+ * root cause and fix as apps/directory-api/src/lib/supabase.ts; see that
+ * file's comment for the full trace, including why a `params.eventsPerSecond`
+ * workaround does not work (it isn't part of RealtimeClientOptions and has
+ * no effect on WebSocketFactory resolution).
+ */
+class NoopWebSocket implements WebSocketLike {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
+  readonly readyState = 3;
+  readonly url = "";
+  readonly protocol = "";
+  onopen = null;
+  onmessage = null;
+  onclose = null;
+  onerror = null;
+  constructor(_address: string | URL, _subprotocols?: string | string[]) {}
+  close(): void {}
+  send(): void {}
+  addEventListener(): void {}
+  removeEventListener(): void {}
+}
 
 let cachedClient: SupabaseClient | undefined;
 
 function getClient(url: string, serviceKey: string): SupabaseClient {
   if (!cachedClient) {
-    cachedClient = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    cachedClient = createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      // See NoopWebSocket's doc comment above for why this is required.
+      realtime: { transport: NoopWebSocket as unknown as WebSocketLikeConstructor },
+    });
   }
   return cachedClient;
 }
