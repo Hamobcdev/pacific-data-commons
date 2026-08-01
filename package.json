@@ -21,6 +21,10 @@
     "register-agents": "pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/scripts register-agents",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "build:agents": "pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/x402-adapter build && pnpm --filter @pdc/agents build"
+  },
+  "dependencies": {
+    "algosdk": "^3.6.0"
   }
 }
