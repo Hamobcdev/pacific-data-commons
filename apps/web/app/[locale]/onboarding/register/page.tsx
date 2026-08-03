@@ -1,12 +1,14 @@
 import { getTranslations } from "next-intl/server";
 import { RegistrationForm } from "@/components/register/RegistrationForm";
 import { StepIndicator } from "@/components/onboarding/StepIndicator";
+import { InstitutionalPanel } from "@/components/register/InstitutionalPanel";
 
 export default async function RegisterPage() {
   const t = await getTranslations("Onboarding.Register");
 
   return (
-    <div>
+    <div className="lg:pr-[380px]">
+      <InstitutionalPanel />
       <StepIndicator currentStep={1} totalSteps={7} />
       <div className="mt-8">
         <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>

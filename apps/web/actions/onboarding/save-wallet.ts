@@ -3,6 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { walletSchema } from "@/lib/onboarding/validation";
 import { getServerMessage } from "@/lib/i18n/server-messages";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 const USDC_MAINNET_ASA_ID = 31566704;
 
@@ -25,9 +26,17 @@ interface AlgodAccount {
  */
 export async function saveWallet(
   providerId: string,
+  sessionToken: string,
   walletAddress: string,
   hasInstitutionalAuthority: boolean,
 ): Promise<WalletSaveResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    const message = err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session.";
+    return { success: false, walletVerified: false, usdcOptedIn: null, error: message };
+  }
+
   const parsed = walletSchema.safeParse({ walletAddress, hasInstitutionalAuthority });
   if (!parsed.success) {
     return { success: false, walletVerified: false, usdcOptedIn: null, error: parsed.error.issues[0]?.message };

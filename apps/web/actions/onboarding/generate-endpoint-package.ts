@@ -3,6 +3,7 @@
 import JSZip from "jszip";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/onboarding/slug";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 import type { PricingTier } from "@pdc/shared-types";
 
 export interface GeneratePackageResult {
@@ -345,7 +346,13 @@ function buildPdpSchema(params: {
  * never touches the provider's actual dataset (CLAUDE.md P1), only the
  * metadata they already approved.
  */
-export async function generateEndpointPackage(providerId: string): Promise<GeneratePackageResult> {
+export async function generateEndpointPackage(providerId: string, sessionToken: string): Promise<GeneratePackageResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const supabase = createServiceClient();
 
   const { data: provider, error: providerError } = await supabase

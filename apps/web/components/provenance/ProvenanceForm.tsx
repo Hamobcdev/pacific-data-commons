@@ -28,6 +28,7 @@ export function ProvenanceForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [form, setForm] = useState<ProvenanceForm>(() => {
     const loaded = loadLocalState()?.provenance ?? defaultState().provenance;
     return loaded.researchers.length > 0 ? loaded : { ...loaded, researchers: [newResearcher()] };
@@ -35,11 +36,12 @@ export function ProvenanceForm() {
 
   useEffect(() => {
     const state = loadLocalState();
-    if (!state?.providerId) {
+    if (!state?.providerId || !state.sessionToken) {
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
+    setSessionToken(state.sessionToken);
   }, [router]);
 
   const persist = (updated: ProvenanceForm) => {
@@ -63,10 +65,10 @@ export function ProvenanceForm() {
   const canSubmit = parsedForm.success;
 
   const handleSubmit = () => {
-    if (!providerId || !parsedForm.success) return;
+    if (!providerId || !sessionToken || !parsedForm.success) return;
     setError(null);
     startTransition(async () => {
-      const result = await saveProvenance(providerId, parsedForm.data);
+      const result = await saveProvenance(providerId, sessionToken, parsedForm.data);
       if (result.success && result.nextStep) {
         const state = loadLocalState() ?? defaultState();
         saveLocalState({ ...state, currentStep: "deploy" });
@@ -77,7 +79,7 @@ export function ProvenanceForm() {
     });
   };
 
-  if (!providerId) return null;
+  if (!providerId || !sessionToken) return null;
 
   return (
     <div className="mt-6 space-y-6">

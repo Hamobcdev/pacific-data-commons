@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { reviewSchema, type ReviewData } from "@/lib/onboarding/validation";
 import { BRONZE_CAPPED_TIERS, BRONZE_PRICE_CAP_USDC } from "@/lib/onboarding/tiers";
 import { getServerMessage } from "@/lib/i18n/server-messages";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 import type { PricingTier } from "@pdc/shared-types";
 
 export interface SaveReviewResult {
@@ -45,7 +46,13 @@ export interface ReviewContext {
  * suggestion baseline) data for a given provider. Read-only — never blocks
  * or throws; an empty/null result just means the panels render their
  * "not yet available" state. */
-export async function getReviewContext(providerId: string): Promise<ReviewContext> {
+export async function getReviewContext(providerId: string, sessionToken: string): Promise<ReviewContext> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch {
+    return { uploads: [], suggested: null, verifiedGovernment: false };
+  }
+
   const supabase = createServiceClient();
 
   const { data: provider } = await supabase.from("providers").select("verified_government").eq("id", providerId).maybeSingle();
@@ -146,7 +153,13 @@ function diffProviderEdits(baseline: StageClassification, data: ReviewData): Rec
  * endpoint by (provider_id, most recently created) — a single-dataset POC
  * onboarding flow only ever has one in-progress endpoint per provider.
  */
-export async function saveReview(providerId: string, data: ReviewData): Promise<SaveReviewResult> {
+export async function saveReview(providerId: string, sessionToken: string, data: ReviewData): Promise<SaveReviewResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const parsed = reviewSchema.safeParse(data);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];

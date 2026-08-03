@@ -1,5 +1,7 @@
 "use server";
 
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
 export interface DoiCheckResult {
   verified: boolean;
   /** Paper title returned by CrossRef, when the lookup succeeds. */
@@ -22,6 +24,12 @@ interface CrossrefWork {
  * submission, an unresolvable DOI just shows "will be reviewed manually."
  */
 export async function verifyDoi(doi: string): Promise<DoiCheckResult> {
+  const ip = await getClientIp();
+  const rateLimit = checkRateLimit({ identifier: `verify-doi:${ip}`, maxRequests: 10, windowMs: 60 * 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return { verified: false, title: null, manualReviewPath: true };
+  }
+
   const trimmed = doi.trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
   if (!trimmed) {
     return { verified: false, title: null, manualReviewPath: true };

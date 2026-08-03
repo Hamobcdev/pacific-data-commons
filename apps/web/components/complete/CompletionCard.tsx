@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ShareButtons } from "@/components/ui/ShareButtons";
+import { slugify } from "@/lib/onboarding/slug";
 
 export interface CompletionCardProps {
   institutionName: string;
@@ -51,6 +53,18 @@ export function CompletionCard({ institutionName, datasetTitle, providerSlug }: 
             </Button>
           </div>
         </div>
+
+        {datasetTitle && (
+          <div className="mt-4">
+            <p className="text-xs text-gray-500 mb-2">Share your new dataset listing</p>
+            <ShareButtons
+              datasetName={datasetTitle}
+              providerName={institutionName}
+              datasetUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/data/${providerSlug}/${slugify(datasetTitle)}`}
+              pricePerQuery="from $0.01"
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -3,6 +3,7 @@
 import { UploadPartCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createR2Client, getR2Bucket } from "@/lib/upload/r2";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 const PART_URL_EXPIRY_SECONDS = 15 * 60;
 
@@ -18,7 +19,19 @@ export interface GetPartUrlResult {
  * lib/upload/chunked.ts — the browser PUTs the chunk straight to R2 with
  * this URL, this server never sees the bytes.
  */
-export async function getPartUploadUrl(params: { key: string; uploadId: string; partNumber: number }): Promise<GetPartUrlResult> {
+export async function getPartUploadUrl(params: {
+  providerId: string;
+  sessionToken: string;
+  key: string;
+  uploadId: string;
+  partNumber: number;
+}): Promise<GetPartUrlResult> {
+  try {
+    await validateOnboardingSession(params.providerId, params.sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   try {
     const client = createR2Client();
     const command = new UploadPartCommand({

@@ -19,7 +19,9 @@ export type AgentRunResult = AgentRunSuccess | AgentRunFailure;
 function agentsServiceUrl(): string {
   const url = process.env.AGENTS_SERVICE_URL;
   if (!url) {
-    throw new Error("AGENTS_SERVICE_URL is not configured");
+    throw new Error(
+      "AGENTS_SERVICE_URL is not configured. Add it to your .env.local file pointing to the @pdc/agents service. See .env.example for the correct variable name.",
+    );
   }
   return url.replace(/\/$/, "");
 }

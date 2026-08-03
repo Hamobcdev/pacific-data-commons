@@ -18,16 +18,18 @@ export function DeployLayout() {
   const t = useTranslations("Onboarding.Deploy");
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [path, setPath] = useState<DeployPath | "">("");
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
 
   useEffect(() => {
     const state = loadLocalState();
-    if (!state?.providerId) {
+    if (!state?.providerId || !state.sessionToken) {
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
+    setSessionToken(state.sessionToken);
     setPath(state.deploy.path);
     setDeploymentId(state.deploy.deploymentId);
   }, [router]);
@@ -50,7 +52,7 @@ export function DeployLayout() {
     router.push("/onboarding/complete");
   };
 
-  if (!providerId) return null;
+  if (!providerId || !sessionToken) return null;
 
   const canContinue = path === "self_hosted" || (path === "sbp_managed" && Boolean(deploymentId));
 
@@ -58,8 +60,10 @@ export function DeployLayout() {
     <div className="mt-6 space-y-6">
       <DeployPathSelector value={path} onChange={choosePath} />
 
-      {path === "sbp_managed" && <SbpManagedPath providerId={providerId} deploymentId={deploymentId} onSubmitted={handleDeploymentSubmitted} />}
-      {path === "self_hosted" && <SelfHostedPath providerId={providerId} />}
+      {path === "sbp_managed" && (
+        <SbpManagedPath providerId={providerId} sessionToken={sessionToken} deploymentId={deploymentId} onSubmitted={handleDeploymentSubmitted} />
+      )}
+      {path === "self_hosted" && <SelfHostedPath providerId={providerId} sessionToken={sessionToken} />}
 
       <StepNav
         onBack={() => router.push("/onboarding/provenance")}

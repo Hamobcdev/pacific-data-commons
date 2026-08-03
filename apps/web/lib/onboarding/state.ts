@@ -89,7 +89,11 @@ export interface DeployState {
  * actions (R4) — see saveLocalState() below and actions/onboarding/*.ts. */
 export interface OnboardingState {
   providerId: string | null; // set after Step 1 creates the DB record
-  sessionToken: string | null; // reserved for magic-link resume correlation
+  /** Onboarding ownership token minted by register.ts (see
+   * lib/onboarding/session.ts). Every mutating onboarding/upload action
+   * requires providerId + sessionToken together — a bare providerId is no
+   * longer sufficient proof of ownership (Session 9 C1 fix). */
+  sessionToken: string | null;
   currentStep: OnboardingStep;
   lastSavedAt: string | null;
 

@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { uploadContextSchema, type UploadContextData } from "@/lib/onboarding/validation";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 export interface UploadContextResult {
   success: boolean;
@@ -22,9 +23,16 @@ export interface UploadContextResult {
  */
 export async function saveUploadContext(
   providerId: string,
+  sessionToken: string,
   uploadedFileIds: string[],
   data: UploadContextData,
 ): Promise<UploadContextResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const parsed = uploadContextSchema.safeParse({
     ...data,
     uploadedFiles: uploadedFileIds.map((id) => ({ id, uploadStatus: "complete" as const })),

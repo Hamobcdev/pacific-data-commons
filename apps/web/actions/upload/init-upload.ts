@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { createR2Client, getR2Bucket } from "@/lib/upload/r2";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 const ACCEPTED_EXTENSIONS = ["pdf", "xlsx", "csv", "docx", "md", "zip"] as const;
 const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
@@ -25,9 +26,16 @@ function extensionOf(filename: string): string {
  */
 export async function initUpload(params: {
   providerId: string;
+  sessionToken: string;
   filename: string;
   fileSizeBytes: number;
 }): Promise<InitUploadResult> {
+  try {
+    await validateOnboardingSession(params.providerId, params.sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const ext = extensionOf(params.filename);
   if (!ACCEPTED_EXTENSIONS.includes(ext as (typeof ACCEPTED_EXTENSIONS)[number])) {
     return {

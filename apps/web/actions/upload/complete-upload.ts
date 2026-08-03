@@ -3,6 +3,7 @@
 import { CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { createR2Client, getR2Bucket } from "@/lib/upload/r2";
 import { createServiceClient } from "@/lib/supabase/server";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 import type { UploadedFileType } from "@pdc/shared-types";
 
 export interface CompleteUploadResult {
@@ -19,6 +20,7 @@ export interface CompleteUploadResult {
  */
 export async function completeUpload(params: {
   providerId: string;
+  sessionToken: string;
   key: string;
   uploadId: string;
   parts: Array<{ partNumber: number; etag: string }>;
@@ -26,6 +28,12 @@ export async function completeUpload(params: {
   fileType: UploadedFileType;
   fileSizeBytes: number;
 }): Promise<CompleteUploadResult> {
+  try {
+    await validateOnboardingSession(params.providerId, params.sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const client = createR2Client();
 
   try {
