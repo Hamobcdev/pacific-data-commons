@@ -17,7 +17,17 @@ const envSchema = z.object({
   // Absent -> dry-run mode (logs what it would pay without paying).
   // DIFFERENT wallet from the payTo addresses (AVM_ADDRESS) used by
   // directory-api/pilot-endpoint — see .env.example for why.
+  // Session 8: this is now the AWS Secrets Manager fallback path only — see
+  // key-provider.ts. Kept optional so local dev without AWS still works.
   AGENT_WALLET_KEY: z.string().min(1).optional(),
+
+  // Session 8 — AWS Secrets Manager key provider (Priority 1 security item).
+  // All optional: getAgentWalletKey() falls back to AGENT_WALLET_KEY above
+  // when these aren't set, so this schema doesn't hard-require AWS.
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_SECRET_NAME: z.string().optional(),
+  AWS_REGION: z.string().optional(),
 
   ALGORAND_NETWORK: z.enum(["mainnet", "testnet"]).default("mainnet"),
   ALGORAND_NODE_URL: z.string().url().default("https://mainnet-api.algonode.cloud"),
