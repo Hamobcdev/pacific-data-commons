@@ -33,6 +33,23 @@ describe("registrationSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts an email with incidental leading/trailing whitespace (e.g. pasted from a signature)", () => {
+    const result = registrationSchema.safeParse({ ...valid, contactEmail: " jane@usp.ac.fj " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.contactEmail).toBe("jane@usp.ac.fj");
+    }
+  });
+
+  it("accepts a contact name and institution name with incidental whitespace", () => {
+    const result = registrationSchema.safeParse({ ...valid, contactName: " Dr. Jane Smith ", institutionName: " University of the South Pacific " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.contactName).toBe("Dr. Jane Smith");
+      expect(result.data.institutionName).toBe("University of the South Pacific");
+    }
+  });
+
   it("rejects an unknown institution type", () => {
     const result = registrationSchema.safeParse({ ...valid, institutionType: "spaceship" });
     expect(result.success).toBe(false);
