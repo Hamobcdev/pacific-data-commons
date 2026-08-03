@@ -21,12 +21,13 @@ export function WalletForm() {
   const [error, setError] = useState<string | null>(null);
   const [guideConfirmed, setGuideConfirmed] = useState(false);
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [institutionName, setInstitutionName] = useState("");
   const [form, setForm] = useState<WalletFormState>(() => loadLocalState()?.wallet ?? defaultState().wallet);
 
   useEffect(() => {
     const state = loadLocalState();
-    if (!state?.providerId) {
+    if (!state?.providerId || !state.sessionToken) {
       // No registration on record for this device/session — send them back
       // to Step 1 rather than showing a wallet form with nothing to attach
       // it to (R5: no dead ends).
@@ -34,6 +35,7 @@ export function WalletForm() {
       return;
     }
     setProviderId(state.providerId);
+    setSessionToken(state.sessionToken);
     setInstitutionName(state.registration.institutionName);
   }, [router]);
 
@@ -47,10 +49,10 @@ export function WalletForm() {
   const canSubmit = guideConfirmed && addressFormatValid && form.hasInstitutionalAuthority === true;
 
   const handleSubmit = () => {
-    if (!providerId) return;
+    if (!providerId || !sessionToken) return;
     setError(null);
     startTransition(async () => {
-      const result = await saveWallet(providerId, form.walletAddress, form.hasInstitutionalAuthority === true);
+      const result = await saveWallet(providerId, sessionToken, form.walletAddress, form.hasInstitutionalAuthority === true);
       if (result.success) {
         persist({ ...form, walletVerified: true, usdcOptedIn: result.usdcOptedIn });
         const state = loadLocalState() ?? defaultState();
@@ -62,7 +64,7 @@ export function WalletForm() {
     });
   };
 
-  if (!providerId) return null;
+  if (!providerId || !sessionToken) return null;
 
   return (
     <div className="mt-6 space-y-6">

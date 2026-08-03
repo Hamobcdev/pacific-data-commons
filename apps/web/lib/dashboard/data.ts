@@ -5,6 +5,9 @@ export interface DashboardData {
   provider: Provider;
   endpoints: Endpoint[];
   recentTransactions: TransactionLogEntry[];
+  /** Highest verified-positive upvote count across this provider's
+   * endpoints — feeds the Silver tier progress widget. */
+  bestUpvoteCount: number;
 }
 
 /**
@@ -34,9 +37,21 @@ export async function getDashboardData(providerId: string): Promise<DashboardDat
     .order("queried_at", { ascending: false })
     .limit(10);
 
+  let bestUpvoteCount = 0;
+  for (const endpoint of endpoints ?? []) {
+    const { count } = await supabase
+      .from("community_ratings")
+      .select("id", { count: "exact", head: true })
+      .eq("endpoint_id", endpoint.id as string)
+      .eq("rating", "positive")
+      .eq("query_verified", true);
+    bestUpvoteCount = Math.max(bestUpvoteCount, count ?? 0);
+  }
+
   return {
     provider: provider as Provider,
     endpoints: (endpoints ?? []) as Endpoint[],
     recentTransactions: (recentTransactions ?? []) as TransactionLogEntry[],
+    bestUpvoteCount,
   };
 }

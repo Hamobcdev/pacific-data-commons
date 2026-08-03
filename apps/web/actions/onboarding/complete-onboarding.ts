@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/onboarding/slug";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 export interface CompleteOnboardingResult {
   success: boolean;
@@ -23,7 +24,19 @@ export interface CompleteOnboardingResult {
  * entry already exists for this provider (re-visiting Step 7 must not
  * duplicate the queue).
  */
-export async function completeOnboarding(providerId: string): Promise<CompleteOnboardingResult> {
+export async function completeOnboarding(providerId: string, sessionToken: string): Promise<CompleteOnboardingResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session.",
+      institutionName: "",
+      datasetTitle: "",
+      providerSlug: "",
+    };
+  }
+
   const supabase = createServiceClient();
 
   const { data: provider, error: providerError } = await supabase

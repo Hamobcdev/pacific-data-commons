@@ -79,16 +79,20 @@ export function RegistrationForm() {
   const parsedForm = registrationSchema.safeParse(form);
   const canSubmit = parsedForm.success;
 
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+
   const handleSubmit = () => {
     setError(null);
+    setAlreadyRegistered(false);
     if (!parsedForm.success) return;
     startTransition(async () => {
       const result = await registerProvider(parsedForm.data);
-      if (result.success && result.providerId) {
+      if (result.success && result.providerId && result.sessionToken) {
         const state = loadLocalState() ?? defaultState();
-        saveLocalState({ ...state, providerId: result.providerId, registration: form, currentStep: "wallet" });
+        saveLocalState({ ...state, providerId: result.providerId, sessionToken: result.sessionToken, registration: form, currentStep: "wallet" });
         router.push("/onboarding/wallet");
       } else {
+        setAlreadyRegistered(Boolean(result.alreadyRegistered));
         setError(result.error ?? t("genericError"));
       }
     });
@@ -194,7 +198,7 @@ export function RegistrationForm() {
 
       <StepNav nextType="submit" nextDisabled={!canSubmit} nextLabel={t("continue")} isSubmitting={isPending} submittingLabel={t("submitting")} />
 
-      <ResumeLink defaultEmail={form.contactEmail || undefined} />
+      <ResumeLink defaultEmail={form.contactEmail || undefined} autoOpen={alreadyRegistered} />
     </form>
   );
 }

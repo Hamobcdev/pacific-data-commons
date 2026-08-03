@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export interface SelfHostedPathProps {
   providerId: string;
+  sessionToken: string;
 }
 
 function base64ToBlob(base64: string, contentType: string): Blob {
@@ -22,7 +23,7 @@ function base64ToBlob(base64: string, contentType: string): Blob {
  * Content-Disposition download header (that's a Route Handler concept) —
  * this decodes the base64 ZIP the server action returns into a Blob and
  * triggers the browser download client-side instead. */
-export function SelfHostedPath({ providerId }: SelfHostedPathProps) {
+export function SelfHostedPath({ providerId, sessionToken }: SelfHostedPathProps) {
   const t = useTranslations("Onboarding.Deploy.selfHosted");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function SelfHostedPath({ providerId }: SelfHostedPathProps) {
   const handleDownload = () => {
     setError(null);
     startTransition(async () => {
-      const result = await generateEndpointPackage(providerId);
+      const result = await generateEndpointPackage(providerId, sessionToken);
       if (result.success && result.base64Zip && result.filename) {
         const blob = base64ToBlob(result.base64Zip, "application/zip");
         const url = URL.createObjectURL(blob);

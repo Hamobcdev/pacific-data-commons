@@ -20,6 +20,7 @@ export function ReviewLayout() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [verifiedGovernment, setVerifiedGovernment] = useState(false);
   const [loadingContext, setLoadingContext] = useState(true);
   const [uploads, setUploads] = useState<OriginalUploadSummary[]>([]);
@@ -30,13 +31,14 @@ export function ReviewLayout() {
 
   useEffect(() => {
     const state = loadLocalState();
-    if (!state?.providerId) {
+    if (!state?.providerId || !state.sessionToken) {
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
+    setSessionToken(state.sessionToken);
 
-    getReviewContext(state.providerId).then((context) => {
+    getReviewContext(state.providerId, state.sessionToken).then((context) => {
       setUploads(context.uploads);
       setVerifiedGovernment(context.verifiedGovernment);
       setLoadingContext(false);
@@ -83,10 +85,10 @@ export function ReviewLayout() {
   const canSubmit = parsedForm.success && allSensitivityConfirmed;
 
   const handleSubmit = () => {
-    if (!providerId || !parsedForm.success) return;
+    if (!providerId || !sessionToken || !parsedForm.success) return;
     setError(null);
     startTransition(async () => {
-      const result = await saveReview(providerId, parsedForm.data);
+      const result = await saveReview(providerId, sessionToken, parsedForm.data);
       if (result.success && result.nextStep) {
         const state = loadLocalState() ?? defaultState();
         saveLocalState({ ...state, currentStep: "provenance" });
@@ -97,7 +99,7 @@ export function ReviewLayout() {
     });
   };
 
-  if (!providerId) return null;
+  if (!providerId || !sessionToken) return null;
 
   return (
     <div className="mt-6 space-y-6">

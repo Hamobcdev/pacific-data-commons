@@ -1,6 +1,7 @@
 "use server";
 
 import { getServerMessage } from "@/lib/i18n/server-messages";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export interface DomainCheckResult {
   verified: boolean;
@@ -21,6 +22,12 @@ interface DnsOverHttpsResponse {
  * manual review instead of failing the form.
  */
 export async function verifyDomain(domain: string): Promise<DomainCheckResult> {
+  const ip = await getClientIp();
+  const rateLimit = checkRateLimit({ identifier: `verify-domain:${ip}`, maxRequests: 10, windowMs: 60 * 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return { verified: false, message: "Too many checks. Please try again shortly.", manualReviewPath: true };
+  }
+
   try {
     const response = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`, {
       headers: { Accept: "application/dns-json" },

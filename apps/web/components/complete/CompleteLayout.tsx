@@ -22,12 +22,12 @@ export function CompleteLayout() {
 
   useEffect(() => {
     const state = loadLocalState();
-    if (!state?.providerId) {
+    if (!state?.providerId || !state.sessionToken) {
       router.replace("/onboarding/register");
       return;
     }
 
-    completeOnboarding(state.providerId).then((result) => {
+    completeOnboarding(state.providerId, state.sessionToken).then((result) => {
       if (result.success) {
         setSummary({ institutionName: result.institutionName, datasetTitle: result.datasetTitle, providerSlug: result.providerSlug });
       }

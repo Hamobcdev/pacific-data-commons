@@ -33,6 +33,7 @@ export function UploadForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [form, setForm] = useState<UploadFormState>(() => loadLocalState()?.upload ?? defaultState().upload);
 
   // Raw File objects can't survive localStorage (or a reload) — only the
@@ -44,11 +45,12 @@ export function UploadForm() {
 
   useEffect(() => {
     const state = loadLocalState();
-    if (!state?.providerId) {
+    if (!state?.providerId || !state.sessionToken) {
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
+    setSessionToken(state.sessionToken);
 
     // A page reload means every in-flight upload actually stopped, even if
     // the last-saved status still says "uploading" — relabel so the UI
@@ -81,10 +83,11 @@ export function UploadForm() {
   };
 
   const startUpload = (fileId: string, file: File, fileType: UploadedFileType) => {
-    if (!providerId) return;
+    if (!providerId || !sessionToken) return;
     updateFile(fileId, { uploadStatus: "uploading", uploadProgress: 0, fileType });
     uploadFileChunked({
       providerId,
+      sessionToken,
       file,
       fileType,
       callbacks: {
@@ -163,10 +166,10 @@ export function UploadForm() {
   const canSubmit = parsedContext.success;
 
   const handleSubmit = () => {
-    if (!providerId || !parsedContext.success) return;
+    if (!providerId || !sessionToken || !parsedContext.success) return;
     setError(null);
     startTransition(async () => {
-      const result = await saveUploadContext(providerId, completedFileIds, parsedContext.data);
+      const result = await saveUploadContext(providerId, sessionToken, completedFileIds, parsedContext.data);
 
       if (result.success) {
         const state = loadLocalState() ?? defaultState();
@@ -178,7 +181,7 @@ export function UploadForm() {
     });
   };
 
-  if (!providerId) return null;
+  if (!providerId || !sessionToken) return null;
 
   return (
     <div className="mt-6 space-y-6">

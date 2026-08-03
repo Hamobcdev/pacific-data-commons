@@ -3,6 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { provenanceSchema, type ProvenanceData } from "@/lib/onboarding/validation";
 import { getServerMessage } from "@/lib/i18n/server-messages";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 export interface SaveProvenanceResult {
   success: boolean;
@@ -20,7 +21,13 @@ export interface SaveProvenanceResult {
  * (session6_provenance_field.sql) — no new table, one declaration per
  * provider during the POC single-dataset onboarding flow.
  */
-export async function saveProvenance(providerId: string, data: ProvenanceData): Promise<SaveProvenanceResult> {
+export async function saveProvenance(providerId: string, sessionToken: string, data: ProvenanceData): Promise<SaveProvenanceResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const parsed = provenanceSchema.safeParse(data);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];

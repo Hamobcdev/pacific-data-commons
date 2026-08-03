@@ -34,6 +34,11 @@ function resumeStorageKey(providerId: string, filename: string, fileSizeBytes: n
   return `${RESUME_STORAGE_PREFIX}${providerId}:${filename}:${fileSizeBytes}`;
 }
 
+interface UploadOwnership {
+  providerId: string;
+  sessionToken: string;
+}
+
 function loadResumeRecord(storageKey: string): ResumeRecord | null {
   try {
     const raw = localStorage.getItem(storageKey);
@@ -72,9 +77,15 @@ function backoff(attempt: number): Promise<void> {
  * cross-origin responses by default. Deployment-config note, not fixable in
  * application code.
  */
-async function uploadPartWithRetry(key: string, uploadId: string, partNumber: number, chunk: Blob): Promise<string | null> {
+async function uploadPartWithRetry(
+  ownership: UploadOwnership,
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  chunk: Blob,
+): Promise<string | null> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_PART; attempt++) {
-    const urlResult = await getPartUploadUrl({ key, uploadId, partNumber });
+    const urlResult = await getPartUploadUrl({ providerId: ownership.providerId, sessionToken: ownership.sessionToken, key, uploadId, partNumber });
     if (!urlResult.success || !urlResult.url) {
       await backoff(attempt);
       continue;
@@ -100,17 +111,19 @@ async function uploadPartWithRetry(key: string, uploadId: string, partNumber: nu
  */
 export async function uploadFileChunked(params: {
   providerId: string;
+  sessionToken: string;
   file: File;
   fileType: UploadedFileType;
   callbacks: ChunkedUploadCallbacks;
   signal?: AbortSignal;
 }): Promise<void> {
-  const { providerId, file, fileType, callbacks, signal } = params;
+  const { providerId, sessionToken, file, fileType, callbacks, signal } = params;
+  const ownership: UploadOwnership = { providerId, sessionToken };
   const storageKey = resumeStorageKey(providerId, file.name, file.size);
 
   let record = loadResumeRecord(storageKey);
   if (!record) {
-    const init = await initUpload({ providerId, filename: file.name, fileSizeBytes: file.size });
+    const init = await initUpload({ providerId, sessionToken, filename: file.name, fileSizeBytes: file.size });
     if (!init.success || !init.uploadId || !init.key) {
       callbacks.onError(init.error ?? "Could not start the upload.");
       return;
@@ -133,7 +146,7 @@ export async function uploadFileChunked(params: {
     const end = Math.min(start + CHUNK_SIZE_BYTES, file.size);
     const chunk = file.slice(start, end);
 
-    const etag = await uploadPartWithRetry(record.key, record.uploadId, partNumber, chunk);
+    const etag = await uploadPartWithRetry(ownership, record.key, record.uploadId, partNumber, chunk);
     if (etag === null) {
       callbacks.onError("Upload paused after repeated failures. Your progress is saved — try again when your connection improves.");
       return;
@@ -146,6 +159,7 @@ export async function uploadFileChunked(params: {
 
   const result = await completeUpload({
     providerId,
+    sessionToken,
     key: record.key,
     uploadId: record.uploadId,
     parts: record.parts,

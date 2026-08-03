@@ -9,13 +9,14 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export interface SbpManagedPathProps {
   providerId: string;
+  sessionToken: string;
   deploymentId: string | null;
   onSubmitted: (deploymentId: string) => void;
 }
 
 /** Path A — SBP Managed. No Railway call happens here (manual SBP action
  * during POC); this just records the request and shows the pending state. */
-export function SbpManagedPath({ providerId, deploymentId, onSubmitted }: SbpManagedPathProps) {
+export function SbpManagedPath({ providerId, sessionToken, deploymentId, onSubmitted }: SbpManagedPathProps) {
   const t = useTranslations("Onboarding.Deploy.sbpManaged");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export function SbpManagedPath({ providerId, deploymentId, onSubmitted }: SbpMan
   const handleSubmit = () => {
     setError(null);
     startTransition(async () => {
-      const result = await createDeployment(providerId);
+      const result = await createDeployment(providerId, sessionToken);
       if (result.success && result.deploymentId) {
         onSubmitted(result.deploymentId);
       } else {

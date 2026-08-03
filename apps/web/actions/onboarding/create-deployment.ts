@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { getServerMessage } from "@/lib/i18n/server-messages";
+import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 
 export interface CreateDeploymentResult {
   success: boolean;
@@ -21,7 +22,13 @@ export interface CreateDeploymentResult {
  * schema (see session6_endpoint_deployments.sql for why that table wasn't
  * redefined).
  */
-export async function createDeployment(providerId: string): Promise<CreateDeploymentResult> {
+export async function createDeployment(providerId: string, sessionToken: string): Promise<CreateDeploymentResult> {
+  try {
+    await validateOnboardingSession(providerId, sessionToken);
+  } catch (err) {
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+  }
+
   const supabase = createServiceClient();
 
   const { data: endpoint, error: endpointError } = await supabase

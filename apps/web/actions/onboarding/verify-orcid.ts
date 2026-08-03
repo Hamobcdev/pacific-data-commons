@@ -1,5 +1,7 @@
 "use server";
 
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
 export interface OrcidCheckResult {
   verified: boolean;
   /** Name assembled from the ORCID public record, when the lookup succeeds. */
@@ -28,6 +30,12 @@ const ORCID_RE = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
  * an unreachable/invalid ORCID just shows "will be reviewed manually."
  */
 export async function verifyOrcid(orcid: string): Promise<OrcidCheckResult> {
+  const ip = await getClientIp();
+  const rateLimit = checkRateLimit({ identifier: `verify-orcid:${ip}`, maxRequests: 10, windowMs: 60 * 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return { verified: false, name: null, manualReviewPath: true };
+  }
+
   const trimmed = orcid.trim();
   if (!ORCID_RE.test(trimmed)) {
     return { verified: false, name: null, manualReviewPath: true };
