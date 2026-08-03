@@ -65,6 +65,18 @@ export interface PdcPaidRouteSpec {
    * provider endpoint). Do not pass `tag` here — it's set automatically.
    */
   extra?: Record<string, unknown>;
+  /**
+   * x402 v2 route-level extensions (RouteConfig.extensions in @x402/core —
+   * distinct from accepts[].extra above). Passed through to the resource
+   * server as-is; @x402/core reads `extensions.bazaar` natively via
+   * checkIfBazaarNeeded/enrichExtensions and forwards it into the 402
+   * response's PaymentRequired.extensions (Session 8.1, Bazaar discovery).
+   * Build the value with @x402-avm/extensions' declareDiscoveryExtension —
+   * that package is a pure metadata builder with no @x402/core coupling, so
+   * this stays the only place in the adapter that has to know the field
+   * name x402-core expects.
+   */
+  extensions?: Record<string, unknown>;
 }
 
 /**
@@ -178,6 +190,7 @@ export class PdcPaymentGate {
       },
       resource: spec.resource,
       description: spec.description,
+      ...(spec.extensions ? { extensions: spec.extensions } : {}),
     };
   }
 
