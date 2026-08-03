@@ -4,10 +4,14 @@
  * output, competition context). Desktop only, CSS-only crossfade, respects
  * prefers-reduced-motion (shows a static first slide instead of animating).
  *
- * Fixed to the viewport's right edge rather than participating in the
- * shared onboarding shell's max-w-2xl centered column (components/onboarding
- * layout.tsx), so this page can have a wide two-zone layout without
- * widening the shell for every other onboarding step.
+ * Sizes itself to fill whatever column its parent gives it (w-full h-full)
+ * rather than self-positioning — register/page.tsx owns the actual layout
+ * (a flex row with a fixed-width w-80 column for this panel). This used to
+ * be `fixed right-0 top-0 w-[380px]`, which took it out of document flow
+ * entirely and overlaid it on the viewport's right edge regardless of where
+ * the form column actually ended — at wide desktop widths the form's own
+ * `lg:pr-[380px]` reserved-space hack shrank the centered max-w-2xl shell
+ * down to a sliver, wrapping every word. See register/page.tsx for the fix.
  */
 const SLIDE_COUNT = 4;
 const SLIDE_SECONDS = 6;
@@ -18,7 +22,7 @@ export function InstitutionalPanel() {
   return (
     <aside
       aria-hidden="true"
-      className="hidden lg:block fixed right-0 top-0 h-full w-[380px] overflow-hidden bg-gradient-to-b from-[#0D4F6B] to-[#0A1628] text-white"
+      className="relative w-full h-full overflow-hidden bg-gradient-to-b from-[#0D4F6B] to-[#0A1628] text-white"
     >
       <style>{`
         @keyframes pdc-panel-fade {
