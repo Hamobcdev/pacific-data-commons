@@ -29,6 +29,8 @@ export function ProvenanceForm() {
   const [error, setError] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  // Same fix as WalletForm (Session 9 follow-up) — see that component's comment.
+  const [status, setStatus] = useState<"checking" | "redirecting" | "ready">("checking");
   const [form, setForm] = useState<ProvenanceForm>(() => {
     const loaded = loadLocalState()?.provenance ?? defaultState().provenance;
     return loaded.researchers.length > 0 ? loaded : { ...loaded, researchers: [newResearcher()] };
@@ -37,11 +39,13 @@ export function ProvenanceForm() {
   useEffect(() => {
     const state = loadLocalState();
     if (!state?.providerId || !state.sessionToken) {
+      setStatus("redirecting");
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
     setSessionToken(state.sessionToken);
+    setStatus("ready");
   }, [router]);
 
   const persist = (updated: ProvenanceForm) => {
@@ -79,7 +83,13 @@ export function ProvenanceForm() {
     });
   };
 
-  if (!providerId || !sessionToken) return null;
+  if (status === "checking") {
+    return <p className="mt-6 text-sm text-gray-500">{t("loading")}</p>;
+  }
+
+  if (status === "redirecting" || !providerId || !sessionToken) {
+    return <p className="mt-6 text-sm text-gray-500">{t("redirecting")}</p>;
+  }
 
   return (
     <div className="mt-6 space-y-6">

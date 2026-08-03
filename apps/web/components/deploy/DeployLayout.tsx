@@ -21,10 +21,13 @@ export function DeployLayout() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [path, setPath] = useState<DeployPath | "">("");
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
+  // Same fix as WalletForm (Session 9 follow-up) — see that component's comment.
+  const [status, setStatus] = useState<"checking" | "redirecting" | "ready">("checking");
 
   useEffect(() => {
     const state = loadLocalState();
     if (!state?.providerId || !state.sessionToken) {
+      setStatus("redirecting");
       router.replace("/onboarding/register");
       return;
     }
@@ -32,6 +35,7 @@ export function DeployLayout() {
     setSessionToken(state.sessionToken);
     setPath(state.deploy.path);
     setDeploymentId(state.deploy.deploymentId);
+    setStatus("ready");
   }, [router]);
 
   const choosePath = (chosen: DeployPath) => {
@@ -52,7 +56,13 @@ export function DeployLayout() {
     router.push("/onboarding/complete");
   };
 
-  if (!providerId || !sessionToken) return null;
+  if (status === "checking") {
+    return <p className="mt-6 text-sm text-gray-500">{t("loading")}</p>;
+  }
+
+  if (status === "redirecting" || !providerId || !sessionToken) {
+    return <p className="mt-6 text-sm text-gray-500">{t("redirecting")}</p>;
+  }
 
   const canContinue = path === "self_hosted" || (path === "sbp_managed" && Boolean(deploymentId));
 

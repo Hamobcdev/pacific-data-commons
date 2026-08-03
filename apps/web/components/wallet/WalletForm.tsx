@@ -25,18 +25,33 @@ export function WalletForm() {
   const [institutionName, setInstitutionName] = useState("");
   const [form, setForm] = useState<WalletFormState>(() => loadLocalState()?.wallet ?? defaultState().wallet);
 
+  // "checking" during the SSR pass and the first client render (localStorage
+  // is never readable server-side, so providerId/sessionToken genuinely
+  // can't be known yet); "redirecting" once loadLocalState() has actually
+  // run and confirmed there's nothing to resume; "ready" once both are
+  // confirmed present. Previously this component just `return null`ed for
+  // both the "still checking" and "confirmed missing" cases — on a slow
+  // connection (CLAUDE.md P8: intermittent, high-latency Pacific links) that
+  // renders as an indefinite blank page below the step indicator, which
+  // reads exactly like "couldn't reach page" even though the server
+  // response itself succeeded (this page has no server-side data dependency
+  // at all — see wallet/page.tsx). R5: no dead ends, never a blank screen.
+  const [status, setStatus] = useState<"checking" | "redirecting" | "ready">("checking");
+
   useEffect(() => {
     const state = loadLocalState();
     if (!state?.providerId || !state.sessionToken) {
       // No registration on record for this device/session — send them back
       // to Step 1 rather than showing a wallet form with nothing to attach
       // it to (R5: no dead ends).
+      setStatus("redirecting");
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
     setSessionToken(state.sessionToken);
     setInstitutionName(state.registration.institutionName);
+    setStatus("ready");
   }, [router]);
 
   const persist = (updated: WalletFormState) => {
@@ -64,7 +79,13 @@ export function WalletForm() {
     });
   };
 
-  if (!providerId || !sessionToken) return null;
+  if (status === "checking") {
+    return <p className="mt-6 text-sm text-gray-500">{t("loading")}</p>;
+  }
+
+  if (status === "redirecting" || !providerId || !sessionToken) {
+    return <p className="mt-6 text-sm text-gray-500">{t("redirecting")}</p>;
+  }
 
   return (
     <div className="mt-6 space-y-6">
