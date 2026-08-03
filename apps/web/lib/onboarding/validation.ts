@@ -13,11 +13,21 @@ const INSTITUTION_TYPES: [InstitutionType, ...InstitutionType[]] = [
 export const CULTURAL_SENSITIVITY_LEVELS: [CulturalSensitivity, ...CulturalSensitivity[]] = ["none", "low", "medium", "high"];
 
 export const registrationSchema = z.object({
-  institutionName: z.string().min(2, "Institution name must be at least 2 characters").max(200, "Institution name is too long"),
+  // .trim() on institutionName/contactName/contactEmail: same silent-disable
+  // failure mode the officialWebsite comment below documents, on different
+  // fields — a name or email copy-pasted from an email signature, PDF, or
+  // directory listing very commonly carries a trailing/leading space (or a
+  // pasted link's surrounding whitespace). z.string().email() has no
+  // built-in trimming, so " j.smith@usp.ac.fj" fails validation with no
+  // visible reason: every field looks filled, the button is just disabled.
+  // Trimming here (and RegistrationForm.tsx's validation summary, which
+  // surfaces whatever issue remains) closes that class of bug rather than
+  // only the one instance of it.
+  institutionName: z.string().trim().min(2, "Institution name must be at least 2 characters").max(200, "Institution name is too long"),
   institutionType: z.enum(INSTITUTION_TYPES, { required_error: "Please select an institution type" }),
   country: z.string().min(1, "Country is required"),
-  contactName: z.string().min(2, "Contact name is required"),
-  contactEmail: z.string().email("A valid institutional email address is required"),
+  contactName: z.string().trim().min(2, "Contact name is required"),
+  contactEmail: z.string().trim().email("A valid institutional email address is required"),
   // .trim() before the checks below matters: the domain-verification effect
   // in RegistrationForm parses this same value with `new URL()`, which
   // silently tolerates leading/trailing whitespace (e.g. from a pasted

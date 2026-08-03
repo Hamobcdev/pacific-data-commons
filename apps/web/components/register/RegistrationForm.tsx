@@ -79,6 +79,18 @@ export function RegistrationForm() {
   const parsedForm = registrationSchema.safeParse(form);
   const canSubmit = parsedForm.success;
 
+  // R5: a disabled Continue button must never be unexplained. Session 9
+  // added no new required fields to this form (institution_id,
+  // onboarding_session_token, faculty_name etc. are all set server-side in
+  // register.ts, never required client input) — but any silent zod failure
+  // here (whitespace, a bad enum value, a malformed URL) previously left the
+  // button disabled with zero visible reason. Gated on hasAnyInput so a
+  // fresh, empty form doesn't greet the user with a wall of errors.
+  const hasAnyInput = Boolean(
+    form.institutionName || form.institutionType || form.country || form.contactName || form.contactEmail || form.officialWebsite,
+  );
+  const validationIssues = parsedForm.success ? [] : Array.from(new Set(parsedForm.error.issues.map((issue) => issue.message)));
+
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   const handleSubmit = () => {
@@ -193,6 +205,17 @@ export function RegistrationForm() {
       </div>
 
       <Alert variant="warning">{t("pilot_terms")}</Alert>
+
+      {!canSubmit && hasAnyInput && !error && (
+        <Alert variant="warning">
+          <p className="font-medium">{t("validationSummaryTitle")}</p>
+          <ul className="mt-1 list-disc pl-4">
+            {validationIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </Alert>
+      )}
 
       {error && <Alert variant="error">{error}</Alert>}
 

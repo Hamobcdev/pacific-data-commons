@@ -51,6 +51,7 @@
       "continue": "Continue to Wallet Setup",
       "submitting": "Saving...",
       "genericError": "Registration failed. Please try again or contact SBP if this persists.",
+      "validationSummaryTitle": "Please complete the following before continuing:",
       "fields": {
         "institution_name": "Institution Name",
         "institution_type": "Institution Type",
