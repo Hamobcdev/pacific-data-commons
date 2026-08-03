@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { saveProvenance } from "@/actions/onboarding/save-provenance";
 import { loadLocalState, saveLocalState, defaultState, type ProvenanceState, type ProvenanceResearcher } from "@/lib/onboarding/state";
 import { provenanceSchema } from "@/lib/onboarding/validation";

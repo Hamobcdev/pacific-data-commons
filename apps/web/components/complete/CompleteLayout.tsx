@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { completeOnboarding } from "@/actions/onboarding/complete-onboarding";
 import { loadLocalState, clearLocalState } from "@/lib/onboarding/state";
 import { Button } from "@/components/ui/button";

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import type { UploadedFileType } from "@pdc/shared-types";
 import { uploadFileChunked } from "@/lib/upload/chunked";
 import { saveUploadContext } from "@/actions/onboarding/upload-context";

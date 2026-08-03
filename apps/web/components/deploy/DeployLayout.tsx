@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { loadLocalState, saveLocalState, defaultState, type DeployPath } from "@/lib/onboarding/state";
 import { StepNav } from "@/components/onboarding/StepNav";
 import { DeployPathSelector } from "./DeployPathSelector";

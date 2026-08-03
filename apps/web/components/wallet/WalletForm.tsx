@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { saveWallet } from "@/actions/onboarding/save-wallet";
 import { loadLocalState, saveLocalState, defaultState, type OnboardingState } from "@/lib/onboarding/state";
 import { checkAddressFormat } from "@/lib/algorand/validate";
