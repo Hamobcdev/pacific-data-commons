@@ -18,7 +18,14 @@ export const registrationSchema = z.object({
   country: z.string().min(1, "Country is required"),
   contactName: z.string().min(2, "Contact name is required"),
   contactEmail: z.string().email("A valid institutional email address is required"),
-  officialWebsite: z.string().url("A valid website URL is required").startsWith("https://", "Website must use HTTPS"),
+  // .trim() before the checks below matters: the domain-verification effect
+  // in RegistrationForm parses this same value with `new URL()`, which
+  // silently tolerates leading/trailing whitespace (e.g. from a pasted
+  // link) — so "Domain verified" can show green while this schema's
+  // .startsWith("https://") still fails on the untrimmed string, disabling
+  // Continue with no visible reason. Trimming here keeps both checks
+  // consistent with what the user sees.
+  officialWebsite: z.string().trim().url("A valid website URL is required").startsWith("https://", "Website must use HTTPS"),
 });
 
 export const walletSchema = z.object({

@@ -20,6 +20,14 @@ describe("registrationSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts a website with incidental leading/trailing whitespace (e.g. pasted from elsewhere)", () => {
+    const result = registrationSchema.safeParse({ ...valid, officialWebsite: " https://www.usp.ac.fj " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.officialWebsite).toBe("https://www.usp.ac.fj");
+    }
+  });
+
   it("rejects an invalid email", () => {
     const result = registrationSchema.safeParse({ ...valid, contactEmail: "not-an-email" });
     expect(result.success).toBe(false);
