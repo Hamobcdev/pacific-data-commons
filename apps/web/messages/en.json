@@ -132,6 +132,8 @@
       "subtitle": "Upload your dataset and tell us what it contains. Your files are deleted after processing.",
       "continue": "Continue to Review",
       "genericError": "Could not save your data description. Please try again.",
+      "loading": "Loading your registration...",
+      "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
       "formats": "Accepted formats: PDF, Excel, CSV, Word, Markdown, ZIP",
       "max_size": "Maximum 500MB per file",
       "drag_drop": "Drag files here or click to browse",
@@ -220,6 +222,8 @@
       "title": "Review Your Data",
       "subtitle": "Check every field below before it goes into your listing. Nothing here is published until you confirm it.",
       "genericError": "Could not save your review. Please try again.",
+      "loading": "Loading your registration...",
+      "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
       "acceptAll": "Accept all AI suggestions (excluding sensitivity declarations)",
       "continue": "Proceed to Provenance",
       "original": {
@@ -268,6 +272,8 @@
       "title": "Provenance Declaration",
       "subtitle": "Tell us how this data was produced. This helps buyers assess it — SBP does not assess scientific quality.",
       "genericError": "Could not save your provenance declaration. Please try again.",
+      "loading": "Loading your registration...",
+      "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
       "continue": "Continue to Deploy",
       "fields": {
         "methodology": "Methodology",
@@ -309,6 +315,8 @@
     "Deploy": {
       "title": "Deploy Your Endpoint",
       "subtitle": "Choose how your data endpoint gets hosted.",
+      "loading": "Loading your registration...",
+      "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
       "continue": "Continue to Finish",
       "pathSelector": {
         "recommended": "Recommended",
@@ -344,6 +352,7 @@
     "Complete": {
       "title": "You're Almost Live",
       "loading": "Finishing up...",
+      "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
       "dashboardLink": "Go to Provider Dashboard",
       "card": {
         "title": "Congratulations!",

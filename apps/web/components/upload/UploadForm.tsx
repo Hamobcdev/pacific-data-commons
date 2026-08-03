@@ -36,6 +36,12 @@ export function UploadForm() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [form, setForm] = useState<UploadFormState>(() => loadLocalState()?.upload ?? defaultState().upload);
 
+  // Same fix as WalletForm (Session 9 follow-up): `return null` while
+  // localStorage hasn't been read yet (impossible during SSR) and while
+  // confirmed-missing-and-redirecting looked identical — an indefinite
+  // blank page on a slow connection. R5: no dead ends, never a blank screen.
+  const [status, setStatus] = useState<"checking" | "redirecting" | "ready">("checking");
+
   // Raw File objects can't survive localStorage (or a reload) — only the
   // serializable UploadedFileState does. This map exists purely in memory
   // for the current page session.
@@ -46,11 +52,13 @@ export function UploadForm() {
   useEffect(() => {
     const state = loadLocalState();
     if (!state?.providerId || !state.sessionToken) {
+      setStatus("redirecting");
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
     setSessionToken(state.sessionToken);
+    setStatus("ready");
 
     // A page reload means every in-flight upload actually stopped, even if
     // the last-saved status still says "uploading" — relabel so the UI
@@ -181,7 +189,13 @@ export function UploadForm() {
     });
   };
 
-  if (!providerId || !sessionToken) return null;
+  if (status === "checking") {
+    return <p className="mt-6 text-sm text-gray-500">{t("loading")}</p>;
+  }
+
+  if (status === "redirecting" || !providerId || !sessionToken) {
+    return <p className="mt-6 text-sm text-gray-500">{t("redirecting")}</p>;
+  }
 
   return (
     <div className="mt-6 space-y-6">

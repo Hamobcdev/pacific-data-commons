@@ -21,6 +21,11 @@ export function ReviewLayout() {
   const [error, setError] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  // Same fix as WalletForm (Session 9 follow-up) — see that component's
+  // comment. Distinct from loadingContext below, which governs
+  // OriginalSummaryPanel's own in-place loading state once a session is
+  // already confirmed present.
+  const [status, setStatus] = useState<"checking" | "redirecting" | "ready">("checking");
   const [verifiedGovernment, setVerifiedGovernment] = useState(false);
   const [loadingContext, setLoadingContext] = useState(true);
   const [uploads, setUploads] = useState<OriginalUploadSummary[]>([]);
@@ -32,11 +37,13 @@ export function ReviewLayout() {
   useEffect(() => {
     const state = loadLocalState();
     if (!state?.providerId || !state.sessionToken) {
+      setStatus("redirecting");
       router.replace("/onboarding/register");
       return;
     }
     setProviderId(state.providerId);
     setSessionToken(state.sessionToken);
+    setStatus("ready");
 
     getReviewContext(state.providerId, state.sessionToken).then((context) => {
       setUploads(context.uploads);
@@ -99,7 +106,13 @@ export function ReviewLayout() {
     });
   };
 
-  if (!providerId || !sessionToken) return null;
+  if (status === "checking") {
+    return <p className="mt-6 text-sm text-gray-500">{t("loading")}</p>;
+  }
+
+  if (status === "redirecting" || !providerId || !sessionToken) {
+    return <p className="mt-6 text-sm text-gray-500">{t("redirecting")}</p>;
+  }
 
   return (
     <div className="mt-6 space-y-6">
