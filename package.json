@@ -26,8 +26,7 @@
   },
   "dependencies": {
     "@scure/bip32": "^2.2.0",
-    "@scure/bip39": "^2.2.0",
-    "algosdk": "^3.6.0"
+    "@scure/bip39": "^2.2.0"
   },
   "devDependencies": {
     "tsx": "^4.23.1"
