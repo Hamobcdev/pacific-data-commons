@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { declareDiscoveryExtension } from "@x402-avm/extensions";
 import { PdcPaymentGate, checkFacilitatorHealth } from "@pdc/x402-adapter";
 import { loadEnv } from "./types/env.js";
 import { logger } from "./lib/logger.js";
@@ -56,12 +57,65 @@ async function main(): Promise<void> {
     network: env.ALGORAND_NETWORK,
   });
 
-  const paidRoutes: Array<{ method: "GET" | "POST"; path: string; tier: keyof typeof TIER_PRICING; description: string }> = [
+  // Bazaar discovery metadata (Session 8.1) — built with @x402-avm/extensions'
+  // declareDiscoveryExtension, a pure data-shape builder with no coupling to
+  // any particular x402 core implementation. Deliberately NOT using that
+  // package's bazaarResourceServerExtension: it's typed against
+  // @x402-avm/core's x402ResourceServer, a different class from the
+  // @x402/core one PdcPaymentGate actually wraps (R1 — @pdc/x402-adapter is
+  // the only module that touches @x402/* directly). @x402/core has its own
+  // native support for the same "extensions.bazaar" wire field
+  // (checkIfBazaarNeeded / enrichExtensions in @x402/core/server), so the
+  // discovery object just needs to be attached at RouteConfig.extensions.bazaar
+  // via PdcPaidRouteSpec.extensions — see packages/pdc-x402-adapter.
+  //
+  // declareDiscoveryExtension() already returns { bazaar: DiscoveryExtension }
+  // (see @x402-avm/extensions/dist/*/bazaar/resourceService.js) — discoveryFor()
+  // below unwraps that so call sites can do `extensions: { bazaar: ... }`
+  // themselves, matching the RouteConfig field name explicitly.
+  //
+  // Its published input type omits `method`, because it's normally filled in
+  // later by bazaarResourceServerExtension.enrichDeclaration from the live
+  // request's transport context — a hook we don't register (see above). We
+  // supply `method` up front instead; the bundled implementation reads and
+  // emits it unconditionally when present, so this is a type-level gap only,
+  // not a runtime one. Building each config as a variable of this widened
+  // type (rather than passing an inline object literal) is what lets TS
+  // accept the extra field without fighting the public type's excess-property
+  // check.
+  type DiscoveryConfig = Parameters<typeof declareDiscoveryExtension>[0] & { method: "GET" | "POST" | "HEAD" | "DELETE" | "PUT" | "PATCH" };
+  function discoveryFor(config: DiscoveryConfig) {
+    return declareDiscoveryExtension(config).bazaar;
+  }
+
+  const paidRoutes: Array<{
+    method: "GET" | "POST";
+    path: string;
+    tier: keyof typeof TIER_PRICING;
+    description: string;
+    discovery: ReturnType<typeof discoveryFor>;
+  }> = [
     {
       method: "GET",
       path: "/summary",
       tier: "summary",
       description: `Key findings summary for ${DATASET_METADATA.title}. Returns stock status by species, coverage statistics, and 3 key findings. SYNTHETIC DEMO DATA.`,
+      discovery: discoveryFor({
+        method: "GET",
+        output: {
+          example: {
+            schema_version: "pdp-1.0",
+            paid_tier: "summary",
+            data: {
+              total_records: FISHERIES_RECORDS.length,
+              species_covered: ["skipjack", "yellowfin", "bigeye"],
+              zones_covered: ["samoa_eez", "tonga_eez"],
+              stock_status: [{ species: "skipjack", latest_year: 2023, stock_index: 0.92, status: "healthy" }],
+              key_findings: ["Skipjack remains the dominant species with stock index 0.92 in 2023"],
+            },
+          },
+        },
+      }),
     },
     {
       method: "GET",
@@ -69,24 +123,83 @@ async function main(): Promise<void> {
       tier: "slice",
       description:
         "Filtered tuna data slice. Query params: species (skipjack|yellowfin|bigeye), year_start, year_end, zone (samoa_eez|tonga_eez). SYNTHETIC DEMO DATA.",
+      discovery: discoveryFor({
+        method: "GET",
+        input: { species: "skipjack", year_start: 2020, year_end: 2023, zone: "samoa_eez" },
+        inputSchema: {
+          properties: {
+            species: { type: "string", enum: ["skipjack", "yellowfin", "bigeye"] },
+            year_start: { type: "integer", description: `>= ${DATASET_METADATA.time_period_start}` },
+            year_end: { type: "integer", description: `<= ${DATASET_METADATA.time_period_end}` },
+            zone: { type: "string", enum: ["samoa_eez", "tonga_eez"] },
+          },
+          required: [],
+        },
+        output: {
+          example: {
+            schema_version: "pdp-1.0",
+            paid_tier: "slice",
+            data: [{ species: "skipjack", zone: "samoa_eez", year: 2023, stock_index: 0.92 }],
+          },
+        },
+      }),
     },
     {
       method: "GET",
       path: "/full",
       tier: "full",
       description: "Complete synthetic tuna dataset — all 18 records, all species, all years, both zones. SYNTHETIC DEMO DATA.",
+      discovery: discoveryFor({
+        method: "GET",
+        output: {
+          example: { schema_version: "pdp-1.0", paid_tier: "full", data: [{ species: "skipjack", zone: "samoa_eez", year: 2023, stock_index: 0.92 }] },
+        },
+      }),
     },
     {
       method: "GET",
       path: "/expert",
       tier: "expert",
       description: "Full dataset plus methodology notes, stock assessment interpretation, and citation-ready format. SYNTHETIC DEMO DATA.",
+      discovery: discoveryFor({
+        method: "GET",
+        output: {
+          example: {
+            schema_version: "pdp-1.0",
+            paid_tier: "expert",
+            data: [{ species: "skipjack", zone: "samoa_eez", year: 2023, stock_index: 0.92 }],
+            expert_annotations: { stock_assessment_method: "Virtual Population Analysis (VPA) — synthetic demonstration" },
+          },
+        },
+      }),
     },
     {
       method: "POST",
       path: "/commission",
       tier: "commission",
       description: "Custom commissioned query. POC: payment confirms your commission request. SBP will contact you within 48 hours to discuss scope.",
+      discovery: discoveryFor({
+        method: "POST",
+        bodyType: "json",
+        input: { analysis_request: "Describe the custom Pacific fisheries analysis you need" },
+        inputSchema: {
+          properties: {
+            analysis_request: {
+              type: "string",
+              description:
+                "Free-text description of the analysis you're commissioning. POC: not parsed by the handler — recorded via your payment, SBP follows up by email.",
+            },
+          },
+          required: [],
+        },
+        output: {
+          example: {
+            commission_confirmed: true,
+            message: "Your commission payment has been received. SBP will contact you within 48 hours.",
+            contact: "contact@synergybp.com",
+          },
+        },
+      }),
     },
   ];
 
@@ -102,6 +215,7 @@ async function main(): Promise<void> {
         category: DATASET_METADATA.category,
         tier: route.tier,
       },
+      extensions: { bazaar: route.discovery },
     });
   }
 
