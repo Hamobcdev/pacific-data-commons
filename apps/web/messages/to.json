@@ -87,6 +87,8 @@
       "subtitle": "Your institution needs an Algorand wallet to receive USDC payments.",
       "continue": "Continue to Data Upload",
       "genericError": "Could not save your wallet details. Please try again.",
+      "loading": "Loading your registration...",
+      "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
       "guide": {
         "step1_title": "Install Pera Wallet",
         "step1_body": "Pera is a free Algorand wallet app available on iOS and Android.",
