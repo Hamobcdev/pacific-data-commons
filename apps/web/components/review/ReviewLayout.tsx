@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { saveReview, getReviewContext, type OriginalUploadSummary } from "@/actions/onboarding/save-review";
 import { loadLocalState, saveLocalState, defaultState, type ReviewState } from "@/lib/onboarding/state";
 import { reviewSchema } from "@/lib/onboarding/validation";

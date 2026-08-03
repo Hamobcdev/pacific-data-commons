@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirect } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getResumedProvider } from "@/lib/onboarding/resume";
 import { getDashboardData } from "@/lib/dashboard/data";
@@ -13,16 +13,17 @@ import { EndpointList } from "@/components/dashboard/EndpointList";
  * magic-link session -> providers.contact_email match the onboarding
  * resume flow already established — no new auth mechanism introduced.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({ params }: { params: { locale: string } }) {
+  const { locale } = params;
   const t = await getTranslations("Dashboard");
   const resumed = await getResumedProvider();
   if (!resumed) {
-    redirect("/onboarding/register");
+    return redirect({ href: "/onboarding/register", locale });
   }
 
   const data = await getDashboardData(resumed.providerId);
   if (!data) {
-    redirect("/onboarding/register");
+    return redirect({ href: "/onboarding/register", locale });
   }
 
   return (

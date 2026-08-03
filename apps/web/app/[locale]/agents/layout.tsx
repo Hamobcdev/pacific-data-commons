@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Agents section shell — full marketplace layout (Session 7; Session 6.1

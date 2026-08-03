@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { registerProvider } from "@/actions/onboarding/register";
 import { verifyDomain } from "@/actions/onboarding/verify-domain";
 import { loadLocalState, saveLocalState, defaultState, type OnboardingState } from "@/lib/onboarding/state";
