@@ -28,7 +28,7 @@ export default function AgentsPage() {
   const [filter, setFilter] = useState<FilterValue>("all");
 
   const filtered = useMemo(
-    () => (filter === "all" ? AGENT_CATALOGUE : AGENT_CATALOGUE.filter((agent) => agent.id === filter || (agent.categories as string[]).includes(filter))),
+    () => (filter === "all" ? AGENT_CATALOGUE : AGENT_CATALOGUE.filter((agent) => agent.id === filter || agent.categories.includes(filter))),
     [filter],
   );
 

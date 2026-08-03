@@ -4,13 +4,36 @@ import { loadEnv } from "./env.js";
 import { logger } from "./logger.js";
 import { getWalletStatus } from "./wallet.js";
 import { runQueryCycle, type CycleResult } from "./agent.js";
+import { getAgentWalletKey } from "./key-provider.js";
+
+/**
+ * Resolves the agent wallet key fresh from AWS Secrets Manager (or the
+ * AGENT_WALLET_KEY env var fallback) — never cached at module scope, called
+ * once per signing operation (Session 8, Priority 1). A resolution failure
+ * degrades to the pre-existing dry-run behaviour rather than crashing the
+ * service: sbp-agent generates competition leaderboard volume on an hourly
+ * loop, so a transient AWS outage should log and skip a cycle, not take the
+ * whole process down.
+ */
+async function resolveAgentWalletKey(): Promise<string | undefined> {
+  try {
+    return await getAgentWalletKey();
+  } catch (err) {
+    logger.warn("agent_wallet_key_unavailable", {
+      error: err instanceof Error ? err.message : String(err),
+      action: "falling back to dry-run mode for this check/cycle",
+    });
+    return undefined;
+  }
+}
 
 async function main(): Promise<void> {
   const env = loadEnv();
   const intervalMs = env.QUERY_INTERVAL_MINUTES * 60_000;
 
+  const startupKey = await resolveAgentWalletKey();
   const wallet = await getWalletStatus({
-    agentWalletKey: env.AGENT_WALLET_KEY,
+    agentWalletKey: startupKey,
     algorandNetwork: env.ALGORAND_NETWORK,
     algorandNodeUrl: env.ALGORAND_NODE_URL,
   });
@@ -22,6 +45,7 @@ async function main(): Promise<void> {
     wallet_address: wallet.address,
     wallet_usdc_balance: wallet.usdcBalanceUsdc,
     wallet_error: wallet.error,
+    key_source: process.env.AWS_ACCESS_KEY_ID ? "aws_secrets_manager" : "env_var",
   });
 
   if (wallet.configured && (wallet.usdcBalanceUsdc === null || wallet.usdcBalanceUsdc <= 0)) {
@@ -35,9 +59,12 @@ async function main(): Promise<void> {
   let lastCycle: CycleResult | undefined;
 
   async function tick(): Promise<void> {
+    // Retrieved fresh every cycle, not reused from startup — this is the
+    // "per-operation retrieval" AWS Secrets Manager is here for.
+    const agentWalletKey = await resolveAgentWalletKey();
     lastCycle = await runQueryCycle({
       directoryUrl: env.DIRECTORY_URL,
-      agentWalletKey: env.AGENT_WALLET_KEY,
+      agentWalletKey,
       network: env.ALGORAND_NETWORK,
       logger,
     });
