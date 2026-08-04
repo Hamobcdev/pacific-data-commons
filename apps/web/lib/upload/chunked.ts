@@ -1,178 +1,147 @@
+import * as tus from "tus-js-client";
 import type { UploadedFileType } from "@pdc/shared-types";
 import { initUpload } from "@/actions/upload/init-upload";
-import { getPartUploadUrl } from "@/actions/upload/get-part-url";
 import { completeUpload } from "@/actions/upload/complete-upload";
+import { PDC_UPLOADS_BUCKET } from "@/lib/upload/constants";
 
 /**
- * Cloudflare R2 (S3-compatible) multipart upload minimum part size is 5MB
- * for every part except the last — R2 rejects smaller non-final parts. A
- * literal 1MB chunk size (as a first draft of this spec assumed) isn't
- * achievable with S3 Multipart Upload; 5MB is the smallest chunk that's
- * actually resumable on this storage API, and still bounds how much a
- * dropped connection loses on a slow Pacific link far better than
- * restarting the whole file.
+ * Supabase's documented chunk size for its resumable (TUS) upload endpoint.
+ * Larger than the old R2 5MB minimum, but TUS has no such floor — this is
+ * just what Supabase recommends for throughput.
  */
-const CHUNK_SIZE_BYTES = 5 * 1024 * 1024;
-const MAX_ATTEMPTS_PER_PART = 4;
-const RESUME_STORAGE_PREFIX = "pdc-upload-resume:";
-
-interface ResumeRecord {
-  uploadId: string;
-  key: string;
-  fileType: UploadedFileType;
-  parts: Array<{ partNumber: number; etag: string }>;
-}
+const CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 export interface ChunkedUploadCallbacks {
   onProgress: (percent: number) => void;
-  onPaused: () => void;
-  onComplete: (result: { uploadedFileId: string; r2Key: string }) => void;
+  onComplete: (result: { uploadedFileId: string; storagePath: string }) => void;
   onError: (message: string) => void;
 }
 
-function resumeStorageKey(providerId: string, filename: string, fileSizeBytes: number): string {
-  return `${RESUME_STORAGE_PREFIX}${providerId}:${filename}:${fileSizeBytes}`;
-}
-
-interface UploadOwnership {
-  providerId: string;
-  sessionToken: string;
-}
-
-function loadResumeRecord(storageKey: string): ResumeRecord | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    return raw ? (JSON.parse(raw) as ResumeRecord) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveResumeRecord(storageKey: string, record: ResumeRecord): void {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(record));
-  } catch {
-    // Non-fatal — worst case a resumed upload restarts from part 1.
-  }
-}
-
-function clearResumeRecord(storageKey: string): void {
-  try {
-    localStorage.removeItem(storageKey);
-  } catch {
-    // Non-fatal.
-  }
-}
-
-function backoff(attempt: number): Promise<void> {
-  const ms = Math.min(1000 * 2 ** (attempt - 1), 8000);
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export interface UploadHandle {
+  /** Aborts the in-progress upload and purges tus-js-client's own resume
+   * record for this file (via `abort(true)`), so a subsequent re-selection
+   * of the same file starts fresh rather than resuming a cancelled upload.
+   * Used by the file list's "remove" action (UploadForm.tsx) — cancelling
+   * always means the caller is discarding the file entirely, not pausing
+   * it, so this fires no callback of its own. */
+  cancel: () => void;
 }
 
 /**
- * Uploads one part with retry + exponential backoff. Requires the R2 bucket
- * CORS policy to expose the ETag header to the browser
- * (ExposeHeaders: ["ETag"]) — without it, res.headers.get("ETag") is null
- * even on a successful PUT, since browsers hide non-exposed headers on
- * cross-origin responses by default. Deployment-config note, not fixable in
- * application code.
+ * Resumable upload to Supabase Storage via the TUS protocol
+ * (https://supabase.com/docs/guides/storage/uploads/resumable-uploads).
+ * Runs entirely browser-to-Supabase — this Next.js server never sees file
+ * bytes (init-upload.ts only validates and hands back an object path;
+ * complete-upload.ts only records the already-uploaded file).
+ *
+ * Resumability is tus-js-client's own responsibility: it fingerprints the
+ * File (name/size/type/lastModified by default) and persists its own
+ * in-progress upload URL in localStorage, so re-selecting the same file
+ * after a reload (see UploadForm.tsx's resume affordance) naturally resumes
+ * the same upload rather than restarting it — CLAUDE.md P8. No hand-rolled
+ * resume bookkeeping needed here (the old R2 flow had its own; this
+ * replaces it wholesale rather than layering on top).
+ *
+ * Returns a handle synchronously so the caller can cancel a still-running
+ * upload (e.g. the file-list "remove" button on a failed/in-progress item)
+ * without waiting for it to settle.
  */
-async function uploadPartWithRetry(
-  ownership: UploadOwnership,
-  key: string,
-  uploadId: string,
-  partNumber: number,
-  chunk: Blob,
-): Promise<string | null> {
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_PART; attempt++) {
-    const urlResult = await getPartUploadUrl({ providerId: ownership.providerId, sessionToken: ownership.sessionToken, key, uploadId, partNumber });
-    if (!urlResult.success || !urlResult.url) {
-      await backoff(attempt);
-      continue;
-    }
-    try {
-      const res = await fetch(urlResult.url, { method: "PUT", body: chunk });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const etag = res.headers.get("ETag");
-      if (!etag) throw new Error("Missing ETag in response");
-      return etag;
-    } catch {
-      await backoff(attempt);
-    }
-  }
-  return null;
-}
-
-/**
- * Resumable chunked upload, fetch-based, no upload library. Resume state
- * (uploadId, key, completed part ETags) lives in localStorage keyed by
- * provider+filename+size, so re-selecting the same file after closing the
- * browser picks up from the last completed part instead of restarting.
- */
-export async function uploadFileChunked(params: {
+export function uploadFileChunked(params: {
   providerId: string;
   sessionToken: string;
   file: File;
   fileType: UploadedFileType;
   callbacks: ChunkedUploadCallbacks;
-  signal?: AbortSignal;
-}): Promise<void> {
-  const { providerId, sessionToken, file, fileType, callbacks, signal } = params;
-  const ownership: UploadOwnership = { providerId, sessionToken };
-  const storageKey = resumeStorageKey(providerId, file.name, file.size);
+}): UploadHandle {
+  const { providerId, sessionToken, file, fileType, callbacks } = params;
 
-  let record = loadResumeRecord(storageKey);
-  if (!record) {
+  let currentUpload: tus.Upload | null = null;
+  let cancelled = false;
+
+  void (async () => {
     const init = await initUpload({ providerId, sessionToken, filename: file.name, fileSizeBytes: file.size });
-    if (!init.success || !init.uploadId || !init.key) {
+    if (cancelled) return;
+    if (!init.success || !init.objectPath) {
       callbacks.onError(init.error ?? "Could not start the upload.");
       return;
     }
-    record = { uploadId: init.uploadId, key: init.key, fileType, parts: [] };
-    saveResumeRecord(storageKey, record);
-  }
+    const objectPath = init.objectPath;
 
-  const totalParts = Math.max(1, Math.ceil(file.size / CHUNK_SIZE_BYTES));
-  const completedPartNumbers = new Set(record.parts.map((p) => p.partNumber));
-
-  for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
-    if (signal?.aborted) {
-      callbacks.onPaused();
-      return;
-    }
-    if (completedPartNumbers.has(partNumber)) continue;
-
-    const start = (partNumber - 1) * CHUNK_SIZE_BYTES;
-    const end = Math.min(start + CHUNK_SIZE_BYTES, file.size);
-    const chunk = file.slice(start, end);
-
-    const etag = await uploadPartWithRetry(ownership, record.key, record.uploadId, partNumber, chunk);
-    if (etag === null) {
-      callbacks.onError("Upload paused after repeated failures. Your progress is saved — try again when your connection improves.");
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) {
+      callbacks.onError("Upload storage is not configured.");
       return;
     }
 
-    record.parts.push({ partNumber, etag });
-    saveResumeRecord(storageKey, record);
-    callbacks.onProgress(Math.round((record.parts.length / totalParts) * 100));
-  }
+    const upload = new tus.Upload(file, {
+      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${anonKey}`,
+        "x-upsert": "false",
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      chunkSize: CHUNK_SIZE_BYTES,
+      metadata: {
+        bucketName: PDC_UPLOADS_BUCKET,
+        objectName: objectPath,
+        contentType: file.type || "application/octet-stream",
+        cacheControl: "3600",
+      },
+      onError: (error) => {
+        // tus-js-client already retries transient failures internally per
+        // retryDelays — onError only fires once those are exhausted, so
+        // this genuinely is "failed after several attempts" (matching the
+        // old R2 flow's onError semantics), not a pause.
+        if (cancelled) return;
+        callbacks.onError(error.message ?? "Upload failed after several attempts. Your progress is saved — try again when your connection improves.");
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        if (cancelled) return;
+        callbacks.onProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+      },
+      onSuccess: () => {
+        if (cancelled) return;
+        void (async () => {
+          const result = await completeUpload({
+            providerId,
+            sessionToken,
+            objectPath,
+            filename: file.name,
+            fileType,
+            fileSizeBytes: file.size,
+          });
+          if (cancelled) return;
+          if (!result.success || !result.uploadedFileId) {
+            callbacks.onError(result.error ?? "Upload finished but could not be recorded.");
+            return;
+          }
+          callbacks.onComplete({ uploadedFileId: result.uploadedFileId, storagePath: objectPath });
+        })();
+      },
+    });
 
-  const result = await completeUpload({
-    providerId,
-    sessionToken,
-    key: record.key,
-    uploadId: record.uploadId,
-    parts: record.parts,
-    filename: file.name,
-    fileType: record.fileType,
-    fileSizeBytes: file.size,
-  });
+    currentUpload = upload;
+    if (cancelled) {
+      upload.abort(true).catch(() => undefined);
+      return;
+    }
 
-  if (!result.success || !result.uploadedFileId || !result.r2Key) {
-    callbacks.onError(result.error ?? "Could not finish the upload.");
-    return;
-  }
+    const previousUploads = await upload.findPreviousUploads();
+    if (cancelled) return;
+    const previousUpload = previousUploads[0];
+    if (previousUpload) {
+      upload.resumeFromPreviousUpload(previousUpload);
+    }
+    upload.start();
+  })();
 
-  clearResumeRecord(storageKey);
-  callbacks.onComplete({ uploadedFileId: result.uploadedFileId, r2Key: result.r2Key });
+  return {
+    cancel: () => {
+      cancelled = true;
+      currentUpload?.abort(true).catch(() => undefined);
+    },
+  };
 }

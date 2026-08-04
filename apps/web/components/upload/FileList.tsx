@@ -14,6 +14,9 @@ export interface FileListProps {
   /** Re-opens a file picker scoped to this file so its chunked upload can
    * resume — see UploadForm.tsx for why the raw File can't survive a reload. */
   onResumeRequest: (fileId: string) => void;
+  /** Cancels (if still in flight) and removes a failed upload from the list
+   * and from localStorage — UploadForm.tsx's handleRemoveFile. */
+  onRemove: (fileId: string) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -22,7 +25,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FileList({ files, onAnswerScanned, onResumeRequest }: FileListProps) {
+export function FileList({ files, onAnswerScanned, onResumeRequest, onRemove }: FileListProps) {
   const t = useTranslations("Onboarding.Upload");
 
   if (files.length === 0) return null;
@@ -36,7 +39,20 @@ export function FileList({ files, onAnswerScanned, onResumeRequest }: FileListPr
               <p className="truncate text-sm font-medium text-gray-800">{file.filename}</p>
               <p className="text-xs text-gray-500">{formatBytes(file.fileSizeBytes)}</p>
             </div>
-            <StatusBadge status={file.uploadStatus} />
+            <div className="flex items-center gap-2">
+              <StatusBadge status={file.uploadStatus} />
+              {file.uploadStatus === "failed" && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(file.id)}
+                  aria-label={t("resume.remove")}
+                  title={t("resume.remove")}
+                  className="text-gray-400 hover:text-red-600"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           {file.uploadStatus === "queued" && needsScannedAnswer(file) && (
@@ -73,7 +89,7 @@ export function FileList({ files, onAnswerScanned, onResumeRequest }: FileListPr
 /** A PDF whose fileType hasn't been narrowed to pdf/pdf_scanned yet — see
  * UploadForm.tsx, which stores the placeholder as "pdf" until answered. */
 function needsScannedAnswer(file: UploadedFileState): boolean {
-  return file.fileType === "pdf" && file.filename.toLowerCase().endsWith(".pdf") && !file.r2Key;
+  return file.fileType === "pdf" && file.filename.toLowerCase().endsWith(".pdf") && !file.storagePath;
 }
 
 function StatusBadge({ status }: { status: UploadedFileState["uploadStatus"] }) {

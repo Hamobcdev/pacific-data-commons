@@ -13,11 +13,19 @@ export interface ResumeLinkProps {
    * email is already registered (C1 fix path), so the provider lands
    * directly on the secure resume flow instead of a dead end. */
   autoOpen?: boolean;
+  /** "footer" (default) is the original two-piece "Need to continue later? /
+   * Send me a link to resume" prompt shown below the registration form.
+   * "top" is a single, prominent "Already registered? Continue here" link
+   * meant to sit above the form — same underlying flow (opens the same
+   * email input, same requestResume() call), just a different entry point
+   * so a returning provider never has to fill in, or even see, the form to
+   * get back to their account. */
+  variant?: "footer" | "top";
 }
 
 /** R4: "Send me a link to continue later" — resumable from any device via
  * Supabase Auth magic link (see lib/onboarding/resume.ts). */
-export function ResumeLink({ defaultEmail, autoOpen }: ResumeLinkProps) {
+export function ResumeLink({ defaultEmail, autoOpen, variant = "footer" }: ResumeLinkProps) {
   const t = useTranslations("Onboarding.resume");
   const [open, setOpen] = useState(false);
 
@@ -29,6 +37,13 @@ export function ResumeLink({ defaultEmail, autoOpen }: ResumeLinkProps) {
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   if (!open) {
+    if (variant === "top") {
+      return (
+        <button type="button" onClick={() => setOpen(true)} className="text-sm font-medium text-ocean hover:underline">
+          {t("alreadyRegistered")}
+        </button>
+      );
+    }
     return (
       <button type="button" onClick={() => setOpen(true)} className="text-sm text-ocean hover:underline">
         {t("prompt")}

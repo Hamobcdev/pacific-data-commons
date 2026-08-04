@@ -1,7 +1,5 @@
 "use server";
 
-import { CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
-import { createR2Client, getR2Bucket } from "@/lib/upload/r2";
 import { createServiceClient } from "@/lib/supabase/server";
 import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 import type { UploadedFileType } from "@pdc/shared-types";
@@ -9,21 +7,20 @@ import type { UploadedFileType } from "@pdc/shared-types";
 export interface CompleteUploadResult {
   success: boolean;
   uploadedFileId?: string;
-  r2Key?: string;
+  storagePath?: string;
   error?: string;
 }
 
 /**
- * Finalises a multipart upload (all parts already PUT directly to R2 from
- * the browser — see get-part-url.ts) and records the file in `uploaded_files`
- * so it's durable in Supabase (R4), not just localStorage.
+ * Records a file that has already finished uploading to Supabase Storage
+ * (the browser's TUS client — lib/upload/chunked.ts — talks to Supabase
+ * directly; this server never sees the bytes) into `uploaded_files`, so
+ * it's durable in Supabase (R4) rather than only localStorage.
  */
 export async function completeUpload(params: {
   providerId: string;
   sessionToken: string;
-  key: string;
-  uploadId: string;
-  parts: Array<{ partNumber: number; etag: string }>;
+  objectPath: string;
   filename: string;
   fileType: UploadedFileType;
   fileSizeBytes: number;
@@ -34,28 +31,13 @@ export async function completeUpload(params: {
     return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
   }
 
-  const client = createR2Client();
-
-  try {
-    await client.send(
-      new CompleteMultipartUploadCommand({
-        Bucket: getR2Bucket(),
-        Key: params.key,
-        UploadId: params.uploadId,
-        MultipartUpload: {
-          Parts: params.parts
-            .sort((a, b) => a.partNumber - b.partNumber)
-            .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
-        },
-      }),
-    );
-  } catch {
-    // Best-effort cleanup — an abandoned multipart upload otherwise sits in
-    // R2 consuming storage until a lifecycle rule reaps it.
-    await client
-      .send(new AbortMultipartUploadCommand({ Bucket: getR2Bucket(), Key: params.key, UploadId: params.uploadId }))
-      .catch(() => undefined);
-    return { success: false, error: "Could not finish the upload. Please retry — already-uploaded parts are kept." };
+  // Defence in depth: the anon-key TUS upload isn't scoped to a single
+  // object path by RLS (see session10_1_supabase_storage.sql for why) — so
+  // refuse to create a durable record for anything outside the caller's
+  // own provider prefix, even though init-upload.ts only ever hands out
+  // paths under that prefix in the first place.
+  if (!params.objectPath.startsWith(`${params.providerId}/`)) {
+    return { success: false, error: "Upload path does not match your provider account." };
   }
 
   const supabase = createServiceClient();
@@ -66,7 +48,7 @@ export async function completeUpload(params: {
       original_filename: params.filename,
       file_type: params.fileType,
       file_size_bytes: params.fileSizeBytes,
-      r2_key: params.key,
+      storage_path: params.objectPath,
       processing_status: "uploaded",
     })
     .select("id")
@@ -76,5 +58,5 @@ export async function completeUpload(params: {
     return { success: false, error: "Upload finished but could not be recorded. Please contact SBP with your file name." };
   }
 
-  return { success: true, uploadedFileId: data.id as string, r2Key: params.key };
+  return { success: true, uploadedFileId: data.id as string, storagePath: params.objectPath };
 }

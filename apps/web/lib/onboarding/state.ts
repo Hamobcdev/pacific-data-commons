@@ -10,7 +10,7 @@ export interface UploadedFileState {
   fileSizeBytes: number;
   uploadStatus: "queued" | "uploading" | "paused" | "complete" | "failed";
   uploadProgress: number; // 0-100
-  r2Key: string | null; // set when upload completes
+  storagePath: string | null; // Supabase Storage object path, set when upload completes
   supabaseFileId: string | null; // set when the uploaded_files row is created
 }
 

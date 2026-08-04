@@ -39,6 +39,7 @@
     "resume": {
       "prompt": "Need to continue later? ",
       "action": "Send me a link to resume",
+      "alreadyRegistered": "Already registered? Continue here",
       "emailPlaceholder": "your@institution.edu",
       "send": "Send link",
       "sending": "Sending..."
@@ -157,6 +158,7 @@
       },
       "resume": {
         "action": "Select file again to resume",
+        "remove": "Remove",
         "paused_note": "Upload paused — your progress is saved.",
         "failed_note": "Upload failed after several attempts — your progress is saved.",
         "mismatch_error": "That doesn't look like the same file as \"{filename}\" — please select the original file to resume."
