@@ -41,7 +41,7 @@ export interface ResumeRequestResult {
  * without one (see Session 5 report).
  */
 export async function sendResumeLink(email: string, redirectPath = "/onboarding"): Promise<ResumeRequestResult> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
   if (!appUrl) {
     return { success: false, message: "Resume links are not configured yet. Please contact SBP." };
   }
