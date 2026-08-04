@@ -80,7 +80,7 @@
       "domain": {
         "checking": "Checking domain...",
         "verified": "Domain verified",
-        "manual": "Domain not verified — your registration will be reviewed manually. This does not block your application."
+        "manual": "Personal email detected — your registration will be reviewed manually. This does not block your application."
       }
     },
     "Wallet": {
