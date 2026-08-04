@@ -23,8 +23,9 @@ export interface UploadedFile {
   original_filename: string;
   file_type: UploadedFileType;
   file_size_bytes: number | null;
-  /** Cloudflare R2 object key — used to retrieve and delete. */
-  r2_key: string;
+  /** Supabase Storage object path in the pdc-uploads bucket — used to
+   * retrieve and delete. Format: {provider_id}/{filename}. */
+  storage_path: string;
 
   processing_status: UploadedFileProcessingStatus;
   parse_output: Record<string, unknown> | null;
@@ -33,6 +34,7 @@ export interface UploadedFile {
   uploaded_at: string;
   processed_at: string | null;
   approved_at: string | null;
-  /** Set when the R2 object is deleted — null means the file still exists. */
+  /** Set when the Supabase Storage object is deleted — null means the file
+   * still exists. */
   deleted_at: string | null;
 }

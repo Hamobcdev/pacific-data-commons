@@ -1,17 +1,15 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
-import { CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
-import { createR2Client, getR2Bucket } from "@/lib/upload/r2";
 import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { PDC_UPLOADS_BUCKET } from "@/lib/upload/constants";
 
 const ACCEPTED_EXTENSIONS = ["pdf", "xlsx", "csv", "docx", "md", "zip"] as const;
 const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
 
 export interface InitUploadResult {
   success: boolean;
-  uploadId?: string;
-  key?: string;
+  objectPath?: string;
+  bucket?: string;
   error?: string;
 }
 
@@ -20,9 +18,12 @@ function extensionOf(filename: string): string {
 }
 
 /**
- * Starts a Cloudflare R2 (S3-compatible) multipart upload and returns the
- * uploadId + object key the browser needs to request per-part presigned
- * URLs from (see get-part-url.ts). Raw bytes never touch this server.
+ * Validates the file and hands back the Supabase Storage object path the
+ * browser's resumable (TUS) upload client should use — see
+ * lib/upload/chunked.ts. No bytes touch this server: the browser talks to
+ * Supabase Storage's TUS endpoint directly with the public anon key, the
+ * same "never proxy raw bytes through the app server" posture the previous
+ * R2 presigned-URL flow had.
  */
 export async function initUpload(params: {
   providerId: string;
@@ -46,22 +47,6 @@ export async function initUpload(params: {
   if (params.fileSizeBytes <= 0 || params.fileSizeBytes > MAX_FILE_SIZE_BYTES) {
     return { success: false, error: "Files must be under 500MB." };
   }
-  if (!params.providerId) {
-    return { success: false, error: "Please complete registration before uploading files." };
-  }
 
-  const key = `uploads/${params.providerId}/${randomUUID()}-${params.filename}`;
-
-  try {
-    const client = createR2Client();
-    const result = await client.send(
-      new CreateMultipartUploadCommand({ Bucket: getR2Bucket(), Key: key, ContentType: "application/octet-stream" }),
-    );
-    if (!result.UploadId) {
-      return { success: false, error: "Could not start the upload. Please try again." };
-    }
-    return { success: true, uploadId: result.UploadId, key };
-  } catch {
-    return { success: false, error: "Could not reach file storage. Please try again in a moment." };
-  }
+  return { success: true, objectPath: `${params.providerId}/${params.filename}`, bucket: PDC_UPLOADS_BUCKET };
 }

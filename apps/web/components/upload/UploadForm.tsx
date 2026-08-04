@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import type { UploadedFileType } from "@pdc/shared-types";
-import { uploadFileChunked } from "@/lib/upload/chunked";
+import { uploadFileChunked, type UploadHandle } from "@/lib/upload/chunked";
 import { saveUploadContext } from "@/actions/onboarding/upload-context";
 import { loadLocalState, saveLocalState, defaultState, type OnboardingState, type UploadedFileState } from "@/lib/onboarding/state";
 import { uploadContextSchema } from "@/lib/onboarding/validation";
@@ -48,6 +48,10 @@ export function UploadForm() {
   const filesRef = useRef<Map<string, File>>(new Map());
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const resumeTargetId = useRef<string | null>(null);
+  // Live upload handles, keyed by file id — lets handleRemoveFile cancel an
+  // in-progress or retryable upload (and purge its tus-js-client resume
+  // record) before dropping it from the list.
+  const uploadHandlesRef = useRef<Map<string, UploadHandle>>(new Map());
 
   useEffect(() => {
     const state = loadLocalState();
@@ -93,19 +97,34 @@ export function UploadForm() {
   const startUpload = (fileId: string, file: File, fileType: UploadedFileType) => {
     if (!providerId || !sessionToken) return;
     updateFile(fileId, { uploadStatus: "uploading", uploadProgress: 0, fileType });
-    uploadFileChunked({
+    const handle = uploadFileChunked({
       providerId,
       sessionToken,
       file,
       fileType,
       callbacks: {
         onProgress: (percent) => updateFile(fileId, { uploadProgress: percent }),
-        onPaused: () => updateFile(fileId, { uploadStatus: "paused" }),
-        onComplete: ({ uploadedFileId, r2Key }) =>
-          updateFile(fileId, { uploadStatus: "complete", uploadProgress: 100, r2Key, supabaseFileId: uploadedFileId }),
-        onError: () => updateFile(fileId, { uploadStatus: "failed" }),
+        onComplete: ({ uploadedFileId, storagePath }) => {
+          uploadHandlesRef.current.delete(fileId);
+          updateFile(fileId, { uploadStatus: "complete", uploadProgress: 100, storagePath, supabaseFileId: uploadedFileId });
+        },
+        onError: () => {
+          uploadHandlesRef.current.delete(fileId);
+          updateFile(fileId, { uploadStatus: "failed" });
+        },
       },
     });
+    uploadHandlesRef.current.set(fileId, handle);
+  };
+
+  /** X button on a failed upload (FileList) — cancels the upload if
+   * tus-js-client is still retrying it, then drops the entry from both
+   * form state and localStorage (persist() below writes through). */
+  const handleRemoveFile = (fileId: string) => {
+    uploadHandlesRef.current.get(fileId)?.cancel();
+    uploadHandlesRef.current.delete(fileId);
+    filesRef.current.delete(fileId);
+    persist({ ...form, uploadedFiles: form.uploadedFiles.filter((f) => f.id !== fileId) });
   };
 
   const handleFilesSelected = (selected: File[]) => {
@@ -120,7 +139,7 @@ export function UploadForm() {
         fileSizeBytes: file.size,
         uploadStatus: "queued",
         uploadProgress: 0,
-        r2Key: null,
+        storagePath: null,
         supabaseFileId: null,
       });
     }
@@ -200,7 +219,7 @@ export function UploadForm() {
   return (
     <div className="mt-6 space-y-6">
       <FileUploadZone onFilesSelected={handleFilesSelected} />
-      <FileList files={form.uploadedFiles} onAnswerScanned={handleAnswerScanned} onResumeRequest={handleResumeRequest} />
+      <FileList files={form.uploadedFiles} onAnswerScanned={handleAnswerScanned} onResumeRequest={handleResumeRequest} onRemove={handleRemoveFile} />
       <input
         ref={resumeInputRef}
         type="file"
