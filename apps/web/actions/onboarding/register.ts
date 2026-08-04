@@ -27,10 +27,28 @@ function extractEmailDomain(email: string): string {
   return email.split("@")[1] ?? "";
 }
 
+/**
+ * Common personal email providers exempted from the institutional-domain
+ * match during the pilot period — institutional email setup is a real
+ * access barrier for some pilot registrants (e.g. a researcher whose
+ * institution hasn't issued them an address yet, or a small NGO that runs
+ * entirely on Gmail). Every Bronze registration already goes through SBP's
+ * clerical verification_queue (complete-onboarding.ts) regardless of this
+ * exemption, so "reviewed manually" in the UI copy is accurate — it's not
+ * a new promise this bypass introduces.
+ *
+ * Remove this exemption when institutional email is enforced at launch
+ * (CLAUDE.md Section 8, Bronze tier identity verification).
+ */
+const PILOT_ALLOWED_EMAIL_DOMAINS = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com"];
+
 /** H3: contact email domain must match (or be a subdomain of) the verified
- * institutional website domain — j.smith@marine.usp.ac.fj matches usp.ac.fj. */
+ * institutional website domain — j.smith@marine.usp.ac.fj matches usp.ac.fj.
+ * Pilot exemption: common personal email providers bypass this check — see
+ * PILOT_ALLOWED_EMAIL_DOMAINS above. */
 function emailMatchesDomain(email: string, websiteDomain: string): boolean {
   const emailDomain = extractEmailDomain(email).toLowerCase();
+  if (PILOT_ALLOWED_EMAIL_DOMAINS.includes(emailDomain)) return true;
   const site = websiteDomain.toLowerCase();
   return emailDomain === site || emailDomain.endsWith(`.${site}`);
 }
