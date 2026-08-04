@@ -8,6 +8,7 @@
     "shell": {
       "brand": "Pacific Data Commons",
       "sectionLabel": "Provider Onboarding",
+      "resuming": "Checking for a saved registration...",
       "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP."
     },
     "error": {
