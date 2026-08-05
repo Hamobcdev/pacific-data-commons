@@ -3,6 +3,13 @@ import { randomBytes } from "crypto";
 
 export const ONBOARDING_SESSION_DURATION_HOURS = 72;
 
+// Re-exported for existing/new callers that import these from this module
+// (every actions/onboarding/*.ts file) — the values themselves live in
+// session-constants.ts so client components can import just the constants
+// without pulling this file's createServiceClient (-> next/headers) import
+// into a client bundle. See that file's own comment.
+export { SESSION_EXPIRED_ERROR, SESSION_EXPIRED_FLASH_KEY } from "./session-constants";
+
 export class InvalidOnboardingSessionError extends Error {}
 
 /**

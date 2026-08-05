@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { reviewSchema, type ReviewData } from "@/lib/onboarding/validation";
 import { BRONZE_CAPPED_TIERS, BRONZE_PRICE_CAP_USDC } from "@/lib/onboarding/tiers";
 import { getServerMessage } from "@/lib/i18n/server-messages";
-import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { validateOnboardingSession, InvalidOnboardingSessionError, SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session";
 import type { PricingTier } from "@pdc/shared-types";
 
 export interface SaveReviewResult {
@@ -157,7 +157,7 @@ export async function saveReview(providerId: string, sessionToken: string, data:
   try {
     await validateOnboardingSession(providerId, sessionToken);
   } catch (err) {
-    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? SESSION_EXPIRED_ERROR : "Invalid session." };
   }
 
   const parsed = reviewSchema.safeParse(data);

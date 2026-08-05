@@ -3,7 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { walletSchema } from "@/lib/onboarding/validation";
 import { getServerMessage } from "@/lib/i18n/server-messages";
-import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { validateOnboardingSession, InvalidOnboardingSessionError, SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session";
 
 const USDC_MAINNET_ASA_ID = 31566704;
 
@@ -33,8 +33,10 @@ export async function saveWallet(
   try {
     await validateOnboardingSession(providerId, sessionToken);
   } catch (err) {
-    const message = err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session.";
-    return { success: false, walletVerified: false, usdcOptedIn: null, error: message };
+    if (err instanceof InvalidOnboardingSessionError) {
+      return { success: false, walletVerified: false, usdcOptedIn: null, error: SESSION_EXPIRED_ERROR };
+    }
+    return { success: false, walletVerified: false, usdcOptedIn: null, error: "Invalid session." };
   }
 
   const parsed = walletSchema.safeParse({ walletAddress, hasInstitutionalAuthority });

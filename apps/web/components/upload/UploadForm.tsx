@@ -8,6 +8,8 @@ import { uploadFileChunked, type UploadHandle } from "@/lib/upload/chunked";
 import { saveUploadContext } from "@/actions/onboarding/upload-context";
 import { loadLocalState, saveLocalState, defaultState, type OnboardingState, type UploadedFileState } from "@/lib/onboarding/state";
 import { uploadContextSchema } from "@/lib/onboarding/validation";
+import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
+import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { FileUploadZone } from "./FileUploadZone";
 import { FileList } from "./FileList";
 import { DataContextForm } from "./DataContextForm";
@@ -29,6 +31,7 @@ function guessFileType(filename: string): UploadedFileType {
 
 export function UploadForm() {
   const t = useTranslations("Onboarding.Upload");
+  const tShell = useTranslations("Onboarding.shell");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -202,6 +205,9 @@ export function UploadForm() {
         const state = loadLocalState() ?? defaultState();
         saveLocalState({ ...state, currentStep: "review" });
         router.push("/onboarding/review");
+      } else if (result.error === SESSION_EXPIRED_ERROR) {
+        flagSessionExpired(tShell("sessionExpired"));
+        router.push("/onboarding");
       } else {
         setError(result.error ?? t("genericError"));
       }

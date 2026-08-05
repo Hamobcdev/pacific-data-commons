@@ -16,17 +16,27 @@ export interface ResumeSessionResult {
 }
 
 /**
- * Called once, client-side, from the /onboarding index page
- * (OnboardingResumeGate.tsx), after it has used the cookie-aware browser
- * Supabase client to turn the magic link's URL fragment into a real,
- * cookie-based Auth session (see lib/onboarding/resume.ts for why this is
- * an implicit-flow fragment rather than a server-exchanged code). Resolves
- * that session's email back to a provider — same identity pattern
- * as getResumedProvider() (lib/onboarding/resume.ts) — then mints a FRESH
- * onboarding session token and works out which step to send them back to
- * from what is actually saved server-side, not from a client localStorage
- * that may not even exist on this device (the whole point of a magic link
- * is resuming from a different device/browser).
+ * Called from two places, both after a real Supabase Auth session cookie
+ * already exists: (1) directly from verifyResumeOtp() (lib/onboarding/resume.ts)
+ * in the same server-action execution that just wrote the cookie via
+ * verifyOtp() (Session 10 — OTP replaced the magic-link flow this comment
+ * used to describe), and (2) from the /onboarding index page
+ * (OnboardingResumeGate.tsx) for a provider who already has a live session
+ * from an earlier visit. Resolves that session's email back to a provider —
+ * same identity pattern as getResumedProvider() (lib/onboarding/resume.ts)
+ * — then mints a FRESH onboarding session token and works out which step to
+ * send them back to from what is actually saved server-side, not from a
+ * client localStorage that may not even exist on this device (the whole
+ * point of a resume flow is resuming from a different device/browser).
+ *
+ * Note on session freshness: the Supabase Auth access token (1-hour
+ * default expiry) is refreshed on ordinary navigation by middleware.ts,
+ * which runs supabase.auth.getUser() on every non-static request. This
+ * function's own session read is unaffected either way — the 72-hour
+ * onboarding_session_token minted below, not the Auth cookie, is what
+ * actually gates onboarding continuation — but dashboard pages that rely on
+ * staying authenticated across a longer session now depend on that
+ * middleware refresh actually running.
  *
  * Minting a new session token here is a deliberate second exception to
  * "only register.ts creates one" (see createOnboardingSession's own doc

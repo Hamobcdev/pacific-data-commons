@@ -6,6 +6,8 @@ import { useRouter } from "@/i18n/navigation";
 import { saveReview, getReviewContext, type OriginalUploadSummary } from "@/actions/onboarding/save-review";
 import { loadLocalState, saveLocalState, defaultState, type ReviewState } from "@/lib/onboarding/state";
 import { reviewSchema } from "@/lib/onboarding/validation";
+import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
+import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { DEFAULT_REVIEW_PRICING } from "@/lib/onboarding/tiers";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import { SensitivityConfirmation } from "./SensitivityConfirmation";
 
 export function ReviewLayout() {
   const t = useTranslations("Onboarding.Review");
+  const tShell = useTranslations("Onboarding.shell");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +103,9 @@ export function ReviewLayout() {
         const state = loadLocalState() ?? defaultState();
         saveLocalState({ ...state, currentStep: "provenance" });
         router.push(result.nextStep);
+      } else if (result.error === SESSION_EXPIRED_ERROR) {
+        flagSessionExpired(tShell("sessionExpired"));
+        router.push("/onboarding");
       } else {
         setError(result.error ?? t("genericError"));
       }

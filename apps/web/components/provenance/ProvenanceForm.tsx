@@ -6,6 +6,8 @@ import { useRouter } from "@/i18n/navigation";
 import { saveProvenance } from "@/actions/onboarding/save-provenance";
 import { loadLocalState, saveLocalState, defaultState, type ProvenanceState, type ProvenanceResearcher } from "@/lib/onboarding/state";
 import { provenanceSchema } from "@/lib/onboarding/validation";
+import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
+import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +26,7 @@ function newResearcher(): ProvenanceResearcher {
 
 export function ProvenanceForm() {
   const t = useTranslations("Onboarding.Provenance");
+  const tShell = useTranslations("Onboarding.shell");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +80,9 @@ export function ProvenanceForm() {
         const state = loadLocalState() ?? defaultState();
         saveLocalState({ ...state, currentStep: "deploy" });
         router.push(result.nextStep);
+      } else if (result.error === SESSION_EXPIRED_ERROR) {
+        flagSessionExpired(tShell("sessionExpired"));
+        router.push("/onboarding");
       } else {
         setError(result.error ?? t("genericError"));
       }

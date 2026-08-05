@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { generateEndpointPackage } from "@/actions/onboarding/generate-endpoint-package";
+import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
+import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +28,8 @@ function base64ToBlob(base64: string, contentType: string): Blob {
  * triggers the browser download client-side instead. */
 export function SelfHostedPath({ providerId, sessionToken }: SelfHostedPathProps) {
   const t = useTranslations("Onboarding.Deploy.selfHosted");
+  const tShell = useTranslations("Onboarding.shell");
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [downloaded, setDownloaded] = useState(false);
@@ -44,6 +49,9 @@ export function SelfHostedPath({ providerId, sessionToken }: SelfHostedPathProps
         link.remove();
         URL.revokeObjectURL(url);
         setDownloaded(true);
+      } else if (result.error === SESSION_EXPIRED_ERROR) {
+        flagSessionExpired(tShell("sessionExpired"));
+        router.push("/onboarding");
       } else {
         setError(result.error ?? t("genericError"));
       }

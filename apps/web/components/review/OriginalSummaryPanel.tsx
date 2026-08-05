@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { OriginalUploadSummary } from "@/actions/onboarding/save-review";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface OriginalSummaryPanelProps {
   uploads: OriginalUploadSummary[];
@@ -21,7 +22,21 @@ export function OriginalSummaryPanel({ uploads, loading }: OriginalSummaryPanelP
         <CardTitle>{t("title")}</CardTitle>
       </CardHeader>
       <CardContent>
-        {loading && <p className="text-gray-400">{t("loading")}</p>}
+        {loading && (
+          <div className="space-y-4" aria-busy="true" aria-label={t("loading")}>
+            {[0, 1].map((i) => (
+              <div key={i} className="space-y-2 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                <Skeleton className="h-4 w-3/4" />
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {!loading && uploads.length === 0 && <p className="text-gray-400">{t("empty")}</p>}
         {!loading && uploads.length > 0 && (
           <ul className="space-y-4">

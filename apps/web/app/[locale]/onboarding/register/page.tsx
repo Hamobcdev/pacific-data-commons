@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { RegistrationForm } from "@/components/register/RegistrationForm";
 import { StepIndicator } from "@/components/onboarding/StepIndicator";
 import { InstitutionalPanel } from "@/components/register/InstitutionalPanel";
-import { ResumeLink } from "@/components/onboarding/ResumeLink";
+import { ResumeOtp } from "@/components/onboarding/ResumeOtp";
 
 export default async function RegisterPage() {
   const t = await getTranslations("Onboarding.Register");
@@ -24,11 +24,11 @@ export default async function RegisterPage() {
             <div className="mt-8">
               <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>
               <p className="mt-2 text-gray-600">{t("subtitle")}</p>
-              {/* Independent of form fill state — opens the same magic-link
-                  resume flow RegistrationForm's own bottom ResumeLink does,
-                  just reachable without seeing or touching the form. */}
+              {/* Independent of form fill state — opens the same OTP resume
+                  flow RegistrationForm's own bottom ResumeOtp does, just
+                  reachable without seeing or touching the form. */}
               <div className="mt-3">
-                <ResumeLink variant="top" />
+                <ResumeOtp variant="top" />
               </div>
               <div className="mt-4 p-4 bg-light-bg rounded-lg">
                 <p className="text-sm text-navy">{t("pilot_notice")}</p>
