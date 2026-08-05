@@ -2,7 +2,10 @@
   "Landing": {
     "title": "Pacific Data Commons",
     "subtitle": "A sovereign data exchange for Pacific institutions — your data stays on your servers, buyers pay you directly.",
-    "cta": "Register Your Institution"
+    "cta": "Register Your Institution",
+    "tagline": "Sovereign Data. Direct Payments. Pacific.",
+    "pilotNote": "Pre-commercial pilot",
+    "contactNote": "Contact SBP"
   },
   "Onboarding": {
     "shell": {
