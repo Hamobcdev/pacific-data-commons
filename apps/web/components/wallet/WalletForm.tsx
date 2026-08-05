@@ -24,6 +24,7 @@ export function WalletForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [guideConfirmed, setGuideConfirmed] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [institutionName, setInstitutionName] = useState("");
@@ -101,19 +102,22 @@ export function WalletForm() {
 
       {guideConfirmed && (
         <>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-sm font-medium text-gray-700">{t("custody.question")}</p>
-            <p className="mt-1 text-sm text-gray-600">{t("custody.recommendation")}</p>
-            <Link href="/downloads/finance-office-brief" className="mt-2 inline-block text-sm text-ocean hover:underline">
+          <p className="text-sm text-gray-600">
+            {t("custody.question")} {t("custody.recommendation")}{" "}
+            <Link href="/downloads/finance-office-brief" className="text-xs text-gray-400 hover:text-ocean hover:underline">
               {t("custody.guide_download")}
             </Link>
-          </div>
+          </p>
 
-          <WalletInput
-            value={form.walletAddress}
-            onChange={(address) => persist({ ...form, walletAddress: address })}
-            onUsdcStatusChange={(usdcOptedIn) => persist({ ...form, walletAddress: form.walletAddress, usdcOptedIn })}
-          />
+          <div>
+            <WalletInput
+              value={form.walletAddress}
+              onChange={(address) => persist({ ...form, walletAddress: address })}
+              onUsdcStatusChange={(usdcOptedIn) => persist({ ...form, walletAddress: form.walletAddress, usdcOptedIn })}
+            />
+            <p className="mt-1.5 text-xs text-gray-500">{t("address.hint")}</p>
+            <p className="mt-1 text-xs text-gray-400">{t("address.publicNote")}</p>
+          </div>
 
           {addressFormatValid && form.usdcOptedIn === false && <UsdcOptInGuide />}
 
@@ -138,6 +142,34 @@ export function WalletForm() {
           />
         </>
       )}
+
+      <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setSecurityOpen((open) => !open)}
+          className="flex w-full items-center justify-between text-left text-sm font-medium text-gray-700"
+          aria-expanded={securityOpen}
+        >
+          <span>
+            🔒 {t("security.title")} {securityOpen ? "▲" : "▼"}
+          </span>
+        </button>
+        {securityOpen && (
+          <div className="mt-3 space-y-2 text-sm text-gray-600">
+            <p>{t("security.note")}</p>
+            <a
+              href="https://support.perawallet.app/en/article/how-to-keep-your-algorand-account-safe-1e8k6q7/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-ocean hover:underline"
+            >
+              → {t("security.link")}
+            </a>
+          </div>
+        )}
+      </div>
+
+      <p className="text-xs text-gray-400">ℹ️ {t("rocca.note")}</p>
     </div>
   );
 }
