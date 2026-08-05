@@ -110,7 +110,7 @@
     },
     "Wallet": {
       "title": "Set Up Your Payment Wallet",
-      "subtitle": "Your institution needs an Algorand wallet to receive USDC payments.",
+      "subtitle": "This is where your earnings are sent. You own it completely — SBP never has access to your funds.",
       "continue": "Continue to Data Upload",
       "genericError": "We couldn't save your wallet address. Check that your Algorand address is correct (58 characters, starts with a letter) and try again. If this keeps happening, email support@synergybcpacific.com.",
       "loading": "Loading your registration...",
@@ -119,28 +119,64 @@
         "heading": "About USDC",
         "body": "USDC is a USD-pegged digital asset held in your Algorand wallet. It is not automatically convertible to local currency. Options for accessing value include: holding as digital treasury, peer-to-peer exchange, or overseas exchange via international bank account. SBP is consulting with the Central Bank of Samoa on the regulatory pathway."
       },
-      "guide": {
-        "step1_title": "Install Pera Wallet",
-        "step1_body": "Pera is a free Algorand wallet app available on iOS and Android.",
-        "step2_title": "Create a new wallet",
-        "step2_body": "Follow the Pera setup guide to create a new wallet.",
-        "seed_warning": "This is the key to your institution's money. Store it like you store the deed to a building. SBP can never recover it for you.",
-        "step3_title": "Opt in to USDC",
-        "step3_body": "You need to opt in to receive USDC (the digital currency used for payments).",
-        "algo_requirement": "You need approximately 0.3 ALGO (less than $0.10 USD) to set up your wallet. Contact SBP if you need help with this.",
-        "confirm": "I've completed this step"
+      "path": {
+        "prompt": "How will you access your wallet?",
+        "smartphone": "On my smartphone",
+        "computer": "On my computer",
+        "help": "I need help choosing",
+        "change": "Choose a different way",
+        "smartphoneSteps": {
+          "step1_title": "Step 1: Download Pera Wallet",
+          "step1_body": "Free. Available on iPhone and Android.",
+          "step1_ios": "Download for iPhone (App Store)",
+          "step1_android": "Download for Android (Google Play)",
+          "step1_confirm": "Done",
+          "step2_title": "Step 2: Create your wallet",
+          "step2_body": "Open Pera, tap \"Create Account\", follow the steps.",
+          "step2_guide": "Step-by-step guide with screenshots",
+          "step3_title": "Step 3: Add USDC to your wallet",
+          "step3_body": "In Pera: tap the + button, search \"USDC\", then Add.",
+          "step3_confirm": "Done",
+          "step4_title": "Step 4: Paste your wallet address below",
+          "step4_body": "In Pera: tap your account name, tap the address to copy it, then paste it in the field below."
+        },
+        "computerSteps": {
+          "step1_title": "Step 1: Install Lute Wallet",
+          "step1_body": "Lute is a free browser extension for Chrome.",
+          "step1_link": "Install Lute for Chrome",
+          "step1_confirm": "Done",
+          "step2_title": "Step 2: Create your wallet",
+          "step2_body": "Open Lute, click \"New Account\", follow the steps.",
+          "step2_guide": "Step-by-step guide",
+          "step3_title": "Step 3: Add USDC to your wallet",
+          "step3_body": "In Lute: click Assets, Add Asset, search \"USDC\", then Add.",
+          "step3_confirm": "Done",
+          "step4_title": "Step 4: Paste your wallet address below",
+          "step4_body": "In Lute: click your account name, copy the address, then paste it in the field below."
+        },
+        "helpBlock": {
+          "title": "Ask our assistant",
+          "prompt": "Not sure which option is right for you? Our AI assistant can help.",
+          "chatButton": "Chat with assistant",
+          "emailPrompt": "Or email us"
+        }
       },
+      "backupWarning": "You will see a list of 25 words. Write them down on paper and store them somewhere safe — like a locked drawer. This is your wallet backup. SBP cannot recover your wallet if these words are lost.",
+      "backupConfirm": "I have written down my backup words",
+      "algoCredit": "SBP will automatically send you a small amount to cover this step — you pay nothing.",
       "custody": {
         "question": "Should this be a personal or institutional wallet?",
         "recommendation": "We recommend an institutional wallet controlled by your finance or IT department — not a personal wallet.",
-        "guide_download": "Download finance office brief"
+        "guide_download": "Download full wallet guide (PDF)"
       },
       "authority": {
         "label": "I confirm I have the authority to receive payments on behalf of {institutionName}. I understand payments go directly to this wallet and SBP cannot recover them.",
         "fallbackInstitution": "your institution"
       },
       "address": {
-        "label": "Your Algorand Wallet Address",
+        "label": "Your wallet address",
+        "hint": "This is your unique payment address — like a bank account number. Copy it from your Pera or Lute wallet and paste it here.",
+        "publicNote": "Your wallet address is public — it's safe to share. Never share your 25-word backup words with anyone.",
         "placeholder": "58-character Algorand address",
         "checking": "Checking address...",
         "verified": "Address verified",
@@ -155,6 +191,14 @@
         "step2": "Tap \"Add Asset\" and search for USDC",
         "step3": "Confirm the opt-in transaction (costs a small ALGO fee)",
         "recheck_note": "You can continue now — we'll note this and you can fix it before your first payment."
+      },
+      "security": {
+        "title": "Keeping your wallet secure",
+        "note": "Your 25-word backup is the only way to recover your wallet. Store it offline — written on paper in a secure location. Never store it digitally or share it with anyone.",
+        "link": "Wallet security best practices"
+      },
+      "rocca": {
+        "note": "Simpler wallets are coming. Algorand is developing a new wallet called Rocca — designed to work like a normal app, with no backup words required. PDC will support Rocca when it becomes available. Your current wallet address will work seamlessly — no re-registration needed."
       }
     },
     "Upload": {
