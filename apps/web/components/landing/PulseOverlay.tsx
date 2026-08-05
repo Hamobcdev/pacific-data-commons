@@ -16,7 +16,7 @@ export function PulseOverlay() {
     <div className="absolute inset-0 pointer-events-none z-[5]" aria-hidden="true">
       <svg
         className="w-full h-full"
-        viewBox="0 0 1400 788"
+        viewBox="0 0 1330 728"
         preserveAspectRatio="xMidYMid slice"
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -34,15 +34,15 @@ export function PulseOverlay() {
         </defs>
 
         {/* Bottom-left island -> central hub */}
-        <path id="pdc-arc-1" d="M 220 600 Q 480 340 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
+        <path id="pdc-arc-1" d="M 250 550 Q 480 140 540 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
         {/* Top-left island -> central hub */}
-        <path id="pdc-arc-2" d="M 160 340 Q 420 330 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
+        <path id="pdc-arc-2" d="M 300 340 Q 420 130 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
         {/* Right island cluster -> central hub */}
-        <path id="pdc-arc-3" d="M 1060 470 Q 880 390 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
+        <path id="pdc-arc-3" d="M 880 300 Q 880 190 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
         {/* Bottom-right island -> central hub */}
-        <path id="pdc-arc-4" d="M 960 630 Q 830 510 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
+        <path id="pdc-arc-4" d="M 800 580 Q 830 490 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
         {/* Far-right island -> central hub */}
-        <path id="pdc-arc-5" d="M 1200 570 Q 960 460 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
+        <path id="pdc-arc-5" d="M 1100 570 Q 960 360 700 394" fill="none" stroke="#00FFCC" strokeWidth="1" strokeOpacity="0.2" />
 
         <circle r="7" fill="url(#pdc-pulse-glow)" className="pdc-pulse-circle">
           <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
