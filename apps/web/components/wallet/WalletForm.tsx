@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { saveWallet } from "@/actions/onboarding/save-wallet";
 import { loadLocalState, saveLocalState, defaultState, type OnboardingState } from "@/lib/onboarding/state";
 import { checkAddressFormat } from "@/lib/algorand/validate";
@@ -104,9 +104,9 @@ export function WalletForm() {
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <p className="text-sm font-medium text-gray-700">{t("custody.question")}</p>
             <p className="mt-1 text-sm text-gray-600">{t("custody.recommendation")}</p>
-            <a href="/downloads/finance-office-brief.pdf" className="mt-2 inline-block text-sm text-ocean hover:underline">
+            <Link href="/downloads/finance-office-brief" className="mt-2 inline-block text-sm text-ocean hover:underline">
               {t("custody.guide_download")}
-            </a>
+            </Link>
           </div>
 
           <WalletInput
