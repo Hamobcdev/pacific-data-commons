@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { completeOnboarding } from "@/actions/onboarding/complete-onboarding";
 import { loadLocalState, clearLocalState } from "@/lib/onboarding/state";
+import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
+import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CompletionCard } from "./CompletionCard";
 import { NextStepsTimeline } from "./NextStepsTimeline";
 import { UsdcRealitySection } from "./UsdcRealitySection";
@@ -16,6 +19,7 @@ import { UsdcRealitySection } from "./UsdcRealitySection";
  * completion action, then clear local state" sequence. */
 export function CompleteLayout() {
   const t = useTranslations("Onboarding.Complete");
+  const tShell = useTranslations("Onboarding.shell");
   const router = useRouter();
   // Same fix as WalletForm (Session 9 follow-up) — see that component's
   // comment. This file never rendered blank (both branches already showed
@@ -37,10 +41,21 @@ export function CompleteLayout() {
       if (result.success) {
         setSummary({ institutionName: result.institutionName, datasetTitle: result.datasetTitle, providerSlug: result.providerSlug });
         setStatus("ready");
+      } else if (result.error === SESSION_EXPIRED_ERROR) {
+        // Session 10, Deliverable 2: previously left status as "checking"
+        // forever — a silent dead end at the very last step. Now bounces to
+        // the resume flow like every other step's session-expiry handling.
+        // Returns before clearLocalState() below — the provider is about to
+        // be routed through the resume flow, which resolves a fresh session
+        // from Supabase Auth rather than from localStorage anyway, but there
+        // is no reason to race a clear against the redirect.
+        flagSessionExpired(tShell("sessionExpired"));
+        router.replace("/onboarding");
+        return;
       }
-      // result.success === false intentionally leaves status as "checking"
-      // here — unchanged from this file's prior behaviour (no other
-      // changes): the loading message stays up rather than a dead end.
+      // Any other failure intentionally leaves status as "checking" here —
+      // unchanged from this file's prior behaviour: the loading message
+      // stays up rather than a dead end.
 
       // R3/R4: local state's job ends here — the submission is durably in
       // Supabase (providers/endpoints/formatting_runs/verification_queue),
@@ -61,7 +76,19 @@ export function CompleteLayout() {
   }
 
   if (status === "checking" || !summary) {
-    return <p className="mt-8 text-sm text-gray-500">{t("loading")}</p>;
+    return (
+      <div className="mt-6 space-y-6" aria-busy="true" aria-label={t("loading")}>
+        <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+          <Skeleton className="h-5 w-1/3" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+        <div className="space-y-2 rounded-lg border border-gray-200 p-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

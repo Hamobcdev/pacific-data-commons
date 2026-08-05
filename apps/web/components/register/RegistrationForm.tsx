@@ -13,7 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { DomainChecker, type DomainStatus } from "./DomainChecker";
 import { SaveIndicator, type SaveStatus } from "@/components/onboarding/SaveIndicator";
 import { StepNav } from "@/components/onboarding/StepNav";
-import { ResumeLink } from "@/components/onboarding/ResumeLink";
+import { ResumeOtp } from "@/components/onboarding/ResumeOtp";
 
 type RegistrationForm = OnboardingState["registration"];
 
@@ -92,6 +92,13 @@ export function RegistrationForm() {
   const validationIssues = parsedForm.success ? [] : Array.from(new Set(parsedForm.error.issues.map((issue) => issue.message)));
 
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  // R5/Deliverable 5a: once we know this email is already registered, the
+  // two paths ("resume your account" vs "this wasn't you, register
+  // something else") need to be visually distinct, not a form the provider
+  // has to guess whether to keep editing. Starts collapsed — expanding is
+  // the deliberate "not you" action, not the default.
+  const [formExpanded, setFormExpanded] = useState(false);
+  const formCollapsed = alreadyRegistered && !formExpanded;
 
   const handleSubmit = () => {
     setError(null);
@@ -120,7 +127,22 @@ export function RegistrationForm() {
     >
       <SaveIndicator status={saveStatus} />
 
-      <div>
+      {alreadyRegistered && (
+        <div>
+          <h2 className="text-lg font-semibold text-navy">{t("welcomeBack.heading")}</h2>
+          <p className="mt-1 text-sm text-gray-600">{t("welcomeBack.body")}</p>
+          <ResumeOtp defaultEmail={form.contactEmail || undefined} autoOpen variant="footer" />
+          {!formExpanded && (
+            <button type="button" onClick={() => setFormExpanded(true)} className="mt-3 text-xs text-gray-500 hover:underline">
+              {t("welcomeBack.notYou")}
+            </button>
+          )}
+        </div>
+      )}
+
+      {formCollapsed ? null : (
+        <>
+          <div>
         <label htmlFor="institutionName" className="block text-sm font-medium text-gray-700">
           {t("fields.institution_name")}
         </label>
@@ -204,24 +226,26 @@ export function RegistrationForm() {
         <DomainChecker status={domainStatus} />
       </div>
 
-      <Alert variant="warning">{t("pilot_terms")}</Alert>
+          <Alert variant="warning">{t("pilot_terms")}</Alert>
 
-      {!canSubmit && hasAnyInput && !error && (
-        <Alert variant="warning">
-          <p className="font-medium">{t("validationSummaryTitle")}</p>
-          <ul className="mt-1 list-disc pl-4">
-            {validationIssues.map((issue) => (
-              <li key={issue}>{issue}</li>
-            ))}
-          </ul>
-        </Alert>
+          {!canSubmit && hasAnyInput && !error && (
+            <Alert variant="warning">
+              <p className="font-medium">{t("validationSummaryTitle")}</p>
+              <ul className="mt-1 list-disc pl-4">
+                {validationIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
+          {error && !alreadyRegistered && <Alert variant="error">{error}</Alert>}
+
+          <StepNav nextType="submit" nextDisabled={!canSubmit} nextLabel={t("continue")} isSubmitting={isPending} submittingLabel={t("submitting")} />
+        </>
       )}
 
-      {error && <Alert variant="error">{error}</Alert>}
-
-      <StepNav nextType="submit" nextDisabled={!canSubmit} nextLabel={t("continue")} isSubmitting={isPending} submittingLabel={t("submitting")} />
-
-      <ResumeLink defaultEmail={form.contactEmail || undefined} autoOpen={alreadyRegistered} />
+      {!alreadyRegistered && <ResumeOtp defaultEmail={form.contactEmail || undefined} variant="footer" />}
     </form>
   );
 }

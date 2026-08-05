@@ -14,8 +14,8 @@ export interface RegisterResult {
   error?: string;
   field?: string; // which field caused the error, for inline display
   /** True when the error is "an account already exists" — the UI should
-   * point the provider at the resume-by-email flow (ResumeLink) rather
-   * than showing a generic error. */
+   * point the provider at the resume-by-email flow (ResumeOtp, Session 10)
+   * rather than showing a generic error. */
   alreadyRegistered?: boolean;
 }
 

@@ -3,7 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { provenanceSchema, type ProvenanceData } from "@/lib/onboarding/validation";
 import { getServerMessage } from "@/lib/i18n/server-messages";
-import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { validateOnboardingSession, InvalidOnboardingSessionError, SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session";
 
 export interface SaveProvenanceResult {
   success: boolean;
@@ -25,7 +25,7 @@ export async function saveProvenance(providerId: string, sessionToken: string, d
   try {
     await validateOnboardingSession(providerId, sessionToken);
   } catch (err) {
-    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? SESSION_EXPIRED_ERROR : "Invalid session." };
   }
 
   const parsed = provenanceSchema.safeParse(data);

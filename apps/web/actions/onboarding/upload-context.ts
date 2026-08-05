@@ -2,7 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { uploadContextSchema, type UploadContextData } from "@/lib/onboarding/validation";
-import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { validateOnboardingSession, InvalidOnboardingSessionError, SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session";
 
 export interface UploadContextResult {
   success: boolean;
@@ -30,7 +30,7 @@ export async function saveUploadContext(
   try {
     await validateOnboardingSession(providerId, sessionToken);
   } catch (err) {
-    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? SESSION_EXPIRED_ERROR : "Invalid session." };
   }
 
   const parsed = uploadContextSchema.safeParse({
@@ -63,7 +63,10 @@ export async function saveUploadContext(
 
   if (formattingRunError) {
     console.error("Upload context save failed:", formattingRunError);
-    return { success: false, error: "Could not save your data description. Please try again." };
+    return {
+      success: false,
+      error: "We couldn't save your data description. Check your connection and try again — your uploaded files are safe. If this keeps happening, email support@synergybcpacific.com.",
+    };
   }
 
   const { error: providerUpdateError } = await supabase

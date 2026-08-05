@@ -2,7 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/onboarding/slug";
-import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { validateOnboardingSession, InvalidOnboardingSessionError, SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session";
 
 export interface CompleteOnboardingResult {
   success: boolean;
@@ -30,7 +30,7 @@ export async function completeOnboarding(providerId: string, sessionToken: strin
   } catch (err) {
     return {
       success: false,
-      error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session.",
+      error: err instanceof InvalidOnboardingSessionError ? SESSION_EXPIRED_ERROR : "Invalid session.",
       institutionName: "",
       datasetTitle: "",
       providerSlug: "",

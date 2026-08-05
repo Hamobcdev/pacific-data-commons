@@ -9,6 +9,7 @@
       "brand": "Pacific Data Commons",
       "sectionLabel": "Provider Onboarding",
       "resuming": "Checking for a saved registration...",
+      "sessionExpired": "Your session expired after 72 hours. We've kept your place — enter your email below to continue where you left off.",
       "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP."
     },
     "error": {
@@ -39,11 +40,26 @@
     },
     "resume": {
       "prompt": "Need to continue later? ",
-      "action": "Send me a link to resume",
+      "action": "Send me a code to resume",
       "alreadyRegistered": "Already registered? Continue here",
+      "welcomeBack": "Welcome back — enter your email to continue",
+      "emailLabel": "Your institutional email",
       "emailPlaceholder": "your@institution.edu",
-      "send": "Send link",
-      "sending": "Sending..."
+      "sendCode": "Send code",
+      "sending": "Sending...",
+      "rateLimited": "Too many code requests. Try again in {time}.",
+      "codeSentTo": "Code sent to {email}",
+      "codeLabel": "Enter your 6-digit code",
+      "digitLabel": "Digit {position} of 6",
+      "codeExpiry": "Code expires in {time}",
+      "resendAvailable": "Resend code",
+      "resendCooldown": "Resend available in {seconds}s",
+      "verify": "Verify and continue",
+      "verifying": "Verifying...",
+      "success": "Verified — loading your session...",
+      "errorExpired": "Code expired. Request a new one.",
+      "errorInvalid": "Incorrect code. Check your email and try again.",
+      "errorGeneric": "Verification failed. Please try again."
     },
     "Register": {
       "title": "Register Your Institution",
@@ -54,6 +70,11 @@
       "submitting": "Saving...",
       "genericError": "Registration failed. Please try again or contact SBP if this persists.",
       "validationSummaryTitle": "Please complete the following before continuing:",
+      "welcomeBack": {
+        "heading": "Welcome back",
+        "body": "An account is already registered with this email address. Enter your email below and we'll send you a 6-digit code to continue where you left off.",
+        "notYou": "Not you? Register a different institution"
+      },
       "fields": {
         "institution_name": "Institution Name",
         "institution_type": "Institution Type",
@@ -88,9 +109,13 @@
       "title": "Set Up Your Payment Wallet",
       "subtitle": "Your institution needs an Algorand wallet to receive USDC payments.",
       "continue": "Continue to Data Upload",
-      "genericError": "Could not save your wallet details. Please try again.",
+      "genericError": "We couldn't save your wallet address. Check that your Algorand address is correct (58 characters, starts with a letter) and try again. If this keeps happening, email support@synergybcpacific.com.",
       "loading": "Loading your registration...",
       "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
+      "usdcExplainer": {
+        "heading": "About USDC",
+        "body": "USDC is a USD-pegged digital asset held in your Algorand wallet. It is not automatically convertible to local currency. Options for accessing value include: holding as digital treasury, peer-to-peer exchange, or overseas exchange via international bank account. SBP is consulting with the Central Bank of Samoa on the regulatory pathway."
+      },
       "guide": {
         "step1_title": "Install Pera Wallet",
         "step1_body": "Pera is a free Algorand wallet app available on iOS and Android.",
@@ -392,19 +417,19 @@
       "unavailable": "Domain check unavailable — will be verified manually"
     },
     "saveWallet": {
-      "genericError": "Could not save wallet address. Please try again."
+      "genericError": "We couldn't save your wallet address. Check your connection and try again. If this keeps happening, email support@synergybcpacific.com."
     },
     "saveReview": {
-      "noUploadFound": "Could not find your uploaded data. Please return to the upload step.",
-      "genericError": "Could not save your review. Please try again.",
-      "endpointSaveError": "Could not save your endpoint listing. Please try again."
+      "noUploadFound": "We couldn't find your uploaded data. Please go back to the Upload step and confirm your file finished uploading.",
+      "genericError": "We couldn't save your review. Your entries are still in this form — check your connection and try again.",
+      "endpointSaveError": "We couldn't save your endpoint listing. Your review answers are still in this form — check your connection and try again. If this keeps happening, email support@synergybcpacific.com."
     },
     "saveProvenance": {
-      "genericError": "Could not save your provenance declaration. Please try again."
+      "genericError": "We couldn't save your provenance declaration. Your entries are still in this form — check your connection and try again."
     },
     "createDeployment": {
       "noEndpointFound": "Could not find your approved listing. Please complete Step 4 (Review) first.",
-      "genericError": "Could not submit your deployment request. Please try again."
+      "genericError": "We couldn't submit your deployment request. Check your connection and try again. If this keeps happening, email support@synergybcpacific.com."
     }
   },
   "Agents": {

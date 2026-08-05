@@ -3,7 +3,7 @@
 import JSZip from "jszip";
 import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/onboarding/slug";
-import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
+import { validateOnboardingSession, InvalidOnboardingSessionError, SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session";
 import type { PricingTier } from "@pdc/shared-types";
 
 export interface GeneratePackageResult {
@@ -350,7 +350,7 @@ export async function generateEndpointPackage(providerId: string, sessionToken: 
   try {
     await validateOnboardingSession(providerId, sessionToken);
   } catch (err) {
-    return { success: false, error: err instanceof InvalidOnboardingSessionError ? err.message : "Invalid session." };
+    return { success: false, error: err instanceof InvalidOnboardingSessionError ? SESSION_EXPIRED_ERROR : "Invalid session." };
   }
 
   const supabase = createServiceClient();

@@ -6,9 +6,12 @@ import { useRouter } from "@/i18n/navigation";
 import { saveWallet } from "@/actions/onboarding/save-wallet";
 import { loadLocalState, saveLocalState, defaultState, type OnboardingState } from "@/lib/onboarding/state";
 import { checkAddressFormat } from "@/lib/algorand/validate";
+import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
+import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { WalletGuide } from "./WalletGuide";
 import { WalletInput } from "./WalletInput";
 import { UsdcOptInGuide } from "./UsdcOptInGuide";
+import { UsdcExplainer } from "./UsdcExplainer";
 import { Alert } from "@/components/ui/alert";
 import { StepNav } from "@/components/onboarding/StepNav";
 
@@ -16,6 +19,7 @@ type WalletFormState = OnboardingState["wallet"];
 
 export function WalletForm() {
   const t = useTranslations("Onboarding.Wallet");
+  const tShell = useTranslations("Onboarding.shell");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +77,9 @@ export function WalletForm() {
         const state = loadLocalState() ?? defaultState();
         saveLocalState({ ...state, currentStep: "upload" });
         router.push("/onboarding/upload");
+      } else if (result.error === SESSION_EXPIRED_ERROR) {
+        flagSessionExpired(tShell("sessionExpired"));
+        router.push("/onboarding");
       } else {
         setError(result.error ?? t("genericError"));
       }
@@ -89,6 +96,7 @@ export function WalletForm() {
 
   return (
     <div className="mt-6 space-y-6">
+      <UsdcExplainer />
       <WalletGuide onAllConfirmed={setGuideConfirmed} />
 
       {guideConfirmed && (

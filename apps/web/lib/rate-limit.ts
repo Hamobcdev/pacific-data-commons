@@ -24,6 +24,16 @@ export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetAt: Date;
+  /** Seconds until the window clears — lets callers show a live countdown
+   * instead of a static "try again later" (Session 10, Deliverable 3: a
+   * self-resetting lockout with no visible timer just invites repeated
+   * clicks, each of which looks like a no-op but is actually fine — this
+   * field is what a UI needs to render an accurate countdown instead). */
+  resetInSeconds: number;
+}
+
+function toResult(allowed: boolean, remaining: number, resetAt: number): RateLimitResult {
+  return { allowed, remaining, resetAt: new Date(resetAt), resetInSeconds: Math.max(0, Math.ceil((resetAt - Date.now()) / 1000)) };
 }
 
 export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
@@ -33,15 +43,15 @@ export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
 
   if (!entry || now - entry.windowStart > config.windowMs) {
     store.set(key, { count: 1, windowStart: now });
-    return { allowed: true, remaining: config.maxRequests - 1, resetAt: new Date(now + config.windowMs) };
+    return toResult(true, config.maxRequests - 1, now + config.windowMs);
   }
 
   if (entry.count >= config.maxRequests) {
-    return { allowed: false, remaining: 0, resetAt: new Date(entry.windowStart + config.windowMs) };
+    return toResult(false, 0, entry.windowStart + config.windowMs);
   }
 
   entry.count++;
-  return { allowed: true, remaining: config.maxRequests - entry.count, resetAt: new Date(entry.windowStart + config.windowMs) };
+  return toResult(true, config.maxRequests - entry.count, entry.windowStart + config.windowMs);
 }
 
 /**
