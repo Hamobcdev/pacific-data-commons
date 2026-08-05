@@ -12,11 +12,16 @@ export interface ResumeRequestResult {
 }
 
 export interface VerifyOtpResult extends ResumeSessionResult {
-  /** Distinguishes "wrong/expired code" from "no session at all" so the UI
-   * can react differently — a bare `{ success: false }` from
-   * resumeOnboardingSession() also means "no provider found for this
-   * email," which is a different, unrecoverable-by-retry case. */
-  error?: "expired" | "invalid" | "generic";
+  /** Distinguishes "wrong/expired code" ("invalid") from "no session at
+   * all" ("generic" — a bare `{ success: false }` from
+   * resumeOnboardingSession() means "no provider found for this email," a
+   * different, unrecoverable-by-retry case).
+   *
+   * Hotfix (2026-08-05): there used to be a third value, "expired", used
+   * when Supabase's error looked time-related. Removed — see
+   * verifyResumeOtp()'s comment below for why that distinction turned out
+   * to be one this function cannot actually make. */
+  error?: "invalid" | "generic";
   message?: string;
 }
 
@@ -51,7 +56,9 @@ export async function sendResumeOtp(email: string): Promise<ResumeRequestResult>
     return { success: false, message: "Could not send a code right now. Please try again shortly." };
   }
 
-  return { success: true, message: "Check your email for a 6-digit code to continue where you left off." };
+  // Hotfix (2026-08-05): was "6-digit code" — live testing showed Supabase
+  // emailing 7- and 8-digit codes for this project. See otp-code.ts.
+  return { success: true, message: "Check your email for a code to continue where you left off." };
 }
 
 /**
@@ -79,14 +86,29 @@ export async function verifyResumeOtp(email: string, token: string): Promise<Ver
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
 
   if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes("expired")) {
-      return { success: false, error: "expired", message: "Code expired. Request a new one." };
-    }
-    if (msg.includes("invalid") || msg.includes("token")) {
-      return { success: false, error: "invalid", message: "Incorrect code. Check your email and try again." };
-    }
-    return { success: false, error: "generic", message: "Verification failed. Please try again." };
+    // Diagnosis (hotfix, 2026-08-05): pulled this project's live Supabase
+    // auth logs (mcp Supabase get_logs, service "auth") for real /verify
+    // failures. Every one came back identically:
+    //   error: "token has expired or is invalid", error_code: "otp_expired"
+    // GoTrue does not appear to distinguish "this code is genuinely past
+    // its expiry window" from "this code is simply wrong or incomplete" in
+    // this response — both produce the exact same message and error_code.
+    // The previous version of this function checked `msg.includes("expired")`
+    // FIRST, so it confidently — and wrongly — labelled every wrong-code
+    // submission "Code expired," which is the reported bug (an "expired"
+    // message appearing within seconds of the email arriving, nowhere near
+    // any real timeout). This was very likely compounded by Bug 1: the old
+    // 6-box UI auto-submitted the instant 6 digits were entered, so a real
+    // 7- or 8-digit code got truncated and submitted incomplete — Supabase
+    // correctly rejected that truncated code, and this function then
+    // mislabelled the rejection as expiry. Fix: since Supabase's response
+    // genuinely does not let us tell these apart, stop asserting a specific
+    // cause and say so honestly instead.
+    return {
+      success: false,
+      error: "invalid",
+      message: "Incorrect or expired code. Check your email for the latest code and try again, or request a new one.",
+    };
   }
 
   const result = await resumeOnboardingSession();
