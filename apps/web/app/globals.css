@@ -13,3 +13,15 @@
   border-radius: 1rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
+
+/* Session 12 — global nav/footer and Pacific image panels. */
+
+/* Authenticated layout nav height offset */
+.nav-offset {
+  padding-top: 56px;
+}
+
+/* Pacific image panel — consistent overlay pattern */
+.pacific-panel-overlay {
+  background: linear-gradient(to bottom, rgba(7, 25, 41, 0.2) 0%, rgba(7, 25, 41, 0.7) 100%);
+}

@@ -13,7 +13,9 @@
       "sectionLabel": "Provider Onboarding",
       "resuming": "Checking for a saved registration...",
       "sessionExpired": "Your session expired after 72 hours. We've kept your place — enter your email below to continue where you left off.",
-      "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP."
+      "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP.",
+      "bandTitle": "Provider Onboarding",
+      "bandSubtitle": "Pacific Data Commons · Your data stays on your servers"
     },
     "error": {
       "title": "Something went wrong loading this step.",
@@ -531,6 +533,34 @@
     "endpoints_title": "Your Endpoints",
     "trust_tier": "Trust Tier",
     "total_queries": "Total Queries Served",
-    "recent_queries": "Recent Queries"
+    "recent_queries": "Recent Queries",
+    "sovereigntyHeadline": "Your data. Your earnings.",
+    "sovereigntyBody": "97% of every query goes directly to your wallet. SBP never touches your funds."
+  },
+  "Nav": {
+    "dashboard": "Dashboard",
+    "addDataset": "Add Dataset",
+    "agents": "Agents",
+    "signOut": "Sign out",
+    "register": "Register",
+    "brand": "Pacific Data Commons",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "Footer": {
+    "brand": "Pacific Data Commons",
+    "company": "Synergy Blockchain Pacific Limited",
+    "location": "Apia, Samoa",
+    "pilot": "Pre-commercial pilot",
+    "dataNote": "Data stays on your servers",
+    "feeNote": "SBP earns 3% infrastructure fee",
+    "agentMarketplace": "Agent Marketplace",
+    "walletGuide": "Wallet Guide",
+    "contact": "Contact SBP",
+    "allRights": "All rights reserved"
+  },
+  "NewDataset": {
+    "loading": "Preparing your new dataset...",
+    "flashMessage": "Please sign in to add a new dataset."
   }
 }

@@ -13,17 +13,27 @@ export default async function AgentsLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      {/* Night-islands header band (Session 12) — background image added
+          behind the existing header content, which is otherwise untouched
+          apart from switching its text/link colours to white for contrast
+          against the darkened photo. */}
+      <header className="relative overflow-hidden border-b border-white/10">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/panel-agents-night-islands.webp')" }}
+        />
+        <div className="absolute inset-0 bg-pacific-shell-dark/70" />
+
+        <div className="relative z-10 max-w-5xl mx-auto px-4 py-6 flex items-center justify-between">
           <Link href="/agents" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-navy rounded" aria-hidden="true" />
-            <span className="font-semibold text-navy text-sm">Pacific Data Commons</span>
+            <div className="w-8 h-8 bg-white/90 rounded" aria-hidden="true" />
+            <span className="font-semibold text-white text-sm">Pacific Data Commons</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-xs text-gray-500 hover:text-navy">
+            <Link href="/dashboard" className="text-xs text-white/70 hover:text-white">
               Provider Dashboard
             </Link>
-            <span className="text-xs text-gray-500">{t("label")}</span>
+            <span className="text-xs text-white/70">{t("label")}</span>
           </div>
         </div>
       </header>
