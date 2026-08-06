@@ -20,6 +20,12 @@ const envSchema = z.object({
   AGENT_WALLET_KEY: z.string().min(1, "AGENT_WALLET_KEY is required — this service spends real USDC on every live run"),
   ALGORAND_NETWORK: z.enum(["mainnet", "testnet"]).default("mainnet"),
   ALGORAND_NODE_URL: z.string().url().default("https://mainnet-api.algonode.cloud"),
+  // Session 13 — verifying a user's on-chain quote payment (execute route)
+  // needs a confirmed-transaction lookup by ID, which algod does not serve
+  // once a transaction ages out of its recent-transaction cache; only the
+  // indexer keeps it permanently queryable. Defaults to AlgoNode's public
+  // indexer, the indexer sibling of the ALGORAND_NODE_URL default above.
+  ALGORAND_INDEXER_URL: z.string().url().default("https://mainnet-idx.algonode.cloud"),
 
   DIRECTORY_API_URL: z.string().url(),
   PILOT_ENDPOINT_URL: z.string().url().optional(),
@@ -31,6 +37,13 @@ const envSchema = z.object({
   SUPABASE_SERVICE_KEY: z.string().min(1),
 
   MAX_REQUESTS_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  // Session 13 — separate, coarser windows for the user-facing quote/execute
+  // routes. A quote costs the agent's own operational wallet a real $0.01
+  // directory search per required category (resolveEndpoints() runs for
+  // dry_run too), so quote spam has a real cost, not just a compute cost —
+  // hence a limit here too, not only on execute.
+  MAX_QUOTES_PER_HOUR: z.coerce.number().int().positive().default(20),
+  MAX_EXECUTIONS_PER_HOUR: z.coerce.number().int().positive().default(10),
 
   // Set once each agent is registered via scripts/register-agents.ts —
   // absent in dev before that script has run (agents.ts falls back to a

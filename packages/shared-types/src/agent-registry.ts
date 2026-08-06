@@ -251,3 +251,38 @@ export function priceRangeLabel(entry: AgentCatalogueEntry): string {
   const [min, max] = entry.priceRangeUsdc;
   return min === 0 ? `$0–${max}` : `$${min}–${max}`;
 }
+
+/**
+ * User-pays-agent quote (Session 13) — the wire shape apps/agents' POST
+ * /agents/:agentId/quote returns and apps/web's QuoteDisplay renders.
+ * Colocated here (not duplicated in each app separately) per the Session 8
+ * "Flag 8" lesson documented at the top of this file: two independently
+ * hand-maintained copies of the same cross-service shape drifted apart
+ * silently once before.
+ */
+export interface AgentQuoteEndpointCost {
+  endpoint_id: string;
+  name: string;
+  price_usdc: number;
+}
+
+export interface AgentQuote {
+  quote_id: string;
+  agent_slug: AgentSlug;
+  agent_type: AgentType;
+  parameters: Record<string, string>;
+  /** The wallet this quote was generated for — execute() requires the
+   * settling transaction's sender to match this exact address. */
+  user_wallet: string;
+  endpoint_costs: AgentQuoteEndpointCost[];
+  subtotal_usdc: number;
+  markup_pct: number;
+  markup_usdc: number;
+  total_usdc: number;
+  /** The agent's own operational wallet — the same wallet that pays PDC
+   * endpoints downstream (Model F). The user pays into it; it nets the
+   * markup. */
+  pay_to_address: string;
+  quote_expires_at: string;
+  used: boolean;
+}
