@@ -26,7 +26,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       <Link
         href="/dashboard"
         onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-sm text-white/70 hover:text-white
+        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
           hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
       >
         {t("dashboard")}
@@ -34,7 +34,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       <Link
         href="/onboarding/new-dataset"
         onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-sm text-white/70 hover:text-white
+        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
           hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
       >
         {t("addDataset")}
@@ -42,10 +42,18 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       <Link
         href="/agents"
         onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-sm text-white/70 hover:text-white
+        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
           hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
       >
         {t("agents")}
+      </Link>
+      <Link
+        href="/faq"
+        onClick={() => setMobileOpen(false)}
+        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
+          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
+      >
+        {t("faq")}
       </Link>
       {/* Placeholder until a standalone wallet management page exists —
           this re-enters the onboarding wallet step directly (Session 12
@@ -53,13 +61,26 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       <Link
         href="/onboarding/wallet"
         onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-sm text-white/70 hover:text-white
+        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
           hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
       >
         {t("walletSettings")}
       </Link>
     </>
   ) : null;
+
+  // FAQ is public — visible in guest state too, unlike the rest of navLinks
+  // above (which only makes sense once a provider is authenticated).
+  const guestFaqLink = (
+    <Link
+      href="/faq"
+      onClick={() => setMobileOpen(false)}
+      className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
+        hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
+    >
+      {t("faq")}
+    </Link>
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-pacific-shell/95 backdrop-blur-md">
@@ -77,8 +98,8 @@ export function GlobalNav({ provider }: GlobalNavProps) {
             <span className="text-white font-medium text-sm hidden sm:block">{t("brand")}</span>
           </Link>
 
-          {/* Desktop navigation — only when authenticated */}
-          {provider && <nav className="hidden sm:flex items-center gap-1">{navLinks}</nav>}
+          {/* Desktop navigation */}
+          <nav className="hidden sm:flex items-center gap-1">{provider ? navLinks : guestFaqLink}</nav>
 
           {/* Right side actions (desktop) */}
           <div className="hidden sm:flex items-center gap-2">
@@ -86,7 +107,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
               <form action={signOut}>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10
+                  className="px-3 py-1.5 text-base text-white/60 hover:text-white hover:bg-white/10
                     rounded-md transition-colors"
                 >
                   {t("signOut")}
@@ -95,7 +116,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
             ) : (
               <Link
                 href="/onboarding/register"
-                className="px-3 py-1.5 text-sm text-white bg-pacific-green hover:bg-pacific-green-dark
+                className="px-3 py-1.5 text-base text-white bg-pacific-green hover:bg-pacific-green-dark
                   rounded-md transition-colors"
               >
                 {t("register")}
@@ -127,13 +148,13 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="sm:hidden border-t border-white/10 bg-pacific-shell px-4 pb-4 pt-2">
-          {provider && <nav className="flex flex-col">{navLinks}</nav>}
+          <nav className="flex flex-col">{provider ? navLinks : guestFaqLink}</nav>
           <div className="mt-2">
             {provider ? (
               <form action={signOut}>
                 <button
                   type="submit"
-                  className="w-full flex items-center px-3 py-2.5 text-sm text-white/60 hover:text-white
+                  className="w-full flex items-center px-3 py-2.5 text-base text-white/60 hover:text-white
                     hover:bg-white/10 rounded-md transition-colors min-h-[44px]"
                 >
                   {t("signOut")}
@@ -143,7 +164,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
               <Link
                 href="/onboarding/register"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-center px-3 py-2.5 text-sm text-white bg-pacific-green
+                className="flex items-center justify-center px-3 py-2.5 text-base text-white bg-pacific-green
                   hover:bg-pacific-green-dark rounded-md transition-colors min-h-[44px]"
               >
                 {t("register")}

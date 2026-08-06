@@ -102,7 +102,7 @@ export function WalletForm() {
 
       {guideConfirmed && (
         <>
-          <p className="text-sm text-gray-600">
+          <p className="text-base text-gray-600">
             {t("custody.question")} {t("custody.recommendation")}{" "}
             <Link href="/downloads/finance-office-brief" className="text-xs text-gray-400 hover:text-ocean hover:underline">
               {t("custody.guide_download")}
@@ -121,7 +121,7 @@ export function WalletForm() {
 
           {addressFormatValid && form.usdcOptedIn === false && <UsdcOptInGuide />}
 
-          <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
+          <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-white p-4 text-base text-gray-700">
             <input
               type="checkbox"
               checked={form.hasInstitutionalAuthority === true}
@@ -147,7 +147,7 @@ export function WalletForm() {
         <button
           type="button"
           onClick={() => setSecurityOpen((open) => !open)}
-          className="flex w-full items-center justify-between text-left text-sm font-medium text-gray-700"
+          className="flex w-full items-center justify-between text-left text-base font-medium text-gray-700"
           aria-expanded={securityOpen}
         >
           <span>
@@ -155,7 +155,7 @@ export function WalletForm() {
           </span>
         </button>
         {securityOpen && (
-          <div className="mt-3 space-y-2 text-sm text-gray-600">
+          <div className="mt-3 space-y-2 text-base text-gray-600">
             <p>{t("security.note")}</p>
             <a
               href="https://support.perawallet.app/en/article/how-to-keep-your-algorand-account-safe-1e8k6q7/"

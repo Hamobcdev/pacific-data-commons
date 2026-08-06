@@ -67,7 +67,7 @@ export function WalletGuide({ onAllConfirmed }: WalletGuideProps) {
             💻 {t("path.computer")}
           </Button>
         </div>
-        <button type="button" onClick={() => selectPath("help")} className="mt-3 text-sm text-ocean hover:underline">
+        <button type="button" onClick={() => selectPath("help")} className="mt-3 text-base text-ocean hover:underline">
           ❓ {t("path.help")}
         </button>
       </Card>
@@ -115,7 +115,7 @@ export function WalletGuide({ onAllConfirmed }: WalletGuideProps) {
       <Card>
         <CardTitle>{t(`${stepsPrefix}.step1_title`)}</CardTitle>
         <CardContent className="mt-2">{t(`${stepsPrefix}.step1_body`)}</CardContent>
-        <div className="mt-3 flex flex-col gap-2 text-sm">
+        <div className="mt-3 flex flex-col gap-2 text-base">
           {isSmartphone ? (
             <>
               <a href={PERA_IOS_URL} target="_blank" rel="noopener noreferrer" className="text-ocean hover:underline">
@@ -141,7 +141,7 @@ export function WalletGuide({ onAllConfirmed }: WalletGuideProps) {
           href={isSmartphone ? PERA_GUIDE_URL : LUTE_GUIDE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-block text-sm text-ocean hover:underline"
+          className="mt-2 inline-block text-base text-ocean hover:underline"
         >
           → {t(`${stepsPrefix}.step2_guide`)}
         </a>
@@ -168,7 +168,7 @@ export function WalletGuide({ onAllConfirmed }: WalletGuideProps) {
 
 function StepCheckbox({ id, checked, onChange, label }: { id: string; checked: boolean; onChange: () => void; label: string }) {
   return (
-    <label htmlFor={id} className="mt-3 flex items-start gap-2 text-sm text-gray-700">
+    <label htmlFor={id} className="mt-3 flex items-start gap-2 text-base text-gray-700">
       <input id={id} type="checkbox" checked={checked} onChange={onChange} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-ocean focus:ring-ocean" />
       {label}
     </label>

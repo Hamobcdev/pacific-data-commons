@@ -25,17 +25,20 @@ export async function GlobalFooter() {
             />
             <div>
               <p className="text-white/80 text-sm font-medium">{t("brand")}</p>
-              <p className="text-white/40 text-xs mt-0.5">by {t("company")}</p>
+              <p className="footer-text text-white/40 mt-0.5">by {t("company")}</p>
             </div>
           </div>
 
           {/* Links */}
-          <nav className="flex flex-wrap gap-4 text-xs text-white/50">
+          <nav className="footer-text flex flex-wrap gap-4 text-white/50">
             <Link href="/agents" className="hover:text-white/80 transition-colors">
               {t("agentMarketplace")}
             </Link>
             <Link href="/downloads/finance-office-brief" className="hover:text-white/80 transition-colors">
               {t("walletGuide")}
+            </Link>
+            <Link href="/faq" className="hover:text-white/80 transition-colors">
+              {t("faq")}
             </Link>
             <a href="mailto:anthony@synergybcpacific.com" className="hover:text-white/80 transition-colors">
               {t("contact")}
@@ -53,10 +56,10 @@ export async function GlobalFooter() {
 
         {/* Bottom bar */}
         <div className="mt-6 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <p className="text-white/30 text-xs">
+          <p className="footer-text text-white/30">
             © {currentYear} {t("company")}. {t("location")}. {t("allRights")}.
           </p>
-          <p className="text-white/20 text-xs">
+          <p className="footer-text text-white/20">
             {t("pilot")} · {t("dataNote")} · {t("feeNote")}
           </p>
         </div>

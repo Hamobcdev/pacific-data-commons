@@ -538,6 +538,7 @@
     "addDataset": "Add Dataset",
     "agents": "Agents",
     "walletSettings": "Wallet Settings",
+    "faq": "FAQ",
     "signOut": "Sign out",
     "register": "Register",
     "brand": "Pacific Data Commons",
@@ -553,6 +554,7 @@
     "feeNote": "SBP earns 3% infrastructure fee",
     "agentMarketplace": "Agent Marketplace",
     "walletGuide": "Wallet Guide",
+    "faq": "FAQ",
     "contact": "Contact SBP",
     "allRights": "All rights reserved"
   },
@@ -597,5 +599,11 @@
       "title": "Pacific Data Commons.",
       "body": "Sovereign data infrastructure for the Pacific."
     }
+  },
+  "Faq": {
+    "title": "Frequently Asked Questions",
+    "contact": "Still have questions?",
+    "contactBody": "Contact SBP directly — we respond to every message.",
+    "contactLink": "Email anthony@synergybcpacific.com"
   }
 }

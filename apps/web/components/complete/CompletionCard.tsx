@@ -45,9 +45,9 @@ export function CompletionCard({ institutionName, datasetTitle, providerSlug }: 
         <p className="mt-2 font-medium text-navy">{t("underReview")}</p>
 
         <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-          <p className="text-xs text-gray-500">{t("listingUrlLabel")}</p>
+          <p className="text-sm text-gray-500">{t("listingUrlLabel")}</p>
           <div className="mt-1 flex items-center gap-2">
-            <code className="flex-1 truncate text-sm text-navy">{listingUrl}</code>
+            <code className="flex-1 truncate text-base text-navy">{listingUrl}</code>
             <Button type="button" variant="secondary" onClick={handleCopy}>
               {copied ? t("copied") : t("copy")}
             </Button>
@@ -56,7 +56,7 @@ export function CompletionCard({ institutionName, datasetTitle, providerSlug }: 
 
         {datasetTitle && (
           <div className="mt-4">
-            <p className="text-xs text-gray-500 mb-2">Share your new dataset listing</p>
+            <p className="text-sm text-gray-500 mb-2">Share your new dataset listing</p>
             <ShareButtons
               datasetName={datasetTitle}
               providerName={institutionName}

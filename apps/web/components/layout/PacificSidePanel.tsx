@@ -74,8 +74,8 @@ export function PacificSidePanel({ side: _side }: PacificSidePanelProps) {
       />
       <div className="absolute inset-0 bg-gradient-to-t from-pacific-shell-dark/90 via-pacific-shell-dark/30 to-pacific-shell-dark/10" />
       <div className="relative z-10 mt-auto p-4">
-        <p className="text-white font-medium text-xs leading-snug mb-1">{t(`${messageKey}.title`)}</p>
-        <p className="text-white/55 text-xs leading-relaxed">{t(`${messageKey}.body`)}</p>
+        <p className="text-white font-medium text-sm leading-snug mb-1">{t(`${messageKey}.title`)}</p>
+        <p className="text-white/55 text-sm leading-relaxed">{t(`${messageKey}.body`)}</p>
       </div>
     </aside>
   );

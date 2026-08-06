@@ -2,6 +2,7 @@ import { HeaderBand } from "@/components/layout/HeaderBand";
 import { PacificSidePanel } from "@/components/layout/PacificSidePanel";
 import { InstitutionalPanel } from "@/components/register/InstitutionalPanel";
 import { GlobalFooter } from "@/components/nav/GlobalFooter";
+import { GlobalNav } from "@/components/nav/GlobalNav";
 
 // Resolves the previous /downloads/finance-office-brief.pdf 404 (Session
 // 11) — a static PDF was never generated, so this renders the same brief
@@ -12,9 +13,15 @@ import { GlobalFooter } from "@/components/nav/GlobalFooter";
 // (the landing page next to it deliberately stays full-bleed chrome-free),
 // so the Session 12 fix three-column scaffold is built inline here rather
 // than via a layout.tsx that would also apply to the landing page.
+//
+// GlobalNav gets `provider={null}` unconditionally — this is a finance/IT
+// staff reference document, reachable from an unauthenticated wallet-setup
+// step (WalletForm links here before onboarding completes), not a page
+// that should attempt its own auth lookup.
 export default function FinanceOfficeBriefPage() {
   return (
     <div className="min-h-screen flex flex-col">
+      <GlobalNav provider={null} />
       <HeaderBand />
 
       <div className="flex flex-1 min-h-0">

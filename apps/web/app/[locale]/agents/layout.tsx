@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { HeaderBand } from "@/components/layout/HeaderBand";
 import { PacificSidePanel } from "@/components/layout/PacificSidePanel";
@@ -21,7 +22,10 @@ export default async function AgentsLayout({ children }: { children: React.React
       <HeaderBand overlayOpacity={50}>
         <div className="flex items-center justify-between h-full px-4 max-w-5xl mx-auto w-full">
           <Link href="/agents" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-white/90 rounded" aria-hidden="true" />
+            {/* Session 12 fix: this was a plain decorative `bg-white/90`
+                div — never an actual logo image — which is what read as a
+                white square against the dark band. */}
+            <Image src="/images/sbp-logo.png" alt="Synergy Blockchain Pacific" width={32} height={32} className="object-contain" />
             <span className="font-semibold text-white text-sm">Pacific Data Commons</span>
           </Link>
           <div className="flex items-center gap-4">

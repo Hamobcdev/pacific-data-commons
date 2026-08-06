@@ -14,5 +14,5 @@ export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEle
 }
 
 export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("text-sm text-gray-600", className)} {...props} />;
+  return <div className={cn("text-base text-gray-600", className)} {...props} />;
 }

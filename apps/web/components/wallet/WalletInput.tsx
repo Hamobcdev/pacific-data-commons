@@ -57,7 +57,7 @@ export function WalletInput({ value, onChange, onUsdcStatusChange }: WalletInput
 
   return (
     <div>
-      <label htmlFor="walletAddress" className="block text-sm font-medium text-gray-700">
+      <label htmlFor="walletAddress" className="form-label block text-gray-700">
         {t("label")}
       </label>
       <Input
