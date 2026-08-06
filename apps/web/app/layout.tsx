@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { DemoModeBanner } from "@/components/ui/DemoModeBanner";
+import { PlatformAssistant } from "@/components/ui/PlatformAssistant";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -31,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <DemoModeBanner />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
+          <PlatformAssistant />
         </NextIntlClientProvider>
       </body>
     </html>

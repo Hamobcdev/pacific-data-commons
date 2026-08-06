@@ -569,4 +569,67 @@ Adapt Ocean Protocol and Stripe API ToS as a working draft template. Provides an
 
 ---
 
+## 26. Known Architectural Patterns and Debugging Reference
+
+This section documents non-obvious behaviour discovered during build sessions. Check here before spending time debugging symptoms that have known root causes.
+
+---
+
+### 26.1 PostgREST !inner Join RLS Behaviour
+
+**Discovered:** Session 13/14 (August 7, 2026)
+**Symptom:** Directory search returns zero results despite endpoints existing in the database. Direct SQL queries return correct results. Payment succeeds (HTTP 200) but response is `{ results: [], totalCount: 0 }`.
+
+**Root cause:** When using `supabase-js` with the service role key and an `!inner` join — e.g. `.select("*, providers!inner(*)")` — PostgREST applies RLS on the joined table independently of the requesting role. Even with the service role key bypassing RLS on the primary table, a joined table with no permissive policy for the `anon` role returns zero rows silently, with no error.
+
+**Fix:** Add a public read policy on any table used in an `!inner` join where public visibility is intended:
+
+```sql
+CREATE POLICY "table_public_read"
+  ON table_name
+  FOR SELECT
+  TO anon
+  USING (is_active = true);
+```
+
+**In PDC:** The `providers` table was missing this policy. Fix applied in `supabase/migrations/session13_providers_public_read_rls.sql`.
+
+**Check this first** if directory search ever returns zero results despite correct endpoint data in the database.
+
+---
+
+### 26.2 Agent Form Enum Values Architecture
+
+**Confirmed:** Session 14 (August 7, 2026)
+**This is the pattern to follow when adding new agents — not a bug fix.** Session 14's intelligence report initially treated a mismatch between agent form dropdown values and API enum values as a suspected bug. A full read of the architecture plus a live curl against the Mainnet-deployed agents service confirmed the values were already correct at every layer — there was nothing to fix.
+
+**The correct architecture:**
+1. `packages/shared-types/src/agent-registry.ts`'s `AGENT_REGISTRY` is the single source of truth for every agent's field list. Each `kind: "select"` field's `options` array pairs a `value` (the exact lowercase snake_case string the backend expects — e.g. `"stock_assessment"`) with a `label` (the human-readable display text — e.g. `"Stock Assessment"`).
+2. `apps/web/components/ui/select.tsx`'s generic `Select` component wires `option.value` to the rendered `<option value>` and `option.label` to its display text — never the reverse.
+3. `apps/agents/src/agents/*.ts`'s Zod `inputSchema` (`z.enum([...])`) uses the identical lowercase snake_case values as the registry's `options[].value`.
+
+Because `AGENT_REGISTRY` is imported by both `apps/web` (for the form) and referenced by `apps/agents`' own registry (for the wire schema), the same value can't silently drift between what the dropdown sends and what the schema expects — they're sourced from one file, not two hand-maintained copies (see the Session 8 "Flag 8" comment at the top of `agent-registry.ts`, which is exactly the failure mode this structure prevents).
+
+**When adding a new agent with select fields:** add the field's `options` to its `AGENT_REGISTRY` entry with correct lowercase snake_case `value`s matching the agent's Zod `inputSchema` enum exactly. Do not hand-write `<option>` values in `AgentRunForm.tsx` — it has none; it renders generically from the registry.
+
+---
+
+### 26.3 sbp-agent Category Configuration
+
+**Confirmed:** Session 14 (August 7, 2026)
+**Configuration, not a bug fix.** sbp-agent's category selection was found hardcoded to `"fisheries"` only — never random, never wrong, and the fisheries pilot endpoint was always active. Session 14 made the primary category configurable and added sequential multi-category querying per tick, generating volume against every active pilot endpoint rather than one.
+
+**Current behaviour:** `apps/sbp-agent`'s `SEARCH_CATEGORY` env var (default `"fisheries"`) sets the primary category. `index.ts` builds a deduplicated category list — `[SEARCH_CATEGORY, "ocean"]` — and `tick()` runs one full `runQueryCycle()` (directory search + endpoint `/summary` query) per category, **sequentially**, not in parallel (the agent wallet signs one transaction at a time; parallel signing against the same key adds settlement-ordering risk for no benefit at this query volume). Each cycle's result — including which `category` it ran — is collected into `lastCycles: CycleResult[]`, returned by the `/health` endpoint.
+
+**Currently queries:** `fisheries` and `ocean` — the two categories with active pilot endpoints.
+
+**To add a new category once a pilot endpoint exists for it:**
+1. Confirm the new category has at least one `is_active = true` endpoint in the `endpoints` table with a provider that is also `is_active = true` (see 26.1 — the providers RLS policy must permit `anon` read, or the directory search will return zero results even with a correctly-configured endpoint).
+2. Either set `SEARCH_CATEGORY` in Railway (`@pdc/sbp-agent` → Variables) to the new category — replacing, not adding to, the primary slot — or extend the hardcoded `"ocean"` entry in `index.ts`'s `categories` array if more than two categories should run every tick.
+3. Redeploy `@pdc/sbp-agent` for the change to take effect.
+
+**Check `SEARCH_CATEGORY` in Railway `@pdc/sbp-agent`** if automated queries show `results_count: 0`.
+
+---
+
 *This is CLAUDE.md v2.2. It is the authoritative document for every Pacific Data Commons session. If anything in this session conflicts with this document, this document wins. Flag the conflict and resolve it before proceeding. Where Parts 1–6 conflict with this document, this document supersedes them. The errata notes in Section 12 identify specific Part 3 sections that are superseded. Decisions 32–38, P11, and the P2 Extension were confirmed in this version based on Fable 5 Part 6 extended design session.*

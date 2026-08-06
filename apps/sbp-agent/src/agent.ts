@@ -10,6 +10,10 @@ const ENDPOINT_SUMMARY_FALLBACK_PRICE_USDC = 0.01;
 
 export interface CycleResult {
   cycle_at: string;
+  /** Which category this cycle queried — index.ts runs one cycle per
+   * category per tick (Session 14), so this is what distinguishes each
+   * entry in the /health endpoint's last_cycles array. */
+  category: string;
   dry_run: boolean;
   directory_query: {
     success: boolean;
@@ -47,8 +51,8 @@ function emptyEndpointResult(endpointUrl: string | null = null): CycleResult["en
 }
 
 /**
- * One complete query cycle:
- *   1. Query the directory for fisheries endpoints ($0.01)
+ * One complete query cycle for a single category:
+ *   1. Query the directory for `category` endpoints ($0.01)
  *   2. Pick the first active endpoint from results
  *   3. Call /summary on that endpoint ($0.01)
  *   4. Return a structured result for the caller to log
@@ -57,9 +61,16 @@ function emptyEndpointResult(endpointUrl: string | null = null): CycleResult["en
  * agent wallet. Dry-run (no agentWalletKey): logs intent and returns
  * immediately — never constructs a payment client, never makes an HTTP call
  * to a paid route (a 402 with no payment would just waste a round trip).
+ *
+ * Single-category by design (Session 14) — a caller wanting to cover
+ * multiple categories (index.ts queries both SEARCH_CATEGORY and "ocean"
+ * per tick) calls this once per category rather than this function fanning
+ * out internally, so each category's result/error is independently visible
+ * to the caller instead of collapsed into one combined outcome.
  */
 export async function runQueryCycle(params: {
   directoryUrl: string;
+  category: string;
   agentWalletKey: string | undefined;
   network: PdcAlgorandNetwork;
   logger: Logger;
@@ -71,12 +82,13 @@ export async function runQueryCycle(params: {
   if (!params.agentWalletKey) {
     params.logger.info("agent_cycle_dry_run", {
       cycle_at: cycleAt,
-      would_query: `${params.directoryUrl}/search?category=fisheries`,
+      would_query: `${params.directoryUrl}/search?category=${params.category}`,
       would_pay_usdc: DIRECTORY_QUERY_PRICE_USDC,
       reason: "AGENT_WALLET_KEY not set",
     });
     return {
       cycle_at: cycleAt,
+      category: params.category,
       dry_run: true,
       directory_query: emptyDirectoryResult(),
       endpoint_query: emptyEndpointResult(),
@@ -91,14 +103,20 @@ export async function runQueryCycle(params: {
   const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
 
   return runCycleWithPayingFetch(
-    { directoryUrl: params.directoryUrl, agentWalletKey: params.agentWalletKey, network: params.network, logger: params.logger },
+    {
+      directoryUrl: params.directoryUrl,
+      category: params.category,
+      agentWalletKey: params.agentWalletKey,
+      network: params.network,
+      logger: params.logger,
+    },
     cycleAt,
     payingFetch,
   );
 }
 
 async function runCycleWithPayingFetch(
-  params: { directoryUrl: string; agentWalletKey: string; network: PdcAlgorandNetwork; logger: Logger },
+  params: { directoryUrl: string; category: string; agentWalletKey: string; network: PdcAlgorandNetwork; logger: Logger },
   cycleAt: string,
   payingFetch: typeof fetch,
 ): Promise<CycleResult> {
@@ -106,7 +124,7 @@ async function runCycleWithPayingFetch(
   let pickedEndpointUrl: string | null = null;
 
   try {
-    const searchUrl = `${params.directoryUrl.replace(/\/$/, "")}/search?category=fisheries`;
+    const searchUrl = `${params.directoryUrl.replace(/\/$/, "")}/search?category=${params.category}`;
     const res = await payingFetch(searchUrl);
     if (!res.ok) {
       throw new Error(`directory search returned HTTP ${res.status}`);
@@ -123,12 +141,13 @@ async function runCycleWithPayingFetch(
       results_count: results.length,
       amount_usdc: DIRECTORY_QUERY_PRICE_USDC,
     };
-    params.logger.info("agent_directory_query_succeeded", { ...directoryResult, picked_endpoint: pickedEndpointUrl });
+    params.logger.info("agent_directory_query_succeeded", { ...directoryResult, category: params.category, picked_endpoint: pickedEndpointUrl });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    params.logger.error("agent_directory_query_failed", { error: message });
+    params.logger.error("agent_directory_query_failed", { error: message, category: params.category });
     return {
       cycle_at: cycleAt,
+      category: params.category,
       dry_run: false,
       directory_query: directoryResult,
       endpoint_query: emptyEndpointResult(),
@@ -138,10 +157,11 @@ async function runCycleWithPayingFetch(
   }
 
   if (!pickedEndpointUrl) {
-    const message = "No active fisheries endpoint found in directory results";
-    params.logger.warn("agent_no_endpoint_found", { directory_url: params.directoryUrl });
+    const message = `No active ${params.category} endpoint found in directory results`;
+    params.logger.warn("agent_no_endpoint_found", { directory_url: params.directoryUrl, category: params.category });
     return {
       cycle_at: cycleAt,
+      category: params.category,
       dry_run: false,
       directory_query: directoryResult,
       endpoint_query: emptyEndpointResult(),
@@ -168,15 +188,16 @@ async function runCycleWithPayingFetch(
       tier: "summary",
       amount_usdc: paidBody.amount_paid_usdc ?? ENDPOINT_SUMMARY_FALLBACK_PRICE_USDC,
     };
-    params.logger.info("agent_endpoint_query_succeeded", endpointResult);
+    params.logger.info("agent_endpoint_query_succeeded", { ...endpointResult, category: params.category });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     cycleError = message;
-    params.logger.error("agent_endpoint_query_failed", { error: message, endpoint_url: pickedEndpointUrl });
+    params.logger.error("agent_endpoint_query_failed", { error: message, endpoint_url: pickedEndpointUrl, category: params.category });
   }
 
   return {
     cycle_at: cycleAt,
+    category: params.category,
     dry_run: false,
     directory_query: directoryResult,
     endpoint_query: endpointResult,

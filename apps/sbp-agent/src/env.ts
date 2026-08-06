@@ -33,6 +33,12 @@ const envSchema = z.object({
   ALGORAND_NODE_URL: z.string().url().default("https://mainnet-api.algonode.cloud"),
 
   QUERY_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+
+  // Session 14 — primary category this agent queries each cycle, configurable
+  // without a code change (Railway variable). index.ts always adds "ocean" as
+  // a second category alongside this one (both pilot endpoints currently
+  // live), deduplicated if this is already set to "ocean".
+  SEARCH_CATEGORY: z.string().min(1).default("fisheries"),
 });
 
 export type Env = z.infer<typeof envSchema>;
