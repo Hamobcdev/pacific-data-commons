@@ -13,9 +13,7 @@
       "sectionLabel": "Provider Onboarding",
       "resuming": "Checking for a saved registration...",
       "sessionExpired": "Your session expired after 72 hours. We've kept your place — enter your email below to continue where you left off.",
-      "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP.",
-      "bandTitle": "Provider Onboarding",
-      "bandSubtitle": "Pacific Data Commons · Your data stays on your servers"
+      "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP."
     },
     "error": {
       "title": "Something went wrong loading this step.",
@@ -533,14 +531,13 @@
     "endpoints_title": "Your Endpoints",
     "trust_tier": "Trust Tier",
     "total_queries": "Total Queries Served",
-    "recent_queries": "Recent Queries",
-    "sovereigntyHeadline": "Your data. Your earnings.",
-    "sovereigntyBody": "97% of every query goes directly to your wallet. SBP never touches your funds."
+    "recent_queries": "Recent Queries"
   },
   "Nav": {
     "dashboard": "Dashboard",
     "addDataset": "Add Dataset",
     "agents": "Agents",
+    "walletSettings": "Wallet Settings",
     "signOut": "Sign out",
     "register": "Register",
     "brand": "Pacific Data Commons",
@@ -562,5 +559,43 @@
   "NewDataset": {
     "loading": "Preparing your new dataset...",
     "flashMessage": "Please sign in to add a new dataset."
+  },
+  "SidePanel": {
+    "dashboard": {
+      "title": "Your data. Your earnings.",
+      "body": "97% of every query goes directly to your wallet. SBP never touches your funds."
+    },
+    "agents": {
+      "title": "AI agents. Real Pacific data.",
+      "body": "Pre-built agents query verified Pacific data on your behalf."
+    },
+    "register": {
+      "title": "Welcome to Pacific Data Commons.",
+      "body": "Your data stays on your servers. Buyers pay you directly."
+    },
+    "wallet": {
+      "title": "Your payment wallet.",
+      "body": "SBP sends 0.5 ALGO to cover setup costs automatically."
+    },
+    "upload": {
+      "title": "Share your knowledge.",
+      "body": "Our AI formats your dataset for the marketplace."
+    },
+    "review": {
+      "title": "Review and price your data.",
+      "body": "Check the AI output and set your pricing before publishing."
+    },
+    "deploy": {
+      "title": "Almost live.",
+      "body": "SBP will review and activate your endpoint within 2 business days."
+    },
+    "complete": {
+      "title": "Made in Samoa. Built for the Pacific.",
+      "body": "Your data is now part of the Pacific sovereign data economy."
+    },
+    "default": {
+      "title": "Pacific Data Commons.",
+      "body": "Sovereign data infrastructure for the Pacific."
+    }
   }
 }

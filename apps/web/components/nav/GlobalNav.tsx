@@ -47,6 +47,17 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       >
         {t("agents")}
       </Link>
+      {/* Placeholder until a standalone wallet management page exists —
+          this re-enters the onboarding wallet step directly (Session 12
+          fix, Flag 2). */}
+      <Link
+        href="/onboarding/wallet"
+        onClick={() => setMobileOpen(false)}
+        className="flex items-center px-3 py-2.5 sm:py-1.5 text-sm text-white/70 hover:text-white
+          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
+      >
+        {t("walletSettings")}
+      </Link>
     </>
   ) : null;
 

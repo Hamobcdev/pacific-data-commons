@@ -22,7 +22,9 @@ export default async function DatasetDetailPage({
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12 space-y-6">
+    // Session 12 fix: mx-auto removed — the (authenticated) layout's flex
+    // row already centres this column between the two side panels.
+    <div className="max-w-3xl px-4 py-12 space-y-6">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="neutral">{endpoint.data_category}</Badge>

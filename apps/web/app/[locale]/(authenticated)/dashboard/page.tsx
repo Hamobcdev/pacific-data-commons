@@ -29,31 +29,18 @@ export default async function DashboardPage({ params }: { params: { locale: stri
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)]">
-      {/* Left panel — coral reef image (Session 12). Desktop only, matching
-          the InstitutionalPanel pattern already used on the registration
-          page: a fixed-width column that fills whatever height its parent
-          gives it, not a self-positioning fixed/absolute element. */}
-      <aside className="hidden lg:block w-80 xl:w-96 flex-shrink-0 relative overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/panel-dashboard-reef.webp')" }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-pacific-shell-dark/60 to-transparent" />
-        <div className="absolute bottom-8 left-6 right-6">
-          <p className="text-white font-medium text-sm leading-relaxed">{t("sovereigntyHeadline")}</p>
-          <p className="text-white/60 text-xs mt-1">{t("sovereigntyBody")}</p>
-        </div>
-      </aside>
-
-      {/* Existing dashboard content — unchanged */}
-      <main className="flex-1 max-w-3xl mx-auto px-4 py-10 space-y-6">
-        <h1 className="text-3xl font-bold text-navy">{t("title")}</h1>
-        <WalletPanel provider={data.provider} />
-        <EarningsPanel provider={data.provider} transactions={data.recentTransactions} />
-        <TrustTierProgress provider={data.provider} bestUpvoteCount={data.bestUpvoteCount} />
-        <EndpointList endpoints={data.endpoints} providerSlug={slugify(data.provider.institution_name)} providerName={data.provider.institution_name} />
-      </main>
+    // Session 12 fix: the page's own coral-reef aside is gone — the
+    // (authenticated) layout now renders a route-aware Pacific side panel
+    // for every page in this group (PacificSidePanel), so this page's own
+    // copy would have doubled up the same image. `mx-auto` is dropped too;
+    // the layout's flex row already centres this column between the two
+    // side panels, so centring again here just fought that.
+    <div className="px-6 py-8 space-y-6 max-w-3xl">
+      <h1 className="text-3xl font-bold text-navy">{t("title")}</h1>
+      <WalletPanel provider={data.provider} />
+      <EarningsPanel provider={data.provider} transactions={data.recentTransactions} />
+      <TrustTierProgress provider={data.provider} bestUpvoteCount={data.bestUpvoteCount} />
+      <EndpointList endpoints={data.endpoints} providerSlug={slugify(data.provider.institution_name)} providerName={data.provider.institution_name} />
     </div>
   );
 }
