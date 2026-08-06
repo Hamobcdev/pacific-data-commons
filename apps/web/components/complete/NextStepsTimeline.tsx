@@ -20,7 +20,7 @@ export function NextStepsTimeline() {
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-light-bg text-xs font-semibold text-navy">
                 {index + 1}
               </span>
-              <span className="text-sm text-gray-700">{t(step)}</span>
+              <span className="text-base text-gray-700">{t(step)}</span>
             </li>
           ))}
         </ol>

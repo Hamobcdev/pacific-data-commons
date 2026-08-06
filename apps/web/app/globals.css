@@ -13,3 +13,66 @@
   border-radius: 1rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
+
+/* Session 12 — global nav/footer and Pacific image panels. */
+
+/* Authenticated layout nav height offset */
+.nav-offset {
+  padding-top: 56px;
+}
+
+/* Pacific image panel — consistent overlay pattern */
+.pacific-panel-overlay {
+  background: linear-gradient(to bottom, rgba(7, 25, 41, 0.2) 0%, rgba(7, 25, 41, 0.7) 100%);
+}
+
+/* ─── Global typography scale — readable on laptop without zooming ─── */
+
+html {
+  font-size: 16px;
+}
+
+/* Base body text — 16px minimum */
+body {
+  font-size: 1rem; /* 16px */
+  line-height: 1.6;
+}
+
+/* Ensure all paragraph text is readable */
+p, li, td, th, label, input, textarea, select, button {
+  font-size: inherit;
+}
+
+/* Side panel overlay messages — currently too small */
+.pacific-panel-message-title {
+  font-size: 0.9375rem; /* 15px */
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.pacific-panel-message-body {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.5;
+}
+
+/* Form labels — minimum 15px */
+.form-label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+/* Navigation links — comfortable reading */
+.nav-link {
+  font-size: 0.9375rem;
+}
+
+/* Card headings */
+.card-heading {
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 600;
+}
+
+/* Footer text — slightly smaller is fine but not below 13px */
+.footer-text {
+  font-size: 0.8125rem; /* 13px */
+}

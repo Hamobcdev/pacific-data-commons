@@ -26,20 +26,20 @@ export async function WalletPanel({ provider }: { provider: Provider }) {
         <p className="mt-1 font-mono text-xs text-gray-500">{shortAddress}</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-base">
           <span className="text-gray-600">{t("earned")}</span>
           <span className="font-medium text-green-700">+${earned.toFixed(2)} USDC ↑</span>
         </div>
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-base">
           <span className="text-gray-600">{t("spent")}</span>
           <span className="font-medium text-red-700">-${spent.toFixed(2)} USDC ↓</span>
         </div>
-        <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-sm font-semibold text-navy">
+        <div className="flex items-center justify-between border-t border-gray-100 pt-3 text-base font-semibold text-navy">
           <span>{t("net_balance")}</span>
           <span>${netBalance.toFixed(2)} USDC</span>
         </div>
 
-        <div className="rounded-md bg-light-bg p-3 text-sm">
+        <div className="rounded-md bg-light-bg p-3 text-base">
           <div className="flex items-center justify-between">
             <span className="text-gray-600">{t("unpaid_fee")}</span>
             <span className="font-medium text-navy">${provider.tier12_earnings_accrued.toFixed(2)} USDC</span>
@@ -47,7 +47,7 @@ export async function WalletPanel({ provider }: { provider: Provider }) {
           <p className="mt-1 text-xs text-gray-500">{t("fee_note")}</p>
         </div>
 
-        <div className="flex flex-col gap-2 pt-2 text-sm">
+        <div className="flex flex-col gap-2 pt-2 text-base">
           <Link href={`/agents/use?wallet=${encodeURIComponent(provider.wallet_address ?? "")}`} className="text-ocean hover:underline">
             {t("use_earnings")} →
           </Link>

@@ -29,7 +29,13 @@ export default async function DashboardPage({ params }: { params: { locale: stri
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12 space-y-6">
+    // Session 12 fix: the page's own coral-reef aside is gone — the
+    // (authenticated) layout now renders a route-aware Pacific side panel
+    // for every page in this group (PacificSidePanel), so this page's own
+    // copy would have doubled up the same image. `mx-auto` is dropped too;
+    // the layout's flex row already centres this column between the two
+    // side panels, so centring again here just fought that.
+    <div className="px-6 py-8 space-y-6 max-w-3xl">
       <h1 className="text-3xl font-bold text-navy">{t("title")}</h1>
       <WalletPanel provider={data.provider} />
       <EarningsPanel provider={data.provider} transactions={data.recentTransactions} />

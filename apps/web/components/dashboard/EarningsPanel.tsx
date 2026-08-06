@@ -29,7 +29,7 @@ export async function EarningsPanel({ provider, transactions }: { provider: Prov
             {t("total_queries")}: {provider.total_queries_served}
           </span>
         </div>
-        {nextTierHint && <p className="mt-1 text-xs text-gray-500">{nextTierHint}</p>}
+        {nextTierHint && <p className="mt-1 text-sm text-gray-500">{nextTierHint}</p>}
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
@@ -37,7 +37,7 @@ export async function EarningsPanel({ provider, transactions }: { provider: Prov
         ) : (
           <ul className="divide-y divide-gray-100">
             {transactions.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between py-2 text-sm">
+              <li key={tx.id} className="flex items-center justify-between py-2 text-base">
                 <div>
                   <p className="text-navy">{tx.transaction_type}</p>
                   <p className="font-mono text-xs text-gray-400">{tx.algo_tx_id ?? "pending"}</p>

@@ -28,7 +28,7 @@ export async function EndpointList({ endpoints, providerSlug, providerName }: En
         ) : (
           <ul className="divide-y divide-gray-100">
             {endpoints.map((endpoint) => (
-              <li key={endpoint.id} className="flex flex-col gap-2 py-3 text-sm">
+              <li key={endpoint.id} className="flex flex-col gap-2 py-3 text-base">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium text-navy">{endpoint.title}</p>

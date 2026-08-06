@@ -130,7 +130,7 @@ export function RegistrationForm() {
       {alreadyRegistered && (
         <div>
           <h2 className="text-lg font-semibold text-navy">{t("welcomeBack.heading")}</h2>
-          <p className="mt-1 text-sm text-gray-600">{t("welcomeBack.body")}</p>
+          <p className="mt-1 text-base text-gray-600">{t("welcomeBack.body")}</p>
           <ResumeOtp defaultEmail={form.contactEmail || undefined} autoOpen variant="footer" />
           {!formExpanded && (
             <button type="button" onClick={() => setFormExpanded(true)} className="mt-3 text-xs text-gray-500 hover:underline">
@@ -143,7 +143,7 @@ export function RegistrationForm() {
       {formCollapsed ? null : (
         <>
           <div>
-        <label htmlFor="institutionName" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="institutionName" className="form-label block text-gray-700">
           {t("fields.institution_name")}
         </label>
         <Input
@@ -156,7 +156,7 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label htmlFor="institutionType" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="institutionType" className="form-label block text-gray-700">
           {t("fields.institution_type")}
         </label>
         <Select
@@ -170,7 +170,7 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="country" className="form-label block text-gray-700">
           {t("fields.country")}
         </label>
         <Select
@@ -185,7 +185,7 @@ export function RegistrationForm() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="contactName" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="contactName" className="form-label block text-gray-700">
             {t("fields.contact_name")}
           </label>
           <Input
@@ -197,7 +197,7 @@ export function RegistrationForm() {
           />
         </div>
         <div>
-          <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="contactEmail" className="form-label block text-gray-700">
             {t("fields.contact_email")}
           </label>
           <Input
@@ -212,7 +212,7 @@ export function RegistrationForm() {
       </div>
 
       <div>
-        <label htmlFor="officialWebsite" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="officialWebsite" className="form-label block text-gray-700">
           {t("fields.official_website")}
         </label>
         <Input

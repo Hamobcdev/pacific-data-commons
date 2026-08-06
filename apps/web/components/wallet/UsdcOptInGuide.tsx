@@ -18,7 +18,7 @@ export function UsdcOptInGuide() {
         <li>{t("step2")}</li>
         <li>{t("step3")}</li>
       </ol>
-      <p className="mt-2 text-xs">{t("recheck_note")}</p>
+      <p className="mt-2 text-sm">{t("recheck_note")}</p>
     </Alert>
   );
 }
