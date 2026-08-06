@@ -26,6 +26,7 @@ describe("runQueryCycle — dry run", () => {
 
     const result = await runQueryCycle({
       directoryUrl: "https://directory.example",
+      category: "fisheries",
       agentWalletKey: undefined,
       network: "mainnet",
       logger,
@@ -54,6 +55,7 @@ describe("runQueryCycle — live (mocked payingFetch)", () => {
 
     const result = await runQueryCycle({
       directoryUrl: "https://directory.example",
+      category: "fisheries",
       agentWalletKey: "fake-key",
       network: "mainnet",
       logger,
@@ -77,6 +79,7 @@ describe("runQueryCycle — live (mocked payingFetch)", () => {
 
     const result = await runQueryCycle({
       directoryUrl: "https://directory.example",
+      category: "fisheries",
       agentWalletKey: "fake-key",
       network: "mainnet",
       logger,
@@ -97,6 +100,7 @@ describe("runQueryCycle — live (mocked payingFetch)", () => {
     await expect(
       runQueryCycle({
         directoryUrl: "https://directory.example",
+        category: "fisheries",
         agentWalletKey: "fake-key",
         network: "mainnet",
         logger,
@@ -111,6 +115,7 @@ describe("runQueryCycle — live (mocked payingFetch)", () => {
 
     const result = await runQueryCycle({
       directoryUrl: "https://directory.example",
+      category: "fisheries",
       agentWalletKey: "fake-key",
       network: "mainnet",
       logger,

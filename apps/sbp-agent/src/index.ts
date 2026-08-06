@@ -31,6 +31,13 @@ async function main(): Promise<void> {
   const env = loadEnv();
   const intervalMs = env.QUERY_INTERVAL_MINUTES * 60_000;
 
+  // Session 14 — both pilot endpoints (fisheries, ocean) are queried every
+  // tick, not just SEARCH_CATEGORY, so a single deployment generates
+  // leaderboard volume against everything currently live rather than one
+  // category. Deduplicated so setting SEARCH_CATEGORY=ocean doesn't query
+  // ocean twice.
+  const categories = Array.from(new Set([env.SEARCH_CATEGORY, "ocean"]));
+
   const startupKey = await resolveAgentWalletKey();
   const wallet = await getWalletStatus({
     agentWalletKey: startupKey,
@@ -40,6 +47,7 @@ async function main(): Promise<void> {
 
   logger.info("sbp_agent_starting", {
     interval_minutes: env.QUERY_INTERVAL_MINUTES,
+    categories,
     dry_run: !wallet.configured,
     directory_url: env.DIRECTORY_URL,
     wallet_address: wallet.address,
@@ -56,18 +64,28 @@ async function main(): Promise<void> {
     });
   }
 
-  let lastCycle: CycleResult | undefined;
+  let lastCycles: CycleResult[] = [];
 
   async function tick(): Promise<void> {
     // Retrieved fresh every cycle, not reused from startup — this is the
     // "per-operation retrieval" AWS Secrets Manager is here for.
     const agentWalletKey = await resolveAgentWalletKey();
-    lastCycle = await runQueryCycle({
-      directoryUrl: env.DIRECTORY_URL,
-      agentWalletKey,
-      network: env.ALGORAND_NETWORK,
-      logger,
-    });
+    // Sequential, not Promise.all — the agent wallet's payments settle one
+    // at a time; parallel signing against the same key adds settlement
+    // ordering risk for no benefit at this query volume.
+    const results: CycleResult[] = [];
+    for (const category of categories) {
+      results.push(
+        await runQueryCycle({
+          directoryUrl: env.DIRECTORY_URL,
+          category,
+          agentWalletKey,
+          network: env.ALGORAND_NETWORK,
+          logger,
+        }),
+      );
+    }
+    lastCycles = results;
   }
 
   // Run immediately on startup, then on the configured schedule.
@@ -88,7 +106,8 @@ async function main(): Promise<void> {
       wallet_address: wallet.address,
       directory_url: env.DIRECTORY_URL,
       interval_minutes: env.QUERY_INTERVAL_MINUTES,
-      last_cycle: lastCycle ?? null,
+      categories,
+      last_cycles: lastCycles,
     }),
   );
 
