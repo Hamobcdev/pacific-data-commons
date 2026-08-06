@@ -61,6 +61,10 @@ const QUERY_TIER = 1;
  * an object to structurally match via nominal inheritance, not a literal). */
 export interface RunnableAgent {
   run(input: AgentInput): Promise<AgentOutput>;
+  /** The agent's operational wallet address (Model F) — also the address a
+   * user's quote payment settles to (Session 13: user-pays-agent leg). Same
+   * wallet that pays PDC endpoints; the markup is what it nets. */
+  readonly walletAddress: string;
 }
 
 export class InsufficientDataError extends Error {
@@ -117,6 +121,10 @@ export abstract class BaseAgent {
 
   private readonly config: AgentRuntimeConfig;
   private readonly deps: AgentDependencies;
+
+  get walletAddress(): string {
+    return this.deps.wallet.address;
+  }
 
   constructor(config: AgentRuntimeConfig, depsOverride?: Partial<AgentDependencies>) {
     this.config = config;

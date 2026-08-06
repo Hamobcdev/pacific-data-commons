@@ -14,12 +14,15 @@ function fakeEnv(overrides: Partial<Env> = {}): Env {
     AGENT_WALLET_KEY: Buffer.alloc(64, 1).toString("base64"),
     ALGORAND_NETWORK: "mainnet",
     ALGORAND_NODE_URL: "https://mainnet-api.algonode.cloud",
+    ALGORAND_INDEXER_URL: "https://mainnet-idx.algonode.cloud",
     DIRECTORY_API_URL: "https://directory.example",
     ANTHROPIC_API_KEY: "anthropic-key",
     CLAUDE_MODEL: "claude-sonnet-4-6",
     SUPABASE_URL: "https://supabase.example",
     SUPABASE_SERVICE_KEY: "service-key",
     MAX_REQUESTS_PER_MINUTE: 2,
+    MAX_QUOTES_PER_HOUR: 20,
+    MAX_EXECUTIONS_PER_HOUR: 10,
     ...overrides,
   };
 }
@@ -110,7 +113,7 @@ describe("POST /agents/trade — with a registered agent", () => {
   }
 
   it("returns 201 and the agent's output on a successful live run", async () => {
-    const agent: RunnableAgent = { run: async () => fakeAgentOutput() };
+    const agent: RunnableAgent = { run: async () => fakeAgentOutput(), walletAddress: "FAKEAGENTWALLETADDRESS" };
     const app = createApp(fakeEnv(), agentMapWith(agent));
 
     const res = await app.request("/agents/trade", {
@@ -129,6 +132,7 @@ describe("POST /agents/trade — with a registered agent", () => {
       run: async () => {
         throw new InsufficientDataError("trade");
       },
+      walletAddress: "FAKEAGENTWALLETADDRESS",
     };
     const app = createApp(fakeEnv(), agentMapWith(agent));
 
@@ -148,6 +152,7 @@ describe("POST /agents/trade — with a registered agent", () => {
       run: async () => {
         throw new SovereigntyBlockedError("Test Endpoint", "no permitted_use_cases declared");
       },
+      walletAddress: "FAKEAGENTWALLETADDRESS",
     };
     const app = createApp(fakeEnv(), agentMapWith(agent));
 
@@ -163,7 +168,7 @@ describe("POST /agents/trade — with a registered agent", () => {
   });
 
   it("rate limits a wallet after MAX_REQUESTS_PER_MINUTE requests (fakeEnv sets it to 2)", async () => {
-    const agent: RunnableAgent = { run: async () => fakeAgentOutput() };
+    const agent: RunnableAgent = { run: async () => fakeAgentOutput(), walletAddress: "FAKEAGENTWALLETADDRESS" };
     const app = createApp(fakeEnv(), agentMapWith(agent));
     const requestBody = JSON.stringify({ parameters: { commodity: "tuna", country: "Samoa" }, dry_run: true, user_wallet: "RATE_LIMITED_WALLET" });
 

@@ -16,7 +16,10 @@ export interface AgentRunSuccess {
 
 export type AgentRunResult = AgentRunSuccess | AgentRunFailure;
 
-function agentsServiceUrl(): string {
+/** Exported for get-quote.ts / execute-agent.ts (Session 13) — same
+ * AGENTS_SERVICE_URL resolution and error message runAgent() already uses,
+ * kept in one place rather than duplicated per caller. */
+export function agentsServiceUrl(): string {
   const url = process.env.AGENTS_SERVICE_URL;
   if (!url) {
     throw new Error(
