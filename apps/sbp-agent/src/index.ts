@@ -62,6 +62,15 @@ async function main(): Promise<void> {
       usdc_balance: wallet.usdcBalanceUsdc,
       action: "cycles will attempt payment and fail at settlement — top up the agent wallet",
     });
+  } else if (wallet.configured && wallet.usdcBalanceUsdc !== null && wallet.usdcBalanceUsdc < 0.5) {
+    // Session 16 — earlier warning than agent_wallet_underfunded above:
+    // flags the wallet while it can still run cycles, not just once it's
+    // already exhausted.
+    logger.warn("agent_wallet_low_balance", {
+      address: wallet.address,
+      usdc_balance: wallet.usdcBalanceUsdc,
+      action: "top up from the PayTo wallet before balance reaches zero — agent will fail when USDC exhausted",
+    });
   }
 
   let lastCycles: CycleResult[] = [];
