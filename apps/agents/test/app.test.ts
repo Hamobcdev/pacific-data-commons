@@ -112,7 +112,22 @@ describe("POST /agents/trade — with a registered agent", () => {
     return map;
   }
 
-  it("returns 201 and the agent's output on a successful live run", async () => {
+  it("returns 200 and the preview on a dry run", async () => {
+    const agent: RunnableAgent = { run: async () => fakeAgentOutput(), walletAddress: "FAKEAGENTWALLETADDRESS" };
+    const app = createApp(fakeEnv(), agentMapWith(agent));
+
+    const res = await app.request("/agents/trade", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ parameters: { commodity: "tuna", country: "Samoa" }, dry_run: true, user_wallet: "USERWALLET" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as AgentOutput;
+    expect(body.run_id).toBe("run-1");
+  });
+
+  it("returns 402 payment_required for a live run (dry_run: false) — Session 16 gate", async () => {
     const agent: RunnableAgent = { run: async () => fakeAgentOutput(), walletAddress: "FAKEAGENTWALLETADDRESS" };
     const app = createApp(fakeEnv(), agentMapWith(agent));
 
@@ -122,9 +137,9 @@ describe("POST /agents/trade — with a registered agent", () => {
       body: JSON.stringify({ parameters: { commodity: "tuna", country: "Samoa" }, dry_run: false, user_wallet: "USERWALLET" }),
     });
 
-    expect(res.status).toBe(201);
-    const body = (await res.json()) as AgentOutput;
-    expect(body.run_id).toBe("run-1");
+    expect(res.status).toBe(402);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("payment_required");
   });
 
   it("maps InsufficientDataError to 422 insufficient_data", async () => {

@@ -43,12 +43,14 @@ function mapErrorCode(raw: string | undefined): AgentRunErrorCode {
 
 /**
  * Core agent execution engine (Deliverable 7) — the one place apps/web
- * talks to apps/agents over HTTP. Both run-agent.ts (dry_run: false) and
- * dry-run-agent.ts (dry_run: true) call this; it never throws — a network
- * failure or a non-2xx response both come back as an AgentRunFailure so
- * server actions can render one of the three UI error states without a
- * try/catch of their own (session brief: "Never show a stack trace. Never
- * show a raw API error.").
+ * talks to apps/agents over HTTP. dry-run-agent.ts (dry_run: true) calls
+ * this for the free preview step; it never throws — a network failure or a
+ * non-2xx response both come back as an AgentRunFailure so server actions
+ * can render one of the three UI error states without a try/catch of their
+ * own (session brief: "Never show a stack trace. Never show a raw API
+ * error."). Session 16 — dry_run: false is no longer a valid call here; the
+ * agents service 402s it. Live execution goes through get-quote.ts +
+ * execute-agent.ts (PaymentFlow.tsx) instead.
  */
 export async function runAgent(slug: AgentSlug, input: AgentInput): Promise<AgentRunResult> {
   let url: string;

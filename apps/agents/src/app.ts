@@ -110,6 +110,21 @@ export function createApp(env: Env, agentInstances: Map<AgentSlug, RunnableAgent
       }
       const body = parsed.data;
 
+      // Session 16 — gate free execution. dry_run:true stays open: it never
+      // pays a PDC endpoint or runs synthesis (see BaseAgent.run()'s
+      // dry_run branch), so it carries no cost and AgentRunForm's preview
+      // step depends on it staying free. dry_run:false used to run the full
+      // paid pipeline — endpoint payment, synthesis, attribution — without
+      // ever collecting the user's payment. That path now requires the
+      // Session 13 quote-then-pay flow instead of this direct route.
+      if (!body.dry_run) {
+        throw new AppError(
+          402,
+          "payment_required",
+          `Live execution requires payment. Call POST /agents/${entry.slug}/quote to get a quote, then POST /agents/${entry.slug}/execute with a confirmed on-chain payment.`,
+        );
+      }
+
       // R4 — enforced structurally, not just documented: no agent may
       // produce non-English output at launch (Decision 33).
       if (body.output_language !== "en") {
