@@ -632,4 +632,30 @@ Because `AGENT_REGISTRY` is imported by both `apps/web` (for the form) and refer
 
 ---
 
+### 26.4 Supabase Built-In Email Rate Limit on OTP Send
+
+**Discovered:** Session 16/hotfix (August 13, 2026)
+**Symptom:** "Already registered? Continue where you left off" (`ResumeOtp.tsx`) shows "Could not send a code right now. Please try again shortly." on every attempt, even for a previously-working email.
+
+**Root cause:** No custom SMTP provider has ever been configured for this Supabase project — confirmed by searching the full repo and git history for `signInWithPassword`, `resetPasswordForEmail`, `smtp`, and `resend`: no matches outside CLAUDE.md's planning text and locale strings. OTP emails run on Supabase Auth's built-in email sender, which enforces a strict send rate limit unsuitable for repeated testing or real usage volume. Confirmed via `mcp Supabase query_logs` against the `pacific-data-commons` project (`poiiwcbriqwczmppoevd`): repeated `/otp` and `/recover` calls failing with `error_code: "over_email_send_rate_limit"` (HTTP 429). `sendResumeOtp()` in `lib/onboarding/resume.ts` only checked `if (error)` and returned one static message for every failure mode, with nothing logged server-side — a rate limit, a broken project config, and a genuine outage were all indistinguishable from the UI or the logs.
+
+**Fix applied (partial):** `sendResumeOtp()` now logs the real Supabase error (`status`, `code`, `message`) and, when the error is this specific rate limit, returns an honest message plus `resetInSeconds` parsed from Supabase's own "after N seconds" text — the existing countdown UI in `ResumeOtp.tsx` already supports `resetInSeconds`, it just never received one from this path before.
+
+**Not fixed by code — operational action required:** the actual fix is configuring custom SMTP for Supabase Auth (Authentication > Emails > SMTP Settings in the Supabase dashboard). Per the confirmed stack (Section 6), Resend is the intended provider. Until that's wired up, OTP send will keep hitting Supabase's built-in limit under any real usage volume, not just repeated testing.
+
+**Check `mcp Supabase query_logs` on `poiiwcbriqwczmppoevd` for `error_code: "over_email_send_rate_limit"`** if OTP send ever silently fails again.
+
+---
+
+### 26.5 Admin Bypass Requirement for Verification Queue Status Checks
+
+**Noted:** Session 16/hotfix, during BUG 2 review (August 13, 2026) — see `docs/bugs/2026-08-13-returning-provider-routing.md`.
+**Status:** Requirement documented. Not yet implemented — no code exists for this yet.
+
+Admin accounts (identified by the `ADMIN_EMAIL` environment variable) must bypass the `verification_queue` status check documented in BUG 2 of the report above, and always route to dashboard regardless of onboarding or verification queue status. `ADMIN_EMAIL` is set in `.env.local` and in Vercel environment variables — **never hardcoded or committed to any file**, including this one.
+
+When BUG 2 is fixed (`resumeOnboardingSession()` and `startNewDataset()` gaining a real `verification_queue.status` check), that fix must include this bypass at the same time, or an admin account will be locked out by the new status check the moment it ships. See the bug report for open questions (environment scoping, audit logging, blast radius) to resolve before implementing.
+
+---
+
 *This is CLAUDE.md v2.2. It is the authoritative document for every Pacific Data Commons session. If anything in this session conflicts with this document, this document wins. Flag the conflict and resolve it before proceeding. Where Parts 1–6 conflict with this document, this document supersedes them. The errata notes in Section 12 identify specific Part 3 sections that are superseded. Decisions 32–38, P11, and the P2 Extension were confirmed in this version based on Fable 5 Part 6 extended design session.*
