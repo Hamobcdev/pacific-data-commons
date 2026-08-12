@@ -47,6 +47,15 @@ This is the "wrong access for non-approved users" case: dashboard access and new
 
 **Fix target:** Both `resumeOnboardingSession()` (`apps/web/actions/onboarding/resume-session.ts:69-75`) and `startNewDataset()` (`apps/web/actions/onboarding/start-new-dataset.ts:56-65`) should select and branch on `verification_queue.status`, not merely row presence. Needs a product decision on the exact status → routing/access mapping (e.g. `approved` → dashboard/new-dataset allowed; `rejected`/`more_info_needed` → a distinct status page, not the dashboard or onboarding wizard; `queued`/`automated_running`/`awaiting_review`/`in_review` → a "pending review" state) before implementing.
 
+**Added requirement (2026-08-13, from review): admin bypass.** Admin accounts (identified by the `ADMIN_EMAIL` environment variable) must bypass the verification queue status check and always route to dashboard. `ADMIN_EMAIL` is set in `.env.local` and in Vercel environment variables — never hardcoded or committed to any file. The BUG 2 fix must therefore include this bypass: if the authenticated user's email matches `ADMIN_EMAIL`, the status check in both `resumeOnboardingSession()` and `startNewDataset()` is skipped entirely and the account routes straight to the dashboard / is permitted to start a new dataset, as if `approved`.
+
+Scope and open questions to resolve in the fix PR, not decided here:
+- **Repo scope:** this repo only covers PDC's own login/onboarding code. Other SBP applications are separate codebases not present in this repository — an equivalent bypass, if wanted there too, needs its own change in each of those repos; this document and its eventual fix cannot cover them.
+- **Environment scope:** as requested, the bypass is unconditional (applies regardless of environment). Worth confirming intentionally: an unconditional, email-matched, full-access bypass on a production auth/routing path is a meaningful widening of admin surface once this reaches Mainnet (CLAUDE.md P4 — "every feature is designed with its threat model before implementation"). Consider whether this should be gated to non-production environments, or at minimum logged/audited when it fires, before it ships live.
+- **Blast radius of the bypass:** as specified, it skips only the `verification_queue.status` check this bug is about. It should not be read as license to skip any other check (identity verification, RLS, wallet checks) unless explicitly extended.
+
+As a stopgap until the fix ships, the test account's `verification_queue` row was manually approved during this review (via direct SQL update, not code) so the account isn't locked out once the BUG 2 fix deploys. See CLAUDE.md Section 26.5 for the standing `ADMIN_EMAIL` requirement.
+
 ---
 
 ## Not filed as bugs (observed during the same trace, informational only)

@@ -647,4 +647,15 @@ Because `AGENT_REGISTRY` is imported by both `apps/web` (for the form) and refer
 
 ---
 
+### 26.5 Admin Bypass Requirement for Verification Queue Status Checks
+
+**Noted:** Session 16/hotfix, during BUG 2 review (August 13, 2026) — see `docs/bugs/2026-08-13-returning-provider-routing.md`.
+**Status:** Requirement documented. Not yet implemented — no code exists for this yet.
+
+Admin accounts (identified by the `ADMIN_EMAIL` environment variable) must bypass the `verification_queue` status check documented in BUG 2 of the report above, and always route to dashboard regardless of onboarding or verification queue status. `ADMIN_EMAIL` is set in `.env.local` and in Vercel environment variables — **never hardcoded or committed to any file**, including this one.
+
+When BUG 2 is fixed (`resumeOnboardingSession()` and `startNewDataset()` gaining a real `verification_queue.status` check), that fix must include this bypass at the same time, or an admin account will be locked out by the new status check the moment it ships. See the bug report for open questions (environment scoping, audit logging, blast radius) to resolve before implementing.
+
+---
+
 *This is CLAUDE.md v2.2. It is the authoritative document for every Pacific Data Commons session. If anything in this session conflicts with this document, this document wins. Flag the conflict and resolve it before proceeding. Where Parts 1–6 conflict with this document, this document supersedes them. The errata notes in Section 12 identify specific Part 3 sections that are superseded. Decisions 32–38, P11, and the P2 Extension were confirmed in this version based on Fable 5 Part 6 extended design session.*
