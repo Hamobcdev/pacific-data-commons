@@ -65,7 +65,7 @@ describe("getActualHash", () => {
 describe("checkEndpointIntegrity", () => {
   it("status=no_cert_hash and passed=true when no certificate exists yet", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ dataset_content_hash: null })));
-    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key");
+    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key", false);
     expect(result).toMatchObject({ passed: true, status: "no_cert_hash", expectedHash: null, actualHash: null });
   });
 
@@ -76,7 +76,7 @@ describe("checkEndpointIntegrity", () => {
       .mockRejectedValueOnce(new Error("timeout")); // /integrity fetch
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key");
+    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key", false);
     expect(result).toMatchObject({ passed: true, status: "endpoint_unavailable", expectedHash: "abc123", actualHash: null });
   });
 
@@ -87,7 +87,7 @@ describe("checkEndpointIntegrity", () => {
       .mockResolvedValueOnce(jsonResponse({ hash: "different999" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key");
+    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key", false);
     expect(result).toMatchObject({ passed: false, status: "fail", expectedHash: "abc123", actualHash: "different999" });
   });
 
@@ -98,8 +98,18 @@ describe("checkEndpointIntegrity", () => {
       .mockResolvedValueOnce(jsonResponse({ hash: "abc123" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key");
+    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key", false);
     expect(result).toMatchObject({ passed: true, status: "pass", expectedHash: "abc123", actualHash: "abc123" });
+  });
+
+  it("status=pending_recertification and passed=true when pendingRecertification is true — never calls fetch (Decision 52)", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await checkEndpointIntegrity("end-1", "https://provider.example/integrity", "https://directory.example", "key", true);
+
+    expect(result).toMatchObject({ passed: true, status: "pending_recertification", expectedHash: null, actualHash: null });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

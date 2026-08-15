@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { getCertifiedHashForEndpoint, recordIntegrityEvent } from "../services/integrityService.js";
+import { dispatchUpdateNotifications } from "../services/notificationService.js";
 import { internalAuth } from "../middleware/internalAuth.js";
 import { ValidationError } from "../lib/errors.js";
 import type { AppBindings } from "../types.js";
@@ -37,4 +39,32 @@ internalRoute.post("/internal/integrity-event", async (c) => {
   const body: unknown = await c.req.json().catch(() => undefined);
   const result = await recordIntegrityEvent(supabase, env, body);
   return c.json(result, 201);
+});
+
+const dispatchNotificationsSchema = z.object({
+  endpoint_id: z.string().uuid("endpoint_id must be a UUID"),
+  version_id: z.string().uuid("version_id must be a UUID"),
+});
+
+/**
+ * Session 18 — called by apps/web's confirmUpdate() Server Action right
+ * after it commits the new certified version to Supabase (see
+ * routes/updates.ts's doc comment for why the write side of the declared-
+ * update flow lives in apps/web rather than here). Synchronous, not
+ * fire-and-forget: unlike the agent-query integrity path, this isn't in a
+ * per-request payment hot path — the caller has already finished the thing
+ * that matters (certifying the update) and can afford to wait for
+ * dispatch to finish or fail loudly.
+ */
+internalRoute.post("/internal/dispatch-update-notifications", async (c) => {
+  const supabase = c.get("supabase");
+  const env = c.get("env");
+  const body: unknown = await c.req.json().catch(() => undefined);
+  const parsed = dispatchNotificationsSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ValidationError(`Invalid dispatch request — ${parsed.error.issues.map((i) => `${i.path.join(".") || "(body)"}: ${i.message}`).join("; ")}`);
+  }
+
+  await dispatchUpdateNotifications(supabase, env, parsed.data.endpoint_id, parsed.data.version_id);
+  return c.json({ dispatched: true }, 200);
 });

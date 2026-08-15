@@ -65,6 +65,11 @@ export interface PublicEndpoint {
   pausedReason: string | null;
   endpointUrl: string | null;
   integrityUrl: string | null;
+  /** Session 18 (Decision 52). While true, agents' checkEndpointIntegrity()
+   * skips the hash comparison entirely (status 'pending_recertification',
+   * never blocks payment) — the provider is mid-update. */
+  pendingRecertification: boolean;
+  versionNumber: number;
 }
 
 export interface DirectorySearchResultItem {

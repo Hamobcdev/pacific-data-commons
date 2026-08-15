@@ -144,15 +144,21 @@ export interface Endpoint {
    * this endpoint — provenance_certificates remains the source of truth. */
   dataset_content_hash: string | null;
 
+  /** Session 18 (session18_version_registry.sql) — Decisions 52-53. */
+  version_number: number;
+  pending_recertification: boolean;
+  pending_recertification_since: string | null;
+  latest_version_id: string | null;
+
   created_at: string;
   updated_at: string;
 }
 
-/** Session 17 (Decision 49). 'unchecked' only ever appears as
- * endpoints.last_integrity_status's default — never written as an
- * endpoint_integrity_events.status (every check produces one of the other
- * four). */
-export type IntegrityStatus = "pass" | "fail" | "unchecked" | "endpoint_unavailable" | "no_cert_hash";
+/** Session 17 (Decision 49) + Session 18 (Decision 52, 'pending_recertification').
+ * 'unchecked' only ever appears as endpoints.last_integrity_status's default
+ * — never written as an endpoint_integrity_events.status (every check
+ * produces one of the other five). */
+export type IntegrityStatus = "pass" | "fail" | "unchecked" | "endpoint_unavailable" | "no_cert_hash" | "pending_recertification";
 
 /** endpoint_integrity_events.status — the subset of IntegrityStatus an
  * actual check run can produce (never 'unchecked', which is a column

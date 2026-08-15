@@ -100,6 +100,10 @@ const endpointRow: EndpointRow = {
   integrity_flagged_at: null,
   cultural_sovereignty_price_floor: null,
   dataset_content_hash: null,
+  version_number: 1,
+  pending_recertification: false,
+  pending_recertification_since: null,
+  latest_version_id: null,
   created_at: "2025-12-01T00:00:00.000Z",
   updated_at: "2025-12-01T00:00:00.000Z",
 };

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { AgentType, DataCategory } from "@pdc/shared-types";
 import { BaseAgent, type AgentRuntimeConfig } from "../src/agents/base.js";
 import type { AgentWallet, DirectoryEndpointResult, PDCQueryResult } from "../src/lib/pdcClient.js";
-import type { IntegrityCheckResult } from "../src/integrity.js";
+import { checkEndpointIntegrity, type IntegrityCheckResult } from "../src/integrity.js";
 
 /**
  * Session 17 (Decision 49) — dedicated coverage for the integrity-check
@@ -26,6 +26,7 @@ function fakeEndpoint(overrides: Partial<DirectoryEndpointResult> = {}): Directo
     endpoint_id: "end-1",
     endpoint_url: "https://provider.example/api",
     integrity_url: "https://provider.example/integrity",
+    pending_recertification: false,
     title: "Test Endpoint",
     category: "trade",
     countries: ["Samoa"],
@@ -145,5 +146,23 @@ describe("BaseAgent.run — integrity check gate (Decision 49)", () => {
     const output = await agent.run(runInput);
     expect(output.citations).toHaveLength(1);
     expect(submitAttribution).toHaveBeenCalledTimes(1);
+  });
+
+  it("Session 18 (Decision 52): endpoint.pending_recertification=true reaches the real checkEndpointIntegrity and still pays — no mock swapped in", async () => {
+    const queryEndpoint = vi.fn().mockResolvedValue(successfulResult());
+
+    const agent = new TestAgent(config, {
+      wallet: fakeWallet(),
+      searchDirectory: vi.fn().mockResolvedValue([fakeEndpoint({ pending_recertification: true })]),
+      queryEndpoint,
+      synthesize: vi.fn().mockResolvedValue({ raw_text: "ok", structured_data: null }),
+      submitAttribution: vi.fn().mockResolvedValue({ success: true }),
+      checkEndpointIntegrity, // the real implementation — proves the field wiring, not a mocked result
+      recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+    });
+
+    const output = await agent.run(runInput);
+    expect(queryEndpoint).toHaveBeenCalledTimes(1);
+    expect(output.citations).toHaveLength(1);
   });
 });

@@ -353,6 +353,7 @@ export abstract class BaseAgent {
           r.endpoint.integrity_url,
           this.config.directoryUrl,
           this.config.internalApiKey,
+          r.endpoint.pending_recertification,
         );
 
         logger.info("integrity_check", {

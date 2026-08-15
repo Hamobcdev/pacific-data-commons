@@ -533,6 +533,117 @@
     "total_queries": "Total Queries Served",
     "recent_queries": "Recent Queries"
   },
+  "DeclareUpdate": {
+    "pageTitle": "Declare a dataset update",
+    "declareFailed": "Could not declare this update. Please try again.",
+    "confirmFailed": "Could not complete certification. Please try again.",
+    "completeTitle": "Version {version} certified",
+    "completeBody": "Your endpoint is live with the updated dataset. Buyers and agents who queried it recently have been notified.",
+    "viewVersionHistory": "View version history",
+    "timeRemaining": "Time remaining",
+    "nav": {
+      "continue": "Continue"
+    },
+    "categories": {
+      "additive": {
+        "name": "Additive",
+        "definition": "New records added. Methodology unchanged.",
+        "recert": "Auto-certified",
+        "example": "e.g. you published a new quarter of survey data using the same collection method."
+      },
+      "correction": {
+        "name": "Correction",
+        "definition": "Fixing an error in existing records.",
+        "recert": "SBP review required",
+        "example": "e.g. you found and fixed incorrect coordinates in past records."
+      },
+      "expansion": {
+        "name": "Expansion",
+        "definition": "New data dimensions or parameters added.",
+        "recert": "Full re-certification",
+        "example": "e.g. you started tracking a new species or added a new measurement field."
+      },
+      "methodology_change": {
+        "name": "Methodology change",
+        "definition": "How data was collected or processed changed materially.",
+        "recert": "Full re-certification",
+        "example": "e.g. you switched from manual surveys to satellite-based estimates."
+      }
+    },
+    "step1": {
+      "title": "What type of update are you making?"
+    },
+    "step2": {
+      "title": "Describe the change",
+      "descriptionLabel": "Describe your update (required — this will be visible to buyers and agents)",
+      "descriptionHelp": "Plain language helps AI agents and researchers decide whether to re-query your data.",
+      "recordsAddedLabel": "Records added (optional)",
+      "recordsModifiedLabel": "Records modified (optional)",
+      "recordsRemovedLabel": "Records removed (optional)",
+      "newParametersLabel": "New data fields or parameters (optional)",
+      "newParameterPlaceholder": "e.g. water_temperature_c",
+      "addParameter": "Add",
+      "dateRangeLabel": "Is the date range of your dataset being extended?",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "step3": {
+      "title": "Confirm and declare",
+      "summaryQueries": "Your endpoint will enter \"Update in Progress\" state — queries continue, integrity checks are paused.",
+      "summaryWindow": "You have 7 days to complete the data update and submit the new hash.",
+      "summaryNotify": "{count, plural, =0 {No agents or buyers have queried this endpoint in the last 90 days} one {# agent or buyer who has queried this endpoint in the last 90 days will be notified} other {# agents and buyers who have queried this endpoint in the last 90 days will be notified}}.",
+      "summaryRecertRequired": "This update category requires full SBP re-certification before it's marked certified.",
+      "summaryAutoCert": "This update category is automatically certified once your new hash is verified.",
+      "checkAuthority": "I have the authority to update this dataset on behalf of {institution}.",
+      "checkAccurate": "The update description accurately describes the changes being made.",
+      "checkUnderstandRecert": "I understand that full re-certification is required before this version is marked certified.",
+      "checkUnderstandAuto": "I understand that this update will be automatically certified once my new hash is verified.",
+      "checkTimeframe": "I will complete the data update within 7 days.",
+      "declare": "Declare Update",
+      "declaring": "Declaring…"
+    },
+    "step4": {
+      "declaredTitle": "Update declared — Version {version} in progress",
+      "title": "Next steps",
+      "queriesUnaffected": "Your endpoint is now in \"Update in Progress\" state. Queries are unaffected. Integrity checks are paused.",
+      "instruction1": "Update your dataset on your server.",
+      "instruction2": "Verify your /integrity route returns the new hash.",
+      "instruction3": "Paste that hash below to complete certification.",
+      "hashLabel": "New dataset hash",
+      "hashHelp": "Copy this exactly from your endpoint's /integrity route. We independently verify it matches before certifying.",
+      "submit": "Submit new hash to complete update",
+      "submitting": "Verifying…"
+    },
+    "versions": {
+      "title": "Version History",
+      "declareButton": "Declare an update",
+      "pendingBadge": "Update in progress — Version {version} coming soon",
+      "empty": "No declared updates yet — showing the current dataset state.",
+      "versionLabel": "Version {version}",
+      "current": "Current",
+      "certifiedOn": "Certified {date}",
+      "pending": "Pending",
+      "category": {
+        "additive": "Additive update",
+        "correction": "Correction",
+        "expansion": "Expansion",
+        "methodology_change": "Methodology change",
+        "initial_certification": "Initial certification"
+      },
+      "records": "records",
+      "modified": "modified",
+      "sbpReviewed": "SBP reviewed",
+      "autoCertified": "Auto-certified",
+      "notified": "{count, plural, one {# agent/buyer notified} other {# agents/buyers notified}}",
+      "machineReadableFeed": "Version feed (JSON, for agents & researchers)"
+    },
+    "badges": {
+      "pendingInProgress": "🔄 Update in progress — Version {version} coming soon",
+      "recentlyUpdated": "✨ Recently updated — Version {version} ({date})",
+      "viewVersions": "Version history",
+      "declareUpdate": "Declare update"
+    }
+  },
   "Nav": {
     "dashboard": "Dashboard",
     "addDataset": "Add Dataset",

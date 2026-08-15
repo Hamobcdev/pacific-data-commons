@@ -47,6 +47,11 @@ export interface DirectoryEndpointResult {
    * declares it, and a provider that hasn't set one yet (NULL) must resolve
    * to 'endpoint_unavailable' (non-blocking), not a guessed URL that 404s. */
   integrity_url: string | null;
+  /** Session 18 (Decision 52) — read straight off the search result rather
+   * than a second round trip: checkEndpointIntegrity() short-circuits to
+   * 'pending_recertification' without ever calling getCertifiedHash/
+   * getActualHash when this is true. */
+  pending_recertification: boolean;
   title: string;
   category: DataCategory;
   countries: string[] | null;
@@ -97,6 +102,7 @@ export async function searchDirectory(
       endpoint_id: item.endpoint.id,
       endpoint_url: item.endpoint.endpointUrl as string,
       integrity_url: item.endpoint.integrityUrl,
+      pending_recertification: item.endpoint.pendingRecertification,
       title: item.endpoint.title,
       category: item.endpoint.dataCategory,
       countries: item.endpoint.geography.countries,
