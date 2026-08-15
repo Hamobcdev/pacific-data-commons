@@ -18,6 +18,7 @@ function fakeEndpoint(overrides: Partial<DirectoryEndpointResult> = {}): Directo
   return {
     endpoint_id: "end-1",
     endpoint_url: "https://provider.example/api",
+    integrity_url: "https://provider.example/integrity",
     title: "Test Endpoint",
     category: "trade",
     countries: ["Samoa"],
@@ -44,7 +45,23 @@ const config: AgentRuntimeConfig = {
   supabaseServiceKey: "service-key",
   anthropicApiKey: "anthropic-key",
   claudeModel: "claude-sonnet-4-6",
+  internalApiKey: "internal-key",
 };
+
+/** Session 17 — passes every live-run integrity check by default so the
+ * pre-existing tests below (written before Session 17) don't make a real
+ * network call against the fake directory.example / provider.example.org
+ * URLs. Dedicated integrity-gating behaviour is covered in
+ * base.integrity.test.ts. */
+function passingIntegrityCheck() {
+  return vi.fn().mockResolvedValue({
+    passed: true,
+    status: "no_cert_hash",
+    expectedHash: null,
+    actualHash: null,
+    message: "no active certificate",
+  });
+}
 
 describe("BaseAgent.run — dry run", () => {
   it("returns a preview and never queries endpoints, synthesizes, or submits attribution", async () => {
@@ -59,6 +76,8 @@ describe("BaseAgent.run — dry run", () => {
       queryEndpoint,
       synthesize,
       submitAttribution,
+      checkEndpointIntegrity: passingIntegrityCheck(),
+      recordIntegrityEvent: vi.fn().mockResolvedValue(null),
     });
 
     const result = await agent.run({
@@ -150,6 +169,8 @@ describe("BaseAgent.run — live run", () => {
       queryEndpoint,
       synthesize,
       submitAttribution,
+      checkEndpointIntegrity: passingIntegrityCheck(),
+      recordIntegrityEvent: vi.fn().mockResolvedValue(null),
     });
 
     const result = await agent.run({
@@ -181,6 +202,8 @@ describe("BaseAgent.run — live run", () => {
       queryEndpoint,
       synthesize,
       submitAttribution,
+      checkEndpointIntegrity: passingIntegrityCheck(),
+      recordIntegrityEvent: vi.fn().mockResolvedValue(null),
     });
 
     const result = await agent.run({
@@ -209,6 +232,8 @@ describe("BaseAgent.run — live run", () => {
       queryEndpoint,
       synthesize,
       submitAttribution,
+      checkEndpointIntegrity: passingIntegrityCheck(),
+      recordIntegrityEvent: vi.fn().mockResolvedValue(null),
     });
 
     await expect(

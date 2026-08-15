@@ -41,6 +41,12 @@ export function createAgentWallet(privateKeyBase64: string, network: PdcAlgorand
 export interface DirectoryEndpointResult {
   endpoint_id: string;
   endpoint_url: string;
+  /** Session 17 — endpoints.integrity_url ("typically endpoint_url +
+   * '/integrity'", session1_migration.sql), read from the directory rather
+   * than derived by string-concatenating endpoint_url here: the provider
+   * declares it, and a provider that hasn't set one yet (NULL) must resolve
+   * to 'endpoint_unavailable' (non-blocking), not a guessed URL that 404s. */
+  integrity_url: string | null;
   title: string;
   category: DataCategory;
   countries: string[] | null;
@@ -90,6 +96,7 @@ export async function searchDirectory(
     .map((item) => ({
       endpoint_id: item.endpoint.id,
       endpoint_url: item.endpoint.endpointUrl as string,
+      integrity_url: item.endpoint.integrityUrl,
       title: item.endpoint.title,
       category: item.endpoint.dataCategory,
       countries: item.endpoint.geography.countries,

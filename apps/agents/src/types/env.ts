@@ -29,6 +29,10 @@ const envSchema = z.object({
 
   DIRECTORY_API_URL: z.string().url(),
   PILOT_ENDPOINT_URL: z.string().url().optional(),
+  // Session 17 — shared secret for directory-api's /internal/* routes
+  // (certified-hash lookup + integrity event recording), called before
+  // every endpoint payment. Same value as directory-api's INTERNAL_API_KEY.
+  INTERNAL_API_KEY: z.string().min(1, "INTERNAL_API_KEY is required — authenticates calls to directory-api's /internal/* routes"),
 
   ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required for agent synthesis"),
   CLAUDE_MODEL: z.string().default("claude-sonnet-4-6"),

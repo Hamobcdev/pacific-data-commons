@@ -16,6 +16,7 @@ import { endpointRoute } from "./routes/endpoint.js";
 import { verifyRoute } from "./routes/verify.js";
 import { discoveryRoute } from "./routes/discovery.js";
 import { attributionRoute } from "./routes/attribution.js";
+import { internalRoute } from "./routes/internal.js";
 import type { AppBindings } from "./types.js";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
@@ -77,6 +78,7 @@ function main(): void {
   app.route("/", endpointRoute);
   app.route("/", verifyRoute);
   app.route("/", attributionRoute);
+  app.route("/", internalRoute);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
