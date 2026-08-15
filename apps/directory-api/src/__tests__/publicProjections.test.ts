@@ -93,6 +93,13 @@ const endpointRow: EndpointRow = {
   paused_at: null,
   cache_ttl_seconds: 86400,
   agent_reuse_policy: "ttl_cache",
+  last_integrity_check: null,
+  last_integrity_status: "unchecked",
+  integrity_fail_count: 0,
+  integrity_flagged: false,
+  integrity_flagged_at: null,
+  cultural_sovereignty_price_floor: null,
+  dataset_content_hash: null,
   created_at: "2025-12-01T00:00:00.000Z",
   updated_at: "2025-12-01T00:00:00.000Z",
 };

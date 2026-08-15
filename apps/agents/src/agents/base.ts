@@ -22,6 +22,8 @@ import { synthesize } from "../lib/claudeClient.js";
 import { submitAttribution } from "../lib/attribution.js";
 import { getCurrentPacificSeason, getSeasonalContext, type SeasonalDomain } from "../lib/seasonal.js";
 import { logger } from "../lib/logger.js";
+import { checkEndpointIntegrity, recordIntegrityEvent } from "../integrity.js";
+import { IntegrityCheckFailedError } from "../lib/errors.js";
 
 export interface AgentRuntimeConfig {
   /** This agent's row id in the `agents` table — used in attribution
@@ -34,12 +36,17 @@ export interface AgentRuntimeConfig {
   supabaseServiceKey: string;
   anthropicApiKey: string;
   claudeModel: string;
+  /** Session 17 — shared secret for directory-api's /internal/* routes. */
+  internalApiKey: string;
 }
 
 /** Injectable for tests — defaults to the real wallet/claude/attribution
  * implementations. Overriding this is how BaseAgent's own tests exercise
  * dry-run, sovereignty refusal, and attribution submission without signing
- * a real transaction or calling the Anthropic API. */
+ * a real transaction or calling the Anthropic API. checkEndpointIntegrity
+ * and recordIntegrityEvent are injectable for the same reason (Session 17)
+ * — both make real HTTP calls by default, so a live-run test that doesn't
+ * override them would otherwise hit real network from a unit test. */
 export interface AgentDependencies {
   wallet: AgentWallet;
   searchDirectory: typeof searchDirectory;
@@ -47,6 +54,8 @@ export interface AgentDependencies {
   synthesize: typeof synthesize;
   submitAttribution: typeof submitAttribution;
   getSeasonalContext: typeof getSeasonalContext;
+  checkEndpointIntegrity: typeof checkEndpointIntegrity;
+  recordIntegrityEvent: typeof recordIntegrityEvent;
 }
 
 /** Query tier picked for every agent's PDC queries. All six agents query
@@ -136,6 +145,8 @@ export abstract class BaseAgent {
       synthesize: depsOverride?.synthesize ?? synthesize,
       submitAttribution: depsOverride?.submitAttribution ?? submitAttribution,
       getSeasonalContext: depsOverride?.getSeasonalContext ?? getSeasonalContext,
+      checkEndpointIntegrity: depsOverride?.checkEndpointIntegrity ?? checkEndpointIntegrity,
+      recordIntegrityEvent: depsOverride?.recordIntegrityEvent ?? recordIntegrityEvent,
     };
   }
 
@@ -330,6 +341,51 @@ export abstract class BaseAgent {
       });
 
       try {
+        // Session 17 (Decision 49) — automatic tamper check before payment.
+        // Only 'fail' (a confirmed hash mismatch) blocks this endpoint;
+        // 'no_cert_hash' and 'endpoint_unavailable' proceed to payment.
+        // Thrown inside this same try/catch (not before it) deliberately:
+        // an IntegrityCheckFailedError must skip only this endpoint, the
+        // same as a queryEndpoint HTTP failure below — not abort the whole
+        // run and lose attribution for endpoints already paid this loop.
+        const integrityResult = await this.deps.checkEndpointIntegrity(
+          r.endpoint.endpoint_id,
+          r.endpoint.integrity_url,
+          this.config.directoryUrl,
+          this.config.internalApiKey,
+        );
+
+        logger.info("integrity_check", {
+          run_id: runId,
+          endpoint_id: r.endpoint.endpoint_id,
+          status: integrityResult.status,
+          passed: integrityResult.passed,
+        });
+
+        // Fire-and-forget — never awaited inline, never allowed to block or
+        // fail the query below over a logging write.
+        this.deps
+          .recordIntegrityEvent(this.config.directoryUrl, this.config.internalApiKey, {
+            endpointId: r.endpoint.endpoint_id,
+            checkTrigger: "agent_query",
+            status: integrityResult.status,
+            expectedHash: integrityResult.expectedHash,
+            actualHash: integrityResult.actualHash,
+            agentId: this.config.agentId,
+            transactionBlocked: integrityResult.status === "fail",
+          })
+          .catch((err) =>
+            logger.error("integrity_event_record_failed", {
+              run_id: runId,
+              endpoint_id: r.endpoint.endpoint_id,
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+
+        if (integrityResult.status === "fail") {
+          throw new IntegrityCheckFailedError(integrityResult.message);
+        }
+
         const result = await this.deps.queryEndpoint(this.deps.wallet, r.endpoint, r.tier);
         queryResults.push(result);
         citations.push({
@@ -342,7 +398,7 @@ export abstract class BaseAgent {
           provenance_hash: result.provenance_hash,
         });
       } catch (err) {
-        logger.error("agent_endpoint_query_failed", {
+        logger.error(err instanceof IntegrityCheckFailedError ? "agent_endpoint_integrity_check_failed" : "agent_endpoint_query_failed", {
           run_id: runId,
           agent_type: this.agentType,
           endpoint_id: r.endpoint.endpoint_id,

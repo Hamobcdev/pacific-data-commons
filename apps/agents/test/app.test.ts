@@ -16,6 +16,7 @@ function fakeEnv(overrides: Partial<Env> = {}): Env {
     ALGORAND_NODE_URL: "https://mainnet-api.algonode.cloud",
     ALGORAND_INDEXER_URL: "https://mainnet-idx.algonode.cloud",
     DIRECTORY_API_URL: "https://directory.example",
+    INTERNAL_API_KEY: "internal-key",
     ANTHROPIC_API_KEY: "anthropic-key",
     CLAUDE_MODEL: "claude-sonnet-4-6",
     SUPABASE_URL: "https://supabase.example",

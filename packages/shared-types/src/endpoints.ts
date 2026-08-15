@@ -132,6 +132,46 @@ export interface Endpoint {
   cache_ttl_seconds: number;
   agent_reuse_policy: AgentReusePolicy;
 
+  /** Session 17 (session17_integrity_schema.sql) — Decisions 49-51. */
+  last_integrity_check: string | null;
+  last_integrity_status: IntegrityStatus;
+  integrity_fail_count: number;
+  integrity_flagged: boolean;
+  integrity_flagged_at: string | null;
+  /** Decision 51 — reserved. Enforcement logic is Phase 2. */
+  cultural_sovereignty_price_floor: number | null;
+  /** Cache of the active provenance_certificates.dataset_content_hash for
+   * this endpoint — provenance_certificates remains the source of truth. */
+  dataset_content_hash: string | null;
+
   created_at: string;
   updated_at: string;
+}
+
+/** Session 17 (Decision 49). 'unchecked' only ever appears as
+ * endpoints.last_integrity_status's default — never written as an
+ * endpoint_integrity_events.status (every check produces one of the other
+ * four). */
+export type IntegrityStatus = "pass" | "fail" | "unchecked" | "endpoint_unavailable" | "no_cert_hash";
+
+/** endpoint_integrity_events.status — the subset of IntegrityStatus an
+ * actual check run can produce (never 'unchecked', which is a column
+ * default, not a check outcome). */
+export type IntegrityCheckStatus = Exclude<IntegrityStatus, "unchecked">;
+
+export type IntegrityCheckTrigger = "agent_query" | "health_cron" | "manual";
+
+/** Mirrors `endpoint_integrity_events` (session17_integrity_schema.sql). */
+export interface EndpointIntegrityEvent {
+  id: string;
+  endpoint_id: string;
+  checked_at: string;
+  check_trigger: IntegrityCheckTrigger;
+  status: IntegrityCheckStatus;
+  expected_hash: string | null;
+  actual_hash: string | null;
+  agent_id: string | null;
+  transaction_blocked: boolean;
+  notes: string | null;
+  created_at: string;
 }

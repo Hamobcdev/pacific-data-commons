@@ -90,3 +90,31 @@ export interface ApiError {
   error: string;
   message: string;
 }
+
+/**
+ * Session 17 (Decision 49) — internal, service-to-service directory-api
+ * routes only. Never registered with PdcPaymentGate, never public. Callers
+ * authenticate with the shared INTERNAL_API_KEY header (see
+ * apps/directory-api/src/middleware/internalAuth.ts).
+ */
+import type { IntegrityCheckStatus, IntegrityCheckTrigger } from "./endpoints.js";
+
+export interface CertifiedHashResponse {
+  dataset_content_hash: string | null;
+}
+
+export interface IntegrityEventRequest {
+  endpoint_id: string;
+  check_trigger: IntegrityCheckTrigger;
+  status: IntegrityCheckStatus;
+  expected_hash: string | null;
+  actual_hash: string | null;
+  agent_id: string | null;
+  transaction_blocked: boolean;
+}
+
+export interface IntegrityEventResponse {
+  event_id: string;
+  integrity_fail_count: number;
+  integrity_flagged: boolean;
+}

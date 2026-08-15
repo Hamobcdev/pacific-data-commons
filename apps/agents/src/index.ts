@@ -17,6 +17,7 @@ async function main(): Promise<void> {
     supabaseServiceKey: env.SUPABASE_SERVICE_KEY,
     anthropicApiKey: env.ANTHROPIC_API_KEY,
     claudeModel: env.CLAUDE_MODEL,
+    internalApiKey: env.INTERNAL_API_KEY,
   });
 
   // Built once at startup, not per request — each agent's wallet address
