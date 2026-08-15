@@ -7,6 +7,9 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8787),
+  // Session 18 — this service's own public base URL, used to build the
+  // versions_url field in dataset-update notification payloads (Decision 53).
+  PUBLIC_URL: z.string().url().default("http://localhost:8787"),
   ALGORAND_NETWORK: z.enum(["mainnet", "testnet"]).default("testnet"),
   AVM_ADDRESS: z.string().min(1, "AVM_ADDRESS (SBP directory payTo wallet) is required"),
   FACILITATOR_URL: z.string().url(),

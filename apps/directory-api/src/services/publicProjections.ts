@@ -64,5 +64,7 @@ export function toPublicEndpoint(row: EndpointRow): PublicEndpoint {
     pausedReason: row.paused_reason,
     endpointUrl: row.endpoint_url,
     integrityUrl: row.integrity_url,
+    pendingRecertification: row.pending_recertification,
+    versionNumber: row.version_number,
   };
 }

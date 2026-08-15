@@ -78,7 +78,8 @@ export async function getActualHash(integrityUrl: string | null): Promise<string
 }
 
 /**
- * Main integrity check (Deliverable 2). Never throws — every failure mode
+ * Main integrity check (Deliverable 2; Session 18 Deliverable 8 adds the
+ * pendingRecertification short-circuit). Never throws — every failure mode
  * resolves to a status, not an exception; only the caller (BaseAgent)
  * decides whether 'fail' should become a thrown IntegrityCheckFailedError.
  */
@@ -87,7 +88,22 @@ export async function checkEndpointIntegrity(
   integrityUrl: string | null,
   directoryApiUrl: string,
   internalApiKey: string,
+  pendingRecertification: boolean,
 ): Promise<IntegrityCheckResult> {
+  if (pendingRecertification) {
+    // Session 18 (Decision 52) — provider has declared an update and the
+    // dataset is mid-change. Skip both network calls entirely: comparing
+    // against the pre-update certified hash right now would only ever
+    // produce a false 'fail'. Never blocks payment.
+    return {
+      passed: true,
+      status: "pending_recertification",
+      expectedHash: null,
+      actualHash: null,
+      message: "Endpoint update in progress — integrity check paused. Queries continue normally.",
+    };
+  }
+
   const expectedHash = await getCertifiedHash(endpointId, directoryApiUrl, internalApiKey);
   if (!expectedHash) {
     return {

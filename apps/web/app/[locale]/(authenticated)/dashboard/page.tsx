@@ -40,7 +40,12 @@ export default async function DashboardPage({ params }: { params: { locale: stri
       <WalletPanel provider={data.provider} />
       <EarningsPanel provider={data.provider} transactions={data.recentTransactions} />
       <TrustTierProgress provider={data.provider} bestUpvoteCount={data.bestUpvoteCount} />
-      <EndpointList endpoints={data.endpoints} providerSlug={slugify(data.provider.institution_name)} providerName={data.provider.institution_name} />
+      <EndpointList
+        endpoints={data.endpoints}
+        providerSlug={slugify(data.provider.institution_name)}
+        providerName={data.provider.institution_name}
+        latestCertifiedAtByEndpointId={data.latestCertifiedAtByEndpointId}
+      />
     </div>
   );
 }

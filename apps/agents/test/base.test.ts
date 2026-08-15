@@ -19,6 +19,7 @@ function fakeEndpoint(overrides: Partial<DirectoryEndpointResult> = {}): Directo
     endpoint_id: "end-1",
     endpoint_url: "https://provider.example/api",
     integrity_url: "https://provider.example/integrity",
+    pending_recertification: false,
     title: "Test Endpoint",
     category: "trade",
     countries: ["Samoa"],

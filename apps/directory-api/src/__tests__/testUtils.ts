@@ -41,6 +41,9 @@ export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): 
       range: () => chain,
       order: () => chain,
       limit: () => chain,
+      gte: () => chain,
+      not: () => chain,
+      overlaps: () => chain,
       maybeSingle: () => {
         state.single = true;
         return chain;
@@ -50,7 +53,16 @@ export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): 
         return chain;
       },
       insert: (row: unknown) => {
-        inserts.push({ table, row });
+        // Session 18 — flatten a batch insert (an array of rows, as
+        // notificationService.dispatchUpdateNotifications does for agent
+        // wallets) into one __inserts entry per row, matching what a caller
+        // querying the real table back would see, rather than one entry
+        // holding the whole array.
+        if (Array.isArray(row)) {
+          for (const r of row) inserts.push({ table, row: r });
+        } else {
+          inserts.push({ table, row });
+        }
         state.wroteTo = "insert";
         return chain;
       },

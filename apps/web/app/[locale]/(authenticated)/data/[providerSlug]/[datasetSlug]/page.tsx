@@ -1,9 +1,14 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getPublicDataset } from "@/lib/directory/get-public-dataset";
+import { getEndpointVersions } from "@/lib/dashboard/versions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrustTierBadge } from "@/components/ui/TrustTierBadge";
 import { ShareButtons } from "@/components/ui/ShareButtons";
+import { VersionHistoryTimeline } from "@/components/dashboard/VersionHistoryTimeline";
+
+const RECENTLY_UPDATED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default async function DatasetDetailPage({
   params,
@@ -15,6 +20,12 @@ export default async function DatasetDetailPage({
 
   const { endpoint, provider, upvoteCount } = result;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const tUpdate = await getTranslations("DeclareUpdate.badges");
+  const tVersions = await getTranslations("DeclareUpdate.versions");
+  const versions = await getEndpointVersions(endpoint.id);
+  const latestCertifiedAt = versions.find((v) => v.version_number === endpoint.version_number)?.certified_at ?? null;
+  const recentlyUpdated = !endpoint.pending_recertification && latestCertifiedAt && Date.now() - new Date(latestCertifiedAt).getTime() < RECENTLY_UPDATED_WINDOW_MS;
+  const versionsFeedUrl = process.env.DIRECTORY_API_URL ? `${process.env.DIRECTORY_API_URL.replace(/\/$/, "")}/endpoints/${endpoint.id}/versions` : null;
   const datasetUrl = `${appUrl}/data/${params.providerSlug}/${params.datasetSlug}`;
   const lowestPrice = endpoint.pricing_tiers.reduce(
     (min, tier) => (tier.price_usdc < min ? tier.price_usdc : min),
@@ -29,6 +40,18 @@ export default async function DatasetDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="neutral">{endpoint.data_category}</Badge>
           <TrustTierBadge tier={provider.trust_tier} upvoteCount={upvoteCount} />
+          {endpoint.pending_recertification ? (
+            <Badge variant="warning">{tUpdate("pendingInProgress", { version: endpoint.version_number + 1 })}</Badge>
+          ) : (
+            recentlyUpdated && (
+              <Badge variant="success">
+                {tUpdate("recentlyUpdated", {
+                  version: endpoint.version_number,
+                  date: new Date(latestCertifiedAt as string).toLocaleDateString("en-US", { day: "numeric", month: "short" }),
+                })}
+              </Badge>
+            )
+          )}
         </div>
         <h1 className="mt-3 text-2xl font-bold text-navy">{endpoint.title}</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -84,6 +107,20 @@ export default async function DatasetDetailPage({
       >
         Query this dataset
       </a>
+
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-navy">{tVersions("title")}</h2>
+          {versionsFeedUrl && (
+            <a href={versionsFeedUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-ocean hover:underline">
+              {tVersions("machineReadableFeed")}
+            </a>
+          )}
+        </div>
+        <div className="mt-3">
+          <VersionHistoryTimeline versions={versions} currentVersionNumber={endpoint.version_number} />
+        </div>
+      </div>
     </div>
   );
 }

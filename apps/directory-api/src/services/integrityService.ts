@@ -39,7 +39,7 @@ export async function getCertifiedHashForEndpoint(
 const integrityEventSchema = z.object({
   endpoint_id: z.string().uuid("endpoint_id must be a UUID"),
   check_trigger: z.enum(["agent_query", "health_cron", "manual"]),
-  status: z.enum(["pass", "fail", "endpoint_unavailable", "no_cert_hash"]),
+  status: z.enum(["pass", "fail", "endpoint_unavailable", "no_cert_hash", "pending_recertification"]),
   expected_hash: z.string().nullable(),
   actual_hash: z.string().nullable(),
   agent_id: z.string().uuid().nullable(),
@@ -108,10 +108,13 @@ export async function recordIntegrityEvent(
     integrity_flagged: boolean;
   };
 
-  // Only 'fail' strikes and 'pass' clears the strike count — 'endpoint_unavailable'
-  // and 'no_cert_hash' are inconclusive (no data was actually compared) and
-  // leave it untouched, so a flaky endpoint can't dodge a real 3-strike flag
-  // by timing out, nor can an uncertified endpoint accumulate strikes at all.
+  // Only 'fail' strikes and 'pass' clears the strike count — 'endpoint_unavailable',
+  // 'no_cert_hash', and 'pending_recertification' (Session 18, Decision 52)
+  // are all inconclusive (no data was actually compared) and leave it
+  // untouched, so a flaky endpoint can't dodge a real 3-strike flag by
+  // timing out, an uncertified endpoint can't accumulate strikes at all,
+  // and a provider mid-declared-update can't accidentally get flagged for
+  // the exact update they're in the middle of legitimately making.
   let newFailCount = endpoint.integrity_fail_count;
   if (req.status === "fail") {
     newFailCount += 1;
