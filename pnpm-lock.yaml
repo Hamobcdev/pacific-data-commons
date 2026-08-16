@@ -113,6 +113,9 @@ importers:
       '@pdc/x402-adapter':
         specifier: workspace:*
         version: link:../../packages/pdc-x402-adapter
+      '@supabase/supabase-js':
+        specifier: ^2.47.0
+        version: 2.110.8
       '@x402-avm/extensions':
         specifier: ^2.6.1
         version: 2.6.1(ethers@6.17.0)(typescript@5.9.3)
@@ -144,12 +147,18 @@ importers:
       '@hono/node-server':
         specifier: ^1.14.0
         version: 1.19.15(hono@4.12.32)
+      '@pdc/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
       '@pdc/x402-adapter':
         specifier: workspace:*
         version: link:../../packages/pdc-x402-adapter
       hono:
         specifier: ^4.12.0
         version: 4.12.32
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
       zod:
         specifier: ^3.24.0
         version: 3.25.76

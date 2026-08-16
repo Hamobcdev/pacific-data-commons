@@ -450,6 +450,36 @@
         "heading": "About receiving USDC payments",
         "body": "Your earnings will be paid in USDC, a USD-pegged digital currency, directly to your Algorand wallet. USDC is not the same as cash in a bank account. Options for accessing value from your USDC: hold as a digital treasury asset, peer-to-peer exchange with contacts who hold USDC, or through an international exchange if your institution has a foreign bank account. Synergy Blockchain Pacific is actively consulting with the Central Bank of Samoa on a formal USDC-to-WST conversion pathway. We will notify all providers when this pathway becomes available."
       }
+    },
+    "Checklist": {
+      "title": "Before you list your data on Pacific Data Commons",
+      "institutionHeading": "Your institution",
+      "institutionEmail": "I have an institutional email address (university, government ministry, or registered organisation)",
+      "institutionAuthority": "I have the authority to list data on behalf of my institution",
+      "institutionPacific": "My institution is based in or works with Pacific Island nations or communities",
+      "dataHeading": "Your data",
+      "dataRegion": "My data relates to the Pacific region (fisheries, climate, ocean, trade, governance, or research)",
+      "dataRights": "I hold the intellectual property rights to this data",
+      "dataConsent": "My data does not contain personal information without consent",
+      "dataCollection": "I can describe how this data was collected",
+      "dataCoverage": "I know the geographic coverage and date range of my data",
+      "walletHeading": "Your wallet",
+      "walletHave": "I have an Algorand wallet (or I am ready to set one up — takes 5 minutes)",
+      "walletUsdc": "My wallet has USDC opted in (required to receive earnings)",
+      "earningHeading": "How you will earn",
+      "earningPerQuery": "I understand buyers pay USDC per query directly to my wallet",
+      "earningSplit": "I understand SBP earns 3% — I receive 97% directly",
+      "earningUsdc": "I understand USDC is a USD-pegged digital currency, not cash",
+      "earningNoGuarantee": "I understand there is no guaranteed income — earnings depend on buyer demand",
+      "startButton": "All items checked — Start listing my data",
+      "needHelp": "I need help",
+      "whatHappensTitle": "What happens after you list",
+      "step1": "Identity verified (same day, automated) — you receive Bronze status",
+      "step2": "Your endpoint goes live — AI agents and researchers can query your data",
+      "step3": "You earn USDC per query — directly to your Algorand wallet",
+      "step4": "Build toward Silver — 3 verified buyers rate your data",
+      "step5": "Apply for Gold — submit peer review documentation ($25)",
+      "questionsContact": "Questions? Contact anthony@synergybcpacific.com"
     }
   },
   "actions": {
@@ -531,7 +561,8 @@
     "endpoints_title": "Your Endpoints",
     "trust_tier": "Trust Tier",
     "total_queries": "Total Queries Served",
-    "recent_queries": "Recent Queries"
+    "recent_queries": "Recent Queries",
+    "add_dataset": "Add Dataset"
   },
   "DeclareUpdate": {
     "pageTitle": "Declare a dataset update",
@@ -654,7 +685,9 @@
     "register": "Register",
     "brand": "Pacific Data Commons",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "browseData": "Browse Data",
+    "forProviders": "For Providers"
   },
   "Footer": {
     "brand": "Pacific Data Commons",
@@ -716,5 +749,37 @@
     "contact": "Still have questions?",
     "contactBody": "Contact SBP directly — we respond to every message.",
     "contactLink": "Email anthony@synergybcpacific.com"
+  },
+  "Welcome": {
+    "title": "Welcome to Pacific Data Commons",
+    "question": "What would you like to do?",
+    "share": {
+      "title": "Share Data",
+      "description": "List your Pacific data and earn USDC per query.",
+      "cta": "Start listing"
+    },
+    "find": {
+      "title": "Find Data",
+      "description": "Browse and query Pacific datasets. No account needed to browse.",
+      "cta": "Browse data"
+    },
+    "build": {
+      "title": "Build Agents",
+      "description": "Build AI agents that query Pacific data via x402.",
+      "cta": "Developer docs"
+    }
+  },
+  "BrowseData": {
+    "title": "Browse Pacific Data",
+    "noAccountNotice": "No account required to browse — you need an Algorand wallet to query.",
+    "becomeProviderPrompt": "Looking to share your data?",
+    "becomeProviderCta": "Become a provider",
+    "searchPlaceholder": "Search datasets…",
+    "searchLabel": "Search datasets",
+    "categoryLabel": "Filter by category",
+    "allCategories": "All categories",
+    "searchButton": "Search",
+    "noResults": "No datasets match your search yet.",
+    "fromPrice": "From ${price} per query"
   }
 }

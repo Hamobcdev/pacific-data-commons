@@ -1,10 +1,16 @@
 import { z } from "zod";
 
 /**
- * CLAUDE.md P4: no secrets in code, fail fast at boot. Supabase vars are
- * intentionally not in this schema — logging paid transactions back to the
- * PDC directory is deferred (see .env.example), this endpoint runs
- * standalone without a database.
+ * CLAUDE.md P4: no secrets in code, fail fast at boot.
+ *
+ * Session 19: SUPABASE_URL/SUPABASE_SERVICE_KEY are now required, not
+ * absent. Previously this endpoint ran standalone with no database
+ * connection at all — every settled payment on /summary, /slice, /full,
+ * /expert, /commission was never written to transactions_log anywhere
+ * (directory-api's own transaction logging only covers its own $0.01
+ * directory-query routes, not a provider endpoint's data-purchase
+ * payments, which settle in this process). See
+ * services/transactionLogger.ts.
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -16,6 +22,8 @@ const envSchema = z.object({
   FACILITATOR_URL: z.string().url(),
   PUBLIC_URL: z.string().url(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_SERVICE_KEY: z.string().min(1, "SUPABASE_SERVICE_KEY is required"),
 });
 
 export type Env = z.infer<typeof envSchema>;

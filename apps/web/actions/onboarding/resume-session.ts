@@ -66,6 +66,24 @@ export async function resumeOnboardingSession(): Promise<ResumeSessionResult> {
 
   const providerId = provider.id as string;
 
+  // Session 19 fix (CLAUDE.md §26.5 "BUG 2"): a provider with at least one
+  // live endpoint is unambiguously done onboarding, full stop — regardless
+  // of whether their verification_queue row still exists (it's typically
+  // cleared once processed) or endpoint_deployments has a matching row
+  // (that Session 6 table isn't reliably written by the real publish path —
+  // see create-deployment.ts's own doc comment). Checked before the queue
+  // check and the step-walk below specifically to bypass both, not
+  // duplicate them: an active endpoint is a stronger, more direct signal
+  // than either.
+  const { data: activeEndpoint } = await supabase
+    .from("endpoints")
+    .select("id")
+    .eq("provider_id", providerId)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+  if (activeEndpoint) return { success: true, providerId, redirectToDashboard: true };
+
   const { data: queueEntry } = await supabase
     .from("verification_queue")
     .select("id")

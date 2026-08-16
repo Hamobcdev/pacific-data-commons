@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { loadEnv } from "./env.js";
@@ -5,6 +6,8 @@ import { logger } from "./logger.js";
 import { getWalletStatus } from "./wallet.js";
 import { runQueryCycle, type CycleResult } from "./agent.js";
 import { getAgentWalletKey } from "./key-provider.js";
+import { ensureAgentRegistered } from "./lib/self-register.js";
+import { submitAttribution } from "./lib/attribution.js";
 
 /**
  * Resolves the agent wallet key fresh from AWS Secrets Manager (or the
@@ -73,6 +76,29 @@ async function main(): Promise<void> {
     });
   }
 
+  // Session 19 (Decision 37) — provisions this agent's `agents` row so it
+  // can submit attribution records after each cycle. Only attempted when
+  // there's a real wallet to register (dry-run has no operational wallet
+  // address to attribute payments to) and INTERNAL_API_KEY is configured;
+  // either missing degrades to "no attribution submitted", not a boot
+  // failure — see ensureAgentRegistered's doc comment.
+  const agentId =
+    wallet.configured && wallet.address && env.INTERNAL_API_KEY
+      ? await ensureAgentRegistered({
+          directoryUrl: env.DIRECTORY_URL,
+          internalApiKey: env.INTERNAL_API_KEY,
+          operationalWalletAddress: wallet.address,
+          logger,
+        })
+      : undefined;
+
+  if (wallet.configured && !agentId) {
+    logger.warn("agent_attribution_disabled", {
+      reason: env.INTERNAL_API_KEY ? "self-registration failed" : "INTERNAL_API_KEY not set",
+      action: "cycles will still run and pay — Decision 37 attribution records will not be submitted",
+    });
+  }
+
   let lastCycles: CycleResult[] = [];
 
   async function tick(): Promise<void> {
@@ -84,15 +110,36 @@ async function main(): Promise<void> {
     // ordering risk for no benefit at this query volume.
     const results: CycleResult[] = [];
     for (const category of categories) {
-      results.push(
-        await runQueryCycle({
-          directoryUrl: env.DIRECTORY_URL,
-          category,
-          agentWalletKey,
-          network: env.ALGORAND_NETWORK,
-          logger,
-        }),
-      );
+      const result = await runQueryCycle({
+        directoryUrl: env.DIRECTORY_URL,
+        category,
+        agentWalletKey,
+        network: env.ALGORAND_NETWORK,
+        logger,
+      });
+      results.push(result);
+
+      // One attribution record per category-cycle (its own natural "run" —
+      // its own directory query + endpoint query, own tx ids), covering
+      // whichever of the two payments actually settled. No separate
+      // "originating user" exists for this agent's own dogfooding
+      // volume — see attribution.ts's hashUserWallet doc comment — so it
+      // attributes to itself.
+      if (!result.dry_run && agentId && agentWalletKey && wallet.address) {
+        const endpointTxIds = [result.directory_query.tx_id, result.endpoint_query.tx_id].filter((id): id is string => id !== null);
+        const attribution = await submitAttribution({
+          directoryApiUrl: env.DIRECTORY_URL,
+          agentWalletKeyBase64: agentWalletKey,
+          agentOperationalWalletAddress: wallet.address,
+          agentId,
+          runId: randomUUID(),
+          endpointTxIds,
+          originatingUserWallet: wallet.address,
+        });
+        if (!attribution.success) {
+          logger.warn("agent_attribution_submission_failed", { category, error: attribution.error });
+        }
+      }
     }
     lastCycles = results;
   }

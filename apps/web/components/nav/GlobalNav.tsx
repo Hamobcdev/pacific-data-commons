@@ -21,65 +21,59 @@ export function GlobalNav({ provider }: GlobalNavProps) {
   const t = useTranslations("Nav");
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Session 19, Fix 5 — nav restructured for three user types. "Browse
+  // Data" and "Agent Marketplace" are common to both authenticated and
+  // guest visitors (buyer-facing, no login required — see the (public)/data
+  // and /agents pages). "Add Dataset" is no longer a top-level item: it's
+  // a provider action that lives inside the dashboard, not a directory-wide
+  // nav concern. "For Providers" is the guest-only entry point to the
+  // provider journey, replacing the old guest state's bare FAQ-only nav.
+  const linkClass =
+    "flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white " +
+    "hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0";
+
+  const browseDataLink = (
+    <Link href="/data" onClick={() => setMobileOpen(false)} className={linkClass}>
+      {t("browseData")}
+    </Link>
+  );
+  const agentMarketplaceLink = (
+    <Link href="/agents" onClick={() => setMobileOpen(false)} className={linkClass}>
+      {t("agents")}
+    </Link>
+  );
+  const faqLink = (
+    <Link href="/faq" onClick={() => setMobileOpen(false)} className={linkClass}>
+      {t("faq")}
+    </Link>
+  );
+
   const navLinks = provider ? (
     <>
-      <Link
-        href="/dashboard"
-        onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
-          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
-      >
+      <Link href="/dashboard" onClick={() => setMobileOpen(false)} className={linkClass}>
         {t("dashboard")}
       </Link>
-      <Link
-        href="/onboarding/new-dataset"
-        onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
-          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
-      >
-        {t("addDataset")}
-      </Link>
-      <Link
-        href="/agents"
-        onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
-          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
-      >
-        {t("agents")}
-      </Link>
-      <Link
-        href="/faq"
-        onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
-          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
-      >
-        {t("faq")}
-      </Link>
+      {browseDataLink}
+      {agentMarketplaceLink}
+      {faqLink}
       {/* Placeholder until a standalone wallet management page exists —
           this re-enters the onboarding wallet step directly (Session 12
           fix, Flag 2). */}
-      <Link
-        href="/onboarding/wallet"
-        onClick={() => setMobileOpen(false)}
-        className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
-          hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
-      >
+      <Link href="/onboarding/wallet" onClick={() => setMobileOpen(false)} className={linkClass}>
         {t("walletSettings")}
       </Link>
     </>
   ) : null;
 
-  // FAQ is public — visible in guest state too, unlike the rest of navLinks
-  // above (which only makes sense once a provider is authenticated).
-  const guestFaqLink = (
-    <Link
-      href="/faq"
-      onClick={() => setMobileOpen(false)}
-      className="flex items-center px-3 py-2.5 sm:py-1.5 text-base text-white/70 hover:text-white
-        hover:bg-white/10 rounded-md transition-colors min-h-[44px] sm:min-h-0"
-    >
-      {t("faq")}
-    </Link>
+  const guestLinks = (
+    <>
+      {browseDataLink}
+      {agentMarketplaceLink}
+      <Link href="/onboarding/register" onClick={() => setMobileOpen(false)} className={linkClass}>
+        {t("forProviders")}
+      </Link>
+      {faqLink}
+    </>
   );
 
   return (
@@ -99,7 +93,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
           </Link>
 
           {/* Desktop navigation */}
-          <nav className="hidden sm:flex items-center gap-1">{provider ? navLinks : guestFaqLink}</nav>
+          <nav className="hidden sm:flex items-center gap-1">{provider ? navLinks : guestLinks}</nav>
 
           {/* Right side actions (desktop) */}
           <div className="hidden sm:flex items-center gap-2">
@@ -148,7 +142,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="sm:hidden border-t border-white/10 bg-pacific-shell px-4 pb-4 pt-2">
-          <nav className="flex flex-col">{provider ? navLinks : guestFaqLink}</nav>
+          <nav className="flex flex-col">{provider ? navLinks : guestLinks}</nav>
           <div className="mt-2">
             {provider ? (
               <form action={signOut}>

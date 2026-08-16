@@ -18,6 +18,7 @@ import { discoveryRoute } from "./routes/discovery.js";
 import { attributionRoute } from "./routes/attribution.js";
 import { internalRoute } from "./routes/internal.js";
 import { updatesRoute } from "./routes/updates.js";
+import { externalSourcesRoute } from "./routes/externalSources.js";
 import type { AppBindings } from "./types.js";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
@@ -81,6 +82,7 @@ function main(): void {
   app.route("/", attributionRoute);
   app.route("/", internalRoute);
   app.route("/", updatesRoute);
+  app.route("/", externalSourcesRoute);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
