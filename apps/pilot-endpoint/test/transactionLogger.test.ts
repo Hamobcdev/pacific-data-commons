@@ -74,6 +74,18 @@ describe("logSettledEndpointPayment", () => {
     expect(rpcCalls).toContainEqual({ fn: "increment_provider_query_count", args: { p_provider_id: "prov-1" } });
   });
 
+  it("logs a data_query_tier1 row for /research/law-before-code, distinguished from /summary via response_tier", async () => {
+    const { client, inserts, rpcCalls } = fakeSupabase();
+    await logSettledEndpointPayment(client, basePayment({ path: "/research/law-before-code", amountUsdc: "0.01" }), context);
+
+    expect(inserts[0]?.row).toMatchObject({
+      transaction_type: "data_query_tier1",
+      pricing_tier: 1,
+      response_tier: "law_before_code",
+    });
+    expect(rpcCalls).toContainEqual({ fn: "increment_tier12_accrual", args: { p_provider_id: "prov-1", p_amount: 0.01 } });
+  });
+
   it("logs a data_query_tier3 row for /full with a computed 97/3 split, no accrual RPC", async () => {
     const { client, inserts, rpcCalls } = fakeSupabase();
     await logSettledEndpointPayment(client, basePayment({ path: "/full", amountUsdc: "25" }), context);

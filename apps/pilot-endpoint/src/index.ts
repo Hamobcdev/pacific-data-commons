@@ -25,6 +25,10 @@ import { sliceRoute } from "./routes/paid/slice.js";
 import { fullRoute } from "./routes/paid/full.js";
 import { expertRoute } from "./routes/paid/expert.js";
 import { commissionRoute } from "./routes/paid/commission.js";
+import { researchRoute } from "./routes/paid/research.js";
+import { pacificAdoptionRoute } from "./routes/paid/pacificAdoption.js";
+import { LAW_BEFORE_CODE, CRYPTOGRAPHIC_CONTINUITY } from "./data/research.js";
+import { PACIFIC_ADOPTION_METADATA } from "./data/pacificAdoption.js";
 import type { AppBindings } from "./types.js";
 
 async function main(): Promise<void> {
@@ -53,18 +57,41 @@ async function main(): Promise<void> {
     });
   }
 
-  // Session 19 — resolved once at startup, same pattern as datasetHash
-  // above: which provider/endpoint row in the directory this deployment
-  // actually *is*, so every settled payment can be attributed without a
-  // per-request directory lookup. A miss degrades to "log and skip", not a
-  // boot failure (see resolveDirectoryContext's doc comment).
   const supabase = createSupabaseClient(env);
-  const directoryContext = await resolveDirectoryContext(supabase, env.PUBLIC_URL, DATASET_METADATA.category);
-  if (!directoryContext) {
-    logger.warn("pilot_endpoint_starting_without_transaction_logging", {
-      public_url: env.PUBLIC_URL,
-      category: DATASET_METADATA.category,
-    });
+
+  // Session 21 — this process now serves 5 datasets (fisheries/ocean,
+  // 2 research papers, 1 adoption landscape), not 1. A single directory
+  // context resolved once at boot (Session 19's original approach) would
+  // attribute every settled payment — regardless of which dataset's route
+  // was actually paid for — to whichever one endpoint_id got resolved
+  // first, silently merging revenue/query-count across unrelated listings.
+  // Each entry below maps a settled payment's path to the
+  // (category, subCategory) resolveDirectoryContext needs to look up that
+  // route's *own* endpoint row, at settlement time — see
+  // resolveDirectoryContext's and onSettled's doc comments.
+  const ROUTE_DATASET: Record<string, { category: string; subCategory?: string }> = {
+    "/summary": { category: DATASET_METADATA.category },
+    "/slice": { category: DATASET_METADATA.category },
+    "/full": { category: DATASET_METADATA.category },
+    "/expert": { category: DATASET_METADATA.category },
+    "/commission": { category: DATASET_METADATA.category },
+    "/research/law-before-code": { category: "governance", subCategory: "law_before_code" },
+    "/research/cryptographic-continuity": { category: "governance", subCategory: "cryptographic_continuity" },
+    "/pacific/blockchain-adoption": { category: "governance", subCategory: "blockchain_adoption" },
+  };
+
+  // Boot-time sanity check only (warn, never crash — same posture as the
+  // rest of this file): confirms every route above actually resolves to a
+  // real endpoint row, so a listing/URL mismatch surfaces in Railway logs
+  // at deploy time rather than being discovered a day later the way
+  // Session 19's silent transactions_log gap was (see CLAUDE.md §26.4-style
+  // incidents). The result is discarded — logSettledPaymentContext below
+  // still re-resolves fresh per settlement, never reuses this.
+  for (const [path, { category, subCategory }] of Object.entries(ROUTE_DATASET)) {
+    const ctx = await resolveDirectoryContext(supabase, env.PUBLIC_URL, category, subCategory);
+    if (!ctx) {
+      logger.warn("pilot_endpoint_route_unresolved_at_boot", { path, category, subCategory, public_url: env.PUBLIC_URL });
+    }
   }
 
   // ── x402 payment gate (via @pdc/x402-adapter — never import @x402/* directly, R1) ──
@@ -74,11 +101,18 @@ async function main(): Promise<void> {
     network: env.ALGORAND_NETWORK,
   });
 
-  // Session 19 — every settled payment on the 5 paid routes below now logs
+  // Session 19 — every settled payment on the paid routes below now logs
   // to transactions_log (previously never written anywhere from this
-  // process — see types/env.ts's doc comment).
+  // process — see types/env.ts's doc comment). Session 21: context is
+  // resolved fresh per settlement (not once at boot) so each dataset's
+  // route attributes to its own endpoint_id — see ROUTE_DATASET above and
+  // resolveDirectoryContext's doc comment for why that matters now that
+  // this process serves more than one dataset.
   paymentGate.onSettled(async (payment) => {
-    await logSettledEndpointPayment(supabase, payment, directoryContext);
+    const bare = payment.path.split("?")[0] ?? payment.path;
+    const mapping = ROUTE_DATASET[bare];
+    const context = mapping ? await resolveDirectoryContext(supabase, env.PUBLIC_URL, mapping.category, mapping.subCategory) : null;
+    await logSettledEndpointPayment(supabase, payment, context);
   });
 
   // Bazaar discovery metadata (Session 8.1) — built with @x402-avm/extensions'
@@ -118,6 +152,11 @@ async function main(): Promise<void> {
     tier: keyof typeof TIER_PRICING;
     description: string;
     discovery: ReturnType<typeof discoveryFor>;
+    /** Only set where it differs from DATASET_METADATA.category (the 3
+     * Session 21 routes below) — the x402 route metadata's own category tag
+     * must match the actual dataset a route serves, same reasoning as
+     * ROUTE_DATASET above for transactions_log attribution. */
+    category?: string;
   }> = [
     {
       method: "GET",
@@ -225,6 +264,43 @@ async function main(): Promise<void> {
         },
       }),
     },
+    // Session 21 (Deliverable 1) — PDC-POL-2026-001 Decision 42: research
+    // endpoints price at Tier 1 (summary) maximum; the underlying working
+    // paper stays openly accessible on request.
+    {
+      method: "GET",
+      path: "/research/law-before-code",
+      tier: "summary",
+      category: "governance",
+      description: `Structured metadata for "${LAW_BEFORE_CODE.title}" — abstract, policy gaps identified, governance frameworks referenced, citation.`,
+      discovery: discoveryFor({
+        method: "GET",
+        output: { example: { title: LAW_BEFORE_CODE.title, version: LAW_BEFORE_CODE.version, abstract: LAW_BEFORE_CODE.abstract } },
+      }),
+    },
+    {
+      method: "GET",
+      path: "/research/cryptographic-continuity",
+      tier: "summary",
+      category: "governance",
+      description: `Structured metadata for "${CRYPTOGRAPHIC_CONTINUITY.title}" — abstract, incidents analysed, mandate components, citation.`,
+      discovery: discoveryFor({
+        method: "GET",
+        output: { example: { title: CRYPTOGRAPHIC_CONTINUITY.title, version: CRYPTOGRAPHIC_CONTINUITY.version, abstract: CRYPTOGRAPHIC_CONTINUITY.abstract } },
+      }),
+    },
+    // Session 21 (Deliverable 2)
+    {
+      method: "GET",
+      path: "/pacific/blockchain-adoption",
+      tier: "summary",
+      category: "governance",
+      description: `${PACIFIC_ADOPTION_METADATA.dataset} — ${PACIFIC_ADOPTION_METADATA.coverage}, structured and queryable.`,
+      discovery: discoveryFor({
+        method: "GET",
+        output: { example: { dataset: PACIFIC_ADOPTION_METADATA.dataset, version: PACIFIC_ADOPTION_METADATA.version, nations: [{ country: "Samoa", iso: "WS", regulatory_sandbox: true }] } },
+      }),
+    },
   ];
 
   for (const route of paidRoutes) {
@@ -236,7 +312,7 @@ async function main(): Promise<void> {
       resource: `pdc-pilot-endpoint:${route.path}`,
       extra: {
         service: "pacific-data-commons-pilot",
-        category: DATASET_METADATA.category,
+        category: route.category ?? DATASET_METADATA.category,
         tier: route.tier,
       },
       extensions: { bazaar: route.discovery },
@@ -256,7 +332,7 @@ async function main(): Promise<void> {
   app.use("*", corsMiddleware);
   app.use("*", rateLimit({ windowMs: 60_000, max: 300 }));
 
-  // Mounted globally but only intercepts the 5 paths registered above —
+  // Mounted globally but only intercepts the paths registered above —
   // everything else (all 6 free routes) passes straight through.
   app.use("*", paymentGate.middleware());
 
@@ -272,6 +348,8 @@ async function main(): Promise<void> {
   app.route("/", fullRoute);
   app.route("/", expertRoute);
   app.route("/", commissionRoute);
+  app.route("/", researchRoute);
+  app.route("/", pacificAdoptionRoute);
 
   app.notFound((c) =>
     c.json(
@@ -292,6 +370,9 @@ async function main(): Promise<void> {
           `/full (${formatUsdc(TIER_PRICING.full)})`,
           `/expert (${formatUsdc(TIER_PRICING.expert)})`,
           `/commission (${formatUsdc(TIER_PRICING.commission)})`,
+          `/research/law-before-code (${formatUsdc(TIER_PRICING.summary)})`,
+          `/research/cryptographic-continuity (${formatUsdc(TIER_PRICING.summary)})`,
+          `/pacific/blockchain-adoption (${formatUsdc(TIER_PRICING.summary)})`,
         ],
         timestamp: new Date().toISOString(),
       },

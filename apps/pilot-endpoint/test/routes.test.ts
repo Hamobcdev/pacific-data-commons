@@ -7,6 +7,8 @@ import { schemaRoute } from "../src/routes/free/schema.js";
 import { skillsAgentmarketRoute } from "../src/routes/free/skills-am.js";
 import { skillsPdpRoute } from "../src/routes/free/skills-pdp.js";
 import { sliceRoute } from "../src/routes/paid/slice.js";
+import { researchRoute } from "../src/routes/paid/research.js";
+import { pacificAdoptionRoute } from "../src/routes/paid/pacificAdoption.js";
 import { errorHandlerMiddleware } from "../src/middleware/error-handler.js";
 import type { AppBindings } from "../src/types.js";
 import type { Env } from "../src/types/env.js";
@@ -45,6 +47,8 @@ function buildTestApp() {
   app.route("/", schemaRoute);
   app.route("/", skillsAgentmarketRoute);
   app.route("/", skillsPdpRoute);
+  app.route("/", researchRoute);
+  app.route("/", pacificAdoptionRoute);
   app.notFound((c) => c.json({ error: "not_found" }, 404));
   return app;
 }
@@ -95,6 +99,47 @@ describe("free routes", () => {
     const app = buildTestApp();
     const res = await app.request("/nope");
     expect(res.status).toBe(404);
+  });
+});
+
+/**
+ * Session 21 — same "bare route, no payment gate" pattern as /slice above:
+ * payment enforcement is integration-level, response *content* is unit
+ * level.
+ */
+describe("Session 21 research and adoption routes", () => {
+  it("GET /research/law-before-code returns the paper's structured metadata", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/law-before-code");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { title: string; citation: string; policy_gaps_identified: string[]; queried_at: string };
+    expect(body.title).toContain("SBP-WP-2026-001");
+    expect(body.policy_gaps_identified.length).toBeGreaterThan(0);
+    expect(body.citation).toContain("Williams, A.G.");
+    expect(body.queried_at).toBeTruthy();
+  });
+
+  it("GET /research/cryptographic-continuity returns the paper's structured metadata", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/cryptographic-continuity");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { title: string; incidents_analysed: string[] };
+    expect(body.title).toContain("SBP-WP-2026-002");
+    expect(body.incidents_analysed.length).toBeGreaterThan(0);
+  });
+
+  it("GET /pacific/blockchain-adoption returns all 8 nations with computed summary statistics", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/pacific/blockchain-adoption");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      nations: Array<{ country: string }>;
+      summary_statistics: { total_nations_covered: number; nations_with_regulatory_sandbox: number; lagatoi_signatories: number };
+    };
+    expect(body.nations).toHaveLength(8);
+    expect(body.summary_statistics.total_nations_covered).toBe(8);
+    expect(body.summary_statistics.nations_with_regulatory_sandbox).toBe(1);
+    expect(body.summary_statistics.lagatoi_signatories).toBe(7);
   });
 });
 

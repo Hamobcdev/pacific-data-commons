@@ -1,37 +1,47 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SettledPdcPayment } from "@pdc/x402-adapter";
 import { logger } from "../lib/logger.js";
-import type { TierName } from "../lib/pricing.js";
 import type { DirectoryContext } from "./directoryContext.js";
+
+interface PathConfig {
+  /** transactions_log.transaction_type — CHECK-constrained to
+   * data_query_tier1..5 (session1_migration.sql), by pricing tier, not by
+   * dataset. All three Session 21 routes price at the tier-1 rate. */
+  transactionType: string;
+  pricingTier: number;
+  /** transactions_log.response_tier — free text (no CHECK constraint), so
+   * unlike transactionType this can and does distinguish datasets that
+   * share the same pricing tier — see resolveDirectoryContext's doc
+   * comment on why that distinction matters for correct attribution. */
+  responseTier: string;
+}
 
 /**
  * transactions_log.transaction_type / pricing_tier — the schema's own
  * comment (session1_migration.sql) enumerates these 1:1 against tier
- * number, matching this endpoint's 5 paid routes exactly:
- * /summary=1, /slice=2, /full=3, /expert=4, /commission=5.
+ * number, matching this endpoint's 5 fisheries paid routes exactly:
+ * /summary=1, /slice=2, /full=3, /expert=4, /commission=5. Session 21's
+ * three new routes are all priced at the tier-1 rate (TIER_PRICING.summary,
+ * $0.01) — same transaction_type/pricing_tier as /summary, distinguished
+ * from it and from each other via response_tier instead.
  */
-const TIER_TO_TRANSACTION_TYPE: Record<TierName, { transactionType: string; pricingTier: number }> = {
-  summary: { transactionType: "data_query_tier1", pricingTier: 1 },
-  slice: { transactionType: "data_query_tier2", pricingTier: 2 },
-  full: { transactionType: "data_query_tier3", pricingTier: 3 },
-  expert: { transactionType: "data_query_tier4", pricingTier: 4 },
-  commission: { transactionType: "data_query_tier5", pricingTier: 5 },
+const PATH_CONFIG: Record<string, PathConfig> = {
+  "/summary": { transactionType: "data_query_tier1", pricingTier: 1, responseTier: "summary" },
+  "/slice": { transactionType: "data_query_tier2", pricingTier: 2, responseTier: "slice" },
+  "/full": { transactionType: "data_query_tier3", pricingTier: 3, responseTier: "full" },
+  "/expert": { transactionType: "data_query_tier4", pricingTier: 4, responseTier: "expert" },
+  "/commission": { transactionType: "data_query_tier5", pricingTier: 5, responseTier: "commission" },
+  "/research/law-before-code": { transactionType: "data_query_tier1", pricingTier: 1, responseTier: "law_before_code" },
+  "/research/cryptographic-continuity": { transactionType: "data_query_tier1", pricingTier: 1, responseTier: "cryptographic_continuity" },
+  "/pacific/blockchain-adoption": { transactionType: "data_query_tier1", pricingTier: 1, responseTier: "blockchain_adoption" },
 };
 
-const PATH_TO_TIER: Record<string, TierName> = {
-  "/summary": "summary",
-  "/slice": "slice",
-  "/full": "full",
-  "/expert": "expert",
-  "/commission": "commission",
-};
-
-function tierForPath(path: string): TierName | null {
+function configForPath(path: string): PathConfig | null {
   // payment.path is the concrete request path (may include a trailing
   // query string on GET routes like /slice?species=...) — strip it before
   // matching, same reasoning as directoryPaymentLogger.ts's prefix match.
   const bare = path.split("?")[0] ?? path;
-  return PATH_TO_TIER[bare] ?? null;
+  return PATH_CONFIG[bare] ?? null;
 }
 
 /**
@@ -69,13 +79,13 @@ export async function logSettledEndpointPayment(
     return;
   }
 
-  const tier = tierForPath(payment.path);
-  if (!tier) {
+  const config = configForPath(payment.path);
+  if (!config) {
     logger.warn("settled_payment_unrecognized_path", { path: payment.path, algoTxId: payment.algoTxId });
     return;
   }
 
-  const { transactionType, pricingTier } = TIER_TO_TRANSACTION_TYPE[tier];
+  const { transactionType, pricingTier, responseTier } = config;
   const amountUsdc = Number(payment.amountUsdc);
   const isTier12 = pricingTier <= 2;
 
@@ -90,7 +100,7 @@ export async function logSettledEndpointPayment(
     sbp_fee_amount: isTier12 ? null : (amountUsdc * context.sbpFeePct) / 100,
     split_executed: false,
     buyer_wallet_address: payment.payerAddress ?? null,
-    response_tier: tier,
+    response_tier: responseTier,
   });
 
   if (insertError) {

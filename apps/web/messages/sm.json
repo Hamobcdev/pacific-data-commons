@@ -568,7 +568,13 @@
     "trust_tier": "Trust Tier",
     "total_queries": "Total Queries Served",
     "recent_queries": "Recent Queries",
-    "add_dataset": "Add Dataset"
+    "add_dataset": "Add Dataset",
+    "transaction_history_title": "Transaction History",
+    "no_transactions": "No transactions yet.",
+    "tx_date": "Date",
+    "tx_type": "Type",
+    "tx_amount": "Amount",
+    "tx_algo_id": "Algo TX ID"
   },
   "Nav": {
     "dashboard": "Dashboard",
@@ -582,7 +588,8 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "browseData": "Browse Data",
-    "forProviders": "For Providers"
+    "forProviders": "For Providers",
+    "developers": "Developers"
   },
   "Footer": {
     "brand": "Pacific Data Commons",

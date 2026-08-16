@@ -12,15 +12,23 @@ export interface DirectoryContext {
 }
 
 /**
- * Resolves this deployment's own provider/endpoint identity from the
- * `endpoints` table by matching (endpoint_url, data_category) — the two
- * fields that together uniquely identify which directory listing this
- * running process actually *is*. Session 14 lists this same PUBLIC_URL
- * under two categories (fisheries + ocean) for discovery purposes, but it's
- * one physical dataset/endpoint; `category` here is always the endpoint's
- * *primary* category (DATASET_METADATA.category), not whichever category a
- * buyer happened to search under, so every settled payment attributes to
- * the same endpoint_id regardless of how the buyer found it.
+ * Resolves a directory listing's provider/endpoint identity from the
+ * `endpoints` table by matching (endpoint_url, data_category[, data_sub_category]).
+ * Session 14 lists the fisheries dataset under two categories (fisheries +
+ * ocean) for discovery purposes — one physical dataset/endpoint, so
+ * `subCategory` stays omitted there and every settled payment on any of its
+ * 5 tier routes attributes to the same endpoint_id regardless of how the
+ * buyer found it (matches on category alone, same as before Session 21).
+ *
+ * Session 21 added three more datasets (2 research papers + 1 adoption
+ * landscape) that all share the same PUBLIC_URL *and* the same category
+ * ('governance') but are genuinely different listings — data_sub_category
+ * is what disambiguates them, so those three call sites always pass it.
+ *
+ * Called fresh per settled payment (see index.ts's onSettled), not cached
+ * once at boot — each route resolves its own endpoint_id at settlement
+ * time so a payment on one dataset's route can never attribute revenue to
+ * a different dataset's endpoint row.
  *
  * Returns null (never throws) on any failure — a directory-lookup miss must
  * never stop this process from serving paid data it has already accepted
@@ -31,18 +39,19 @@ export async function resolveDirectoryContext(
   supabase: SupabaseClient,
   publicUrl: string,
   category: string,
+  subCategory?: string,
 ): Promise<DirectoryContext | null> {
-  const { data: endpoint, error: endpointError } = await supabase
-    .from("endpoints")
-    .select("id, provider_id")
-    .eq("endpoint_url", publicUrl)
-    .eq("data_category", category)
-    .maybeSingle();
+  let query = supabase.from("endpoints").select("id, provider_id").eq("endpoint_url", publicUrl).eq("data_category", category);
+  if (subCategory) {
+    query = query.eq("data_sub_category", subCategory);
+  }
+  const { data: endpoint, error: endpointError } = await query.maybeSingle();
 
   if (endpointError || !endpoint) {
     logger.warn("directory_context_lookup_failed", {
       publicUrl,
       category,
+      subCategory,
       error: endpointError?.message ?? "no matching endpoint row",
       action: "settled payments will not be logged to transactions_log until this is fixed",
     });
