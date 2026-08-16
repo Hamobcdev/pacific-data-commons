@@ -51,6 +51,7 @@ export async function saveUploadContext(
       data_title: parsed.data.dataTitle,
       data_description: parsed.data.dataDescription,
       data_category: parsed.data.dataCategory,
+      data_sub_category: parsed.data.dataSubCategory || null,
       geography_region: parsed.data.geographyRegion,
       time_period_start: Number(parsed.data.timePeriodStart),
       time_period_end: Number(parsed.data.timePeriodEnd),

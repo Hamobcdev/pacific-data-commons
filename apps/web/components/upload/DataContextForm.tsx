@@ -63,6 +63,22 @@ export function DataContextForm({ value, onChange }: DataContextFormProps) {
         />
       </div>
 
+      {value.dataCategory === "other" && (
+        <div>
+          <label htmlFor="dataSubCategory" className="block text-sm font-medium text-gray-700">
+            {t("context.otherCategoryLabel")}
+          </label>
+          <Input
+            id="dataSubCategory"
+            value={value.dataSubCategory}
+            onChange={(e) => onChange("dataSubCategory", e.target.value)}
+            placeholder={t("context.otherCategoryPlaceholder")}
+            required
+          />
+          <p className="mt-1 text-xs text-gray-500">{t("context.otherCategoryNote")}</p>
+        </div>
+      )}
+
       <div>
         <label htmlFor="geographyRegion" className="block text-sm font-medium text-gray-700">
           {t("context.geography")}

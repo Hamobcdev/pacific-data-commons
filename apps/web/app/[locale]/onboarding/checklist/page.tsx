@@ -1,8 +1,10 @@
 import { getTranslations } from "next-intl/server";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { Breadcrumb } from "@/components/nav/Breadcrumb";
 
 export default async function ChecklistPage() {
   const t = await getTranslations("Onboarding.Checklist");
+  const tBreadcrumb = await getTranslations("Breadcrumb");
 
   const groups = [
     {
@@ -25,6 +27,12 @@ export default async function ChecklistPage() {
 
   return (
     <div>
+      <Breadcrumb
+        items={[
+          { label: tBreadcrumb("getStarted"), href: "/welcome" },
+          { label: tBreadcrumb("checklist") },
+        ]}
+      />
       <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>
 
       <div className="mt-8">

@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { TrustTierBadge } from "@/components/ui/TrustTierBadge";
 import type { DataCategory } from "@pdc/shared-types";
 
-// Session1 migration's endpoints.data_category CHECK constraint — same 18
-// values (packages/shared-types/src/endpoints.ts's DataCategory), listed
-// here once for this page's filter dropdown rather than importing a
-// runtime array from a types-only package.
+// Session1 migration's endpoints.data_category CHECK constraint (extended
+// Session 20 with governance/financial_flows/research — see
+// packages/shared-types/src/endpoints.ts's DataCategory), listed here once
+// for this page's filter dropdown rather than importing a runtime array
+// from a types-only package.
 const CATEGORIES: DataCategory[] = [
   "fisheries",
   "climate",
@@ -34,6 +35,9 @@ const CATEGORIES: DataCategory[] = [
   "biodiversity",
   "ocean",
   "education",
+  "governance",
+  "financial_flows",
+  "research",
   "other",
 ];
 

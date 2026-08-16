@@ -26,6 +26,9 @@ export type DataCategory =
   | "biodiversity"
   | "ocean"
   | "education"
+  | "governance"
+  | "financial_flows"
+  | "research"
   | "other";
 
 export type UpdateFrequency = "real-time" | "daily" | "monthly" | "annual" | "static" | "irregular";

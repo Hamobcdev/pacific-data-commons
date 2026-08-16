@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrustTierBadge } from "@/components/ui/TrustTierBadge";
 import { ShareButtons } from "@/components/ui/ShareButtons";
 import { VersionHistoryTimeline } from "@/components/dashboard/VersionHistoryTimeline";
+import { Breadcrumb } from "@/components/nav/Breadcrumb";
 
 const RECENTLY_UPDATED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -22,6 +23,8 @@ export default async function DatasetDetailPage({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const tUpdate = await getTranslations("DeclareUpdate.badges");
   const tVersions = await getTranslations("DeclareUpdate.versions");
+  const tNav = await getTranslations("Nav");
+  const tCategories = await getTranslations("Onboarding.Upload.categories");
   const versions = await getEndpointVersions(endpoint.id);
   const latestCertifiedAt = versions.find((v) => v.version_number === endpoint.version_number)?.certified_at ?? null;
   const recentlyUpdated = !endpoint.pending_recertification && latestCertifiedAt && Date.now() - new Date(latestCertifiedAt).getTime() < RECENTLY_UPDATED_WINDOW_MS;
@@ -36,6 +39,13 @@ export default async function DatasetDetailPage({
     // Session 12 fix: mx-auto removed — the (authenticated) layout's flex
     // row already centres this column between the two side panels.
     <div className="max-w-3xl px-4 py-12 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: tNav("browseData"), href: "/data" },
+          { label: tCategories(endpoint.data_category), href: `/data?category=${endpoint.data_category}` },
+          { label: endpoint.title },
+        ]}
+      />
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="neutral">{endpoint.data_category}</Badge>

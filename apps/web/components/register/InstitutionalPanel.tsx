@@ -56,30 +56,29 @@ export function InstitutionalPanel() {
 
       <div className="pdc-panel-slide">
         <p className="text-2xl">🌊</p>
-        <h3 className="mt-3 text-lg font-semibold">Pacific Data in Action</h3>
+        <h3 className="mt-3 text-lg font-semibold">About Pacific Data Commons</h3>
         <p className="mt-2 text-base text-white/80">
-          &ldquo;Our fisheries dataset has been queried by researchers across 12 countries. The USDC earnings go
-          directly to our research fund — no intermediary, no delay.&rdquo;
+          Pacific Data Commons routes payments directly to Pacific institutions. 97% of every query fee goes
+          straight to the provider&rsquo;s own wallet — SBP never holds funds.
         </p>
-        <p className="mt-4 text-sm font-medium text-white/60">School of Marine Studies, Pacific Region</p>
-        <p className="text-sm text-white/60">Bronze Verified Provider</p>
       </div>
 
       <div className="pdc-panel-slide">
-        <p className="text-2xl">📊</p>
-        <h3 className="mt-3 text-lg font-semibold">Featured Dataset</h3>
-        <p className="mt-2 text-base text-white/80">Pacific Ocean Temperature Records</p>
-        <p className="text-base text-white/80">18 years of EEZ monitoring data</p>
-        <p className="mt-4 text-sm font-medium text-white/60">Available from $0.01 per query</p>
-        <p className="text-sm text-white/60">Real-time access. No subscription required.</p>
+        <p className="text-2xl">🔒</p>
+        <h3 className="mt-3 text-lg font-semibold">Your Data Stays With You</h3>
+        <p className="mt-2 text-base text-white/80">
+          Data never leaves your own infrastructure. SBP lists your endpoint and routes payment — it never touches,
+          copies, or hosts your dataset.
+        </p>
       </div>
 
       <div className="pdc-panel-slide">
-        <p className="text-2xl">📄</p>
-        <h3 className="mt-3 text-lg font-semibold">Built on Pacific Data</h3>
-        <p className="mt-2 text-base text-white/80">&ldquo;Pacific Tuna Stock Assessment 2023–2024&rdquo;</p>
-        <p className="mt-1 text-sm text-white/60">Peer-reviewed. Citable. Reproducible.</p>
-        <p className="text-sm text-white/60">Data sourced through Pacific Data Commons</p>
+        <p className="text-2xl">🏅</p>
+        <h3 className="mt-3 text-lg font-semibold">Trust Tiers, Not Gatekeeping</h3>
+        <p className="mt-2 text-base text-white/80">
+          Bronze verifies your identity for free. Silver reflects real buyer ratings. Gold adds a clerical
+          peer-review check. SBP never assesses your data&rsquo;s quality.
+        </p>
       </div>
 
       <div className="pdc-panel-slide">

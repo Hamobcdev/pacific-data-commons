@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { signOut } from "@/actions/auth/sign-out";
 
 interface GlobalNavProps {
@@ -20,6 +20,12 @@ interface GlobalNavProps {
 export function GlobalNav({ provider }: GlobalNavProps) {
   const t = useTranslations("Nav");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  // Session 20: /dashboard/* pages render ProviderSidebar (see that
+  // component + the dashboard route group's layout.tsx) with the same five
+  // destinations — showing both here and in the sidebar is redundant. The
+  // header itself (logo, sign-out, mobile toggle) still renders everywhere.
+  const onDashboard = pathname.startsWith("/dashboard");
 
   // Session 19, Fix 5 — nav restructured for three user types. "Browse
   // Data" and "Agent Marketplace" are common to both authenticated and
@@ -93,7 +99,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
           </Link>
 
           {/* Desktop navigation */}
-          <nav className="hidden sm:flex items-center gap-1">{provider ? navLinks : guestLinks}</nav>
+          <nav className="hidden sm:flex items-center gap-1">{provider ? (onDashboard ? null : navLinks) : guestLinks}</nav>
 
           {/* Right side actions (desktop) */}
           <div className="hidden sm:flex items-center gap-2">
@@ -142,6 +148,9 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="sm:hidden border-t border-white/10 bg-pacific-shell px-4 pb-4 pt-2">
+          {/* Mobile keeps the full link list even on /dashboard — the
+              sidebar collapses to icon-only below sm, so mobile still needs
+              a way to reach every destination with labels. */}
           <nav className="flex flex-col">{provider ? navLinks : guestLinks}</nav>
           <div className="mt-2">
             {provider ? (
