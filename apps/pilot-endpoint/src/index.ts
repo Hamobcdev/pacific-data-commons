@@ -7,6 +7,9 @@ import { logger } from "./lib/logger.js";
 import { computeCanonicalHash } from "./lib/hash.js";
 import { formatUsdc, TIER_PRICING } from "./lib/pricing.js";
 import { DATASET_METADATA, FISHERIES_RECORDS } from "./data/fisheries.js";
+import { createSupabaseClient } from "./lib/supabase.js";
+import { resolveDirectoryContext } from "./services/directoryContext.js";
+import { logSettledEndpointPayment } from "./services/transactionLogger.js";
 import { corsMiddleware } from "./middleware/cors.js";
 import { rateLimit } from "./middleware/rate-limit.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
@@ -50,11 +53,32 @@ async function main(): Promise<void> {
     });
   }
 
+  // Session 19 — resolved once at startup, same pattern as datasetHash
+  // above: which provider/endpoint row in the directory this deployment
+  // actually *is*, so every settled payment can be attributed without a
+  // per-request directory lookup. A miss degrades to "log and skip", not a
+  // boot failure (see resolveDirectoryContext's doc comment).
+  const supabase = createSupabaseClient(env);
+  const directoryContext = await resolveDirectoryContext(supabase, env.PUBLIC_URL, DATASET_METADATA.category);
+  if (!directoryContext) {
+    logger.warn("pilot_endpoint_starting_without_transaction_logging", {
+      public_url: env.PUBLIC_URL,
+      category: DATASET_METADATA.category,
+    });
+  }
+
   // ── x402 payment gate (via @pdc/x402-adapter — never import @x402/* directly, R1) ──
   const paymentGate = new PdcPaymentGate({
     payToAddress: env.AVM_ADDRESS,
     facilitatorUrl: env.FACILITATOR_URL,
     network: env.ALGORAND_NETWORK,
+  });
+
+  // Session 19 — every settled payment on the 5 paid routes below now logs
+  // to transactions_log (previously never written anywhere from this
+  // process — see types/env.ts's doc comment).
+  paymentGate.onSettled(async (payment) => {
+    await logSettledEndpointPayment(supabase, payment, directoryContext);
   });
 
   // Bazaar discovery metadata (Session 8.1) — built with @x402-avm/extensions'

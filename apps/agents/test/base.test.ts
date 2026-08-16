@@ -79,6 +79,8 @@ describe("BaseAgent.run — dry run", () => {
       submitAttribution,
       checkEndpointIntegrity: passingIntegrityCheck(),
       recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     const result = await agent.run({
@@ -172,6 +174,8 @@ describe("BaseAgent.run — live run", () => {
       submitAttribution,
       checkEndpointIntegrity: passingIntegrityCheck(),
       recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     const result = await agent.run({
@@ -205,6 +209,8 @@ describe("BaseAgent.run — live run", () => {
       submitAttribution,
       checkEndpointIntegrity: passingIntegrityCheck(),
       recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     const result = await agent.run({
@@ -235,6 +241,8 @@ describe("BaseAgent.run — live run", () => {
       submitAttribution,
       checkEndpointIntegrity: passingIntegrityCheck(),
       recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     await expect(

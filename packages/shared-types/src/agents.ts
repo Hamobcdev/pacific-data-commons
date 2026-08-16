@@ -157,6 +157,22 @@ export interface DataCitation {
   provenance_hash: string;
 }
 
+/**
+ * Session 19 / Decision 56 — a supplementary (never primary) external
+ * x402-compatible data source an agent queried alongside its PDC endpoints.
+ * Deliberately not shaped like DataCitation (no trust_tier/provenance_hash
+ * — an external source is not part of the PDC trust-tier system and
+ * carries no Pacific Data Protocol provenance certificate) so a reader
+ * can't mistake an external citation for a PDC one.
+ */
+export interface ExternalSourceCitation {
+  source_id: string;
+  source_name: string;
+  provider_name: string;
+  algo_tx_id: string;
+  amount_usdc: number;
+}
+
 export interface SovereigntyFlag {
   endpoint_id: string;
   indigenous_data_flag: boolean;
@@ -188,4 +204,8 @@ export interface AgentOutput {
 
   data_warning?: string;
   sovereignty_flags?: SovereigntyFlag[];
+  /** Session 19 / Decision 56 — present only when the agent queried at
+   * least one approved external source this run. PDC data (citations
+   * above) is always primary; these are always supplementary context. */
+  external_citations?: ExternalSourceCitation[];
 }

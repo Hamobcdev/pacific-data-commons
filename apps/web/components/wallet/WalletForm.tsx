@@ -76,8 +76,13 @@ export function WalletForm() {
       if (result.success) {
         persist({ ...form, walletVerified: true, usdcOptedIn: result.usdcOptedIn });
         const state = loadLocalState() ?? defaultState();
+        // currentStep stays "upload" — checklist (Session 19) is a UI
+        // waypoint between wallet and upload, not a tracked onboarding
+        // step: it's client-side orientation only (no backend validation,
+        // no persisted state of its own), so a returning provider who
+        // already passed it resumes straight at "upload" as before.
         saveLocalState({ ...state, currentStep: "upload" });
-        router.push("/onboarding/upload");
+        router.push("/onboarding/checklist");
       } else if (result.error === SESSION_EXPIRED_ERROR) {
         flagSessionExpired(tShell("sessionExpired"));
         router.push("/onboarding");

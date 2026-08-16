@@ -6,6 +6,7 @@ import type {
   AgentType,
   DataCitation,
   EndpointPreview,
+  ExternalSourceCitation,
   SovereigntyFlag,
 } from "@pdc/shared-types";
 import type { DataCategory } from "@pdc/shared-types";
@@ -18,6 +19,7 @@ import {
   type DirectoryEndpointResult,
   type PDCQueryResult,
 } from "../lib/pdcClient.js";
+import { getApprovedExternalSources, queryExternalSource } from "../lib/externalSourceClient.js";
 import { synthesize } from "../lib/claudeClient.js";
 import { submitAttribution } from "../lib/attribution.js";
 import { getCurrentPacificSeason, getSeasonalContext, type SeasonalDomain } from "../lib/seasonal.js";
@@ -56,6 +58,11 @@ export interface AgentDependencies {
   getSeasonalContext: typeof getSeasonalContext;
   checkEndpointIntegrity: typeof checkEndpointIntegrity;
   recordIntegrityEvent: typeof recordIntegrityEvent;
+  /** Session 19 / Decision 56 — injectable for the same reason as every
+   * other dependency here: default implementations make real Supabase/HTTP
+   * calls, so a live-run test overrides them rather than hitting network. */
+  getApprovedExternalSources: typeof getApprovedExternalSources;
+  queryExternalSource: typeof queryExternalSource;
 }
 
 /** Query tier picked for every agent's PDC queries. All six agents query
@@ -147,6 +154,8 @@ export abstract class BaseAgent {
       getSeasonalContext: depsOverride?.getSeasonalContext ?? getSeasonalContext,
       checkEndpointIntegrity: depsOverride?.checkEndpointIntegrity ?? checkEndpointIntegrity,
       recordIntegrityEvent: depsOverride?.recordIntegrityEvent ?? recordIntegrityEvent,
+      getApprovedExternalSources: depsOverride?.getApprovedExternalSources ?? getApprovedExternalSources,
+      queryExternalSource: depsOverride?.queryExternalSource ?? queryExternalSource,
     };
   }
 
@@ -412,8 +421,34 @@ export abstract class BaseAgent {
       throw new Error("All PDC endpoint queries failed for this run — no data available to synthesise.");
     }
 
-    const totalCostUsdc = citations.reduce((sum, c) => sum + c.amount_usdc, 0);
-    const taggedData = queryResults.flatMap((r) => tagSource(r.data, r.source_category));
+    // Step 5b — approved external sources (Decision 56), always after PDC
+    // (queryResults.length === 0 above already guarantees at least one PDC
+    // result exists before any external query is attempted — PDC data is
+    // primary, external is supplementary, never the other way round). A
+    // source failure here is logged and skipped, never fatal — see
+    // externalSourceClient.ts's doc comment.
+    const externalCitations: ExternalSourceCitation[] = [];
+    const externalSources = await this.deps.getApprovedExternalSources({
+      supabaseUrl: this.config.supabaseUrl,
+      supabaseServiceKey: this.config.supabaseServiceKey,
+      agentId: this.config.agentId,
+    });
+    const externalTaggedData: Record<string, unknown>[] = [];
+    for (const source of externalSources) {
+      const result = await this.deps.queryExternalSource(this.deps.wallet, source);
+      if (!result) continue;
+      externalCitations.push({
+        source_id: result.sourceId,
+        source_name: result.sourceName,
+        provider_name: result.providerName,
+        algo_tx_id: result.algoTxId,
+        amount_usdc: result.amountUsdc,
+      });
+      externalTaggedData.push(...tagSource(result.data, `external:${result.sourceName}`));
+    }
+
+    const totalCostUsdc = citations.reduce((sum, c) => sum + c.amount_usdc, 0) + externalCitations.reduce((sum, c) => sum + c.amount_usdc, 0);
+    const taggedData = [...queryResults.flatMap((r) => tagSource(r.data, r.source_category)), ...externalTaggedData];
 
     // Step 6 — Claude synthesis. Failure here doesn't lose the run: the
     // endpoint payments already happened, so attribution (step 7) still
@@ -434,10 +469,13 @@ export abstract class BaseAgent {
       dataWarning = `Synthesis failed after payment — raw citations are still returned: ${err instanceof Error ? err.message : String(err)}`;
     }
 
-    // Step 7 — attribution (R1/Decision 37) — always, regardless of synthesis outcome.
+    // Step 7 — attribution (R1/Decision 37) — always, regardless of synthesis
+    // outcome. Decision 56: external source payments are real on-chain
+    // agent-wallet payments too, so their tx ids are attributed the same
+    // as PDC endpoint tx ids, not left out.
     await this.submitAttribution(
       runId,
-      citations.map((c) => c.algo_tx_id).filter((id) => id.length > 0),
+      [...citations.map((c) => c.algo_tx_id), ...externalCitations.map((c) => c.algo_tx_id)].filter((id) => id.length > 0),
       input.user_wallet,
     );
 
@@ -453,6 +491,7 @@ export abstract class BaseAgent {
       generated_at: new Date().toISOString(),
       data_warning: dataWarning,
       sovereignty_flags: sovereigntyFlags,
+      external_citations: externalCitations.length > 0 ? externalCitations : undefined,
     };
   }
 }
@@ -460,8 +499,10 @@ export abstract class BaseAgent {
 /** Tags each record (or the single object) returned by one endpoint query
  * with `_source` = the category it came from, so synthesisPrompt
  * implementations (fisheries, agricultural) can `data.filter(d => d._source === "...")`
- * to interpret cross-category data correctly (R5). */
-function tagSource(data: unknown, source: DataCategory): Record<string, unknown>[] {
+ * to interpret cross-category data correctly (R5). Accepts a plain string,
+ * not just DataCategory, so external source results (Decision 56 — tagged
+ * "external:<source name>", not a PDC DataCategory) can share this helper. */
+function tagSource(data: unknown, source: DataCategory | string): Record<string, unknown>[] {
   const records = Array.isArray(data) ? data : [data];
   return records.map((record) => ({
     ...(typeof record === "object" && record !== null ? (record as Record<string, unknown>) : { value: record }),

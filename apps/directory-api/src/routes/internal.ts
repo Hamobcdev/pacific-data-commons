@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getCertifiedHashForEndpoint, recordIntegrityEvent } from "../services/integrityService.js";
 import { dispatchUpdateNotifications } from "../services/notificationService.js";
+import { selfRegisterAgent } from "../services/agentSelfRegisterService.js";
 import { internalAuth } from "../middleware/internalAuth.js";
 import { ValidationError } from "../lib/errors.js";
 import type { AppBindings } from "../types.js";
@@ -67,4 +68,16 @@ internalRoute.post("/internal/dispatch-update-notifications", async (c) => {
 
   await dispatchUpdateNotifications(supabase, env, parsed.data.endpoint_id, parsed.data.version_id);
   return c.json({ dispatched: true }, 200);
+});
+
+/**
+ * Session 19 — self-registration for SBP-operated first-party agents (see
+ * agentSelfRegisterService.ts's doc comment for why this exists and why it
+ * isn't an upsert). Called by apps/sbp-agent once at boot.
+ */
+internalRoute.post("/internal/agents/self-register", async (c) => {
+  const supabase = c.get("supabase");
+  const body: unknown = await c.req.json().catch(() => undefined);
+  const result = await selfRegisterAgent(supabase, body);
+  return c.json(result, 200);
 });

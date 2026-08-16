@@ -121,6 +121,8 @@ describe("BaseAgent.run — integrity check gate (Decision 49)", () => {
       submitAttribution,
       checkEndpointIntegrity: vi.fn().mockResolvedValue(result),
       recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     const output = await agent.run(runInput);
@@ -141,6 +143,8 @@ describe("BaseAgent.run — integrity check gate (Decision 49)", () => {
       submitAttribution,
       checkEndpointIntegrity: vi.fn().mockResolvedValue(integrityResult({ status: "pass", expectedHash: "abc", actualHash: "abc" })),
       recordIntegrityEvent,
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     const output = await agent.run(runInput);
@@ -159,6 +163,8 @@ describe("BaseAgent.run — integrity check gate (Decision 49)", () => {
       submitAttribution: vi.fn().mockResolvedValue({ success: true }),
       checkEndpointIntegrity, // the real implementation — proves the field wiring, not a mocked result
       recordIntegrityEvent: vi.fn().mockResolvedValue(null),
+      getApprovedExternalSources: vi.fn().mockResolvedValue([]),
+      queryExternalSource: vi.fn(),
     });
 
     const output = await agent.run(runInput);

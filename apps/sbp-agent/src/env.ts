@@ -39,6 +39,14 @@ const envSchema = z.object({
   // a second category alongside this one (both pilot endpoints currently
   // live), deduplicated if this is already set to "ocean".
   SEARCH_CATEGORY: z.string().min(1).default("fisheries"),
+
+  // Session 19 — gates directory-api's /internal/* routes (self-register,
+  // POST /internal/agents/self-register). Optional, matching AGENT_WALLET_KEY's
+  // posture: its absence degrades this agent to "no attribution submitted"
+  // rather than a boot failure — dry-run/local-dev environments and
+  // deployments that predate this change shouldn't be forced to configure
+  // it just to keep querying.
+  INTERNAL_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
