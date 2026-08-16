@@ -70,6 +70,9 @@ export const DATA_CATEGORIES: [DataCategory, ...DataCategory[]] = [
   "biodiversity",
   "ocean",
   "education",
+  "governance",
+  "financial_flows",
+  "research",
   "other",
 ];
 
@@ -77,6 +80,10 @@ export const uploadContextSchema = z.object({
   dataTitle: z.string().min(5, "Please provide a descriptive title").max(200),
   dataDescription: z.string().min(20, "Please describe your data in more detail").max(2000),
   dataCategory: z.enum(DATA_CATEGORIES, { required_error: "Please select a data category" }),
+  // Only meaningful when dataCategory is "other" — enforced below via
+  // .refine() rather than a conditional required_error, since zod's enum
+  // fields can't see a sibling field's value at their own declaration site.
+  dataSubCategory: z.string().trim().max(100, "Keep this under 100 characters").optional().default(""),
   geographyRegion: z.string().min(2, "Geographic coverage is required"),
   timePeriodStart: z
     .string()
@@ -100,6 +107,9 @@ export const uploadContextSchema = z.object({
 }).refine((data) => Number(data.timePeriodStart) <= Number(data.timePeriodEnd), {
   message: "Start year must be before or the same as the end year",
   path: ["timePeriodEnd"],
+}).refine((data) => data.dataCategory !== "other" || data.dataSubCategory.trim().length > 0, {
+  message: "Please describe your custom category",
+  path: ["dataSubCategory"],
 });
 
 export type RegistrationData = z.infer<typeof registrationSchema>;

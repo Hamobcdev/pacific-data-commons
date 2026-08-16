@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { VersionHistoryTimeline } from "@/components/dashboard/VersionHistoryTimeline";
+import { Breadcrumb } from "@/components/nav/Breadcrumb";
 
 /**
  * Session 18 (Deliverable 5) — provider-facing timeline. Same data
@@ -17,6 +18,8 @@ import { VersionHistoryTimeline } from "@/components/dashboard/VersionHistoryTim
 export default async function VersionHistoryPage({ params }: { params: { locale: string; endpointId: string } }) {
   const { locale, endpointId } = params;
   const t = await getTranslations("DeclareUpdate.versions");
+  const tNav = await getTranslations("Nav");
+  const tDashboard = await getTranslations("Dashboard");
   const resumed = await getResumedProvider();
   if (!resumed) {
     return redirect({ href: "/onboarding/register", locale });
@@ -31,6 +34,13 @@ export default async function VersionHistoryPage({ params }: { params: { locale:
 
   return (
     <div className="px-6 py-8 space-y-4 max-w-3xl">
+      <Breadcrumb
+        items={[
+          { label: tNav("dashboard"), href: "/dashboard" },
+          { label: tDashboard("endpoints_title"), href: "/dashboard" },
+          { label: endpoint.title },
+        ]}
+      />
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>

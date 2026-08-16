@@ -51,14 +51,15 @@ describe("GET /health", () => {
 });
 
 describe("GET /categories", () => {
-  it("returns the 17 substantive categories without the 'other' catch-all", async () => {
+  it("returns the 20 substantive categories without the 'other' catch-all", async () => {
     const app = buildTestApp(createFakeSupabase({}));
     const res = await app.request("/categories");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { categories: string[] };
     expect(body.categories).toContain("fisheries");
+    expect(body.categories).toContain("governance");
     expect(body.categories).not.toContain("other");
-    expect(body.categories).toHaveLength(17);
+    expect(body.categories).toHaveLength(20);
   });
 });
 

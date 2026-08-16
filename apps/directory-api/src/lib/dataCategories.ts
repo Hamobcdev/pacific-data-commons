@@ -23,6 +23,9 @@ export const DATA_CATEGORIES = [
   "biodiversity",
   "ocean",
   "education",
+  "governance",
+  "financial_flows",
+  "research",
   "other",
 ] as const;
 

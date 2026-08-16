@@ -248,7 +248,10 @@
         "period_end": "Data To (Year)",
         "frequency": "Update Frequency",
         "frequencyPlaceholder": "Select update frequency",
-        "methodology": "How was this data collected?"
+        "methodology": "How was this data collected?",
+        "otherCategoryLabel": "Describe your category",
+        "otherCategoryPlaceholder": "e.g. Marine Spatial Planning",
+        "otherCategoryNote": "Custom categories are reviewed by SBP and may be mapped to a standard category."
       },
       "categories": {
         "fisheries": "Fisheries",
@@ -268,7 +271,10 @@
         "biodiversity": "Biodiversity",
         "ocean": "Ocean",
         "education": "Education",
-        "other": "Other"
+        "other": "Other",
+        "governance": "Governance & Policy",
+        "financial_flows": "Financial Flows",
+        "research": "Research Papers"
       },
       "frequencies": {
         "real-time": "Real-time",
@@ -781,5 +787,9 @@
     "searchButton": "Search",
     "noResults": "No datasets match your search yet.",
     "fromPrice": "From ${price} per query"
+  },
+  "Breadcrumb": {
+    "getStarted": "Get Started",
+    "checklist": "Pre-submission Checklist"
   }
 }
