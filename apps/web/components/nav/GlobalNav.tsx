@@ -48,6 +48,11 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {t("agents")}
     </Link>
   );
+  const developersLink = (
+    <Link href="/developers" onClick={() => setMobileOpen(false)} className={linkClass}>
+      {t("developers")}
+    </Link>
+  );
   const faqLink = (
     <Link href="/faq" onClick={() => setMobileOpen(false)} className={linkClass}>
       {t("faq")}
@@ -61,6 +66,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       </Link>
       {browseDataLink}
       {agentMarketplaceLink}
+      {developersLink}
       {faqLink}
       {/* Placeholder until a standalone wallet management page exists —
           this re-enters the onboarding wallet step directly (Session 12
@@ -75,6 +81,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
     <>
       {browseDataLink}
       {agentMarketplaceLink}
+      {developersLink}
       <Link href="/onboarding/register" onClick={() => setMobileOpen(false)} className={linkClass}>
         {t("forProviders")}
       </Link>

@@ -51,9 +51,9 @@ export async function WalletPanel({ provider }: { provider: Provider }) {
           <Link href={`/agents/use?wallet=${encodeURIComponent(provider.wallet_address ?? "")}`} className="text-ocean hover:underline">
             {t("use_earnings")} →
           </Link>
-          <a href="#recent-queries" className="text-ocean hover:underline">
+          <Link href="/dashboard/transactions" className="text-ocean hover:underline">
             {t("view_history")} →
-          </a>
+          </Link>
         </div>
       </CardContent>
     </Card>

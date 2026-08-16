@@ -75,3 +75,22 @@ export async function getDashboardData(providerId: string): Promise<DashboardDat
     latestCertifiedAtByEndpointId,
   };
 }
+
+/**
+ * Session 21 (Deliverable 5) — full reverse-chronological transaction
+ * history for the dashboard's /dashboard/transactions page. Same
+ * service-role posture as getDashboardData above: only reachable after
+ * getResumedProvider() confirms the visitor owns this providerId. 500-row
+ * cap is a sanity ceiling, not a real pagination limit — revisit once a
+ * single provider's real query volume approaches it.
+ */
+export async function getAllTransactions(providerId: string): Promise<TransactionLogEntry[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("transactions_log")
+    .select("*")
+    .eq("provider_id", providerId)
+    .order("queried_at", { ascending: false })
+    .limit(500);
+  return (data ?? []) as TransactionLogEntry[];
+}
