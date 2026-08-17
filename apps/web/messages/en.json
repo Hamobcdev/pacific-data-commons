@@ -235,6 +235,11 @@
           "submit": "Submit payment for verification",
           "notConfigured": "USDC payment collection is not yet configured. Please use the invoice option below, or contact SBP directly."
         },
+        "card": {
+          "title": "Or pay by card",
+          "instruction": "Pay instantly by card via Stripe — no wallet needed.",
+          "pay": "Pay by card"
+        },
         "invoice": {
           "title": "Or pay by invoice",
           "instruction": "Request an invoice — bank transfer or card. SBP will follow up with payment details.",
@@ -242,6 +247,8 @@
         },
         "submitting": "Submitting...",
         "pendingNote": "Thanks — your payment is recorded and awaiting verification. SBP will confirm it shortly and this page will unlock automatically the next time you visit.",
+        "confirmingPayment": "Confirming your card payment with Stripe — this usually takes a few seconds.",
+        "refresh": "Refresh",
         "checkError": "Could not check your payment status. Please refresh the page.",
         "submitError": "Could not submit your payment. Please try again."
       },

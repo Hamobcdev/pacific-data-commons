@@ -21,8 +21,10 @@ import { Alert } from "@/components/ui/alert";
  * they choose and pastes back the transaction ID, and the claim sits in
  * 'pending' until an SBP admin verifies it on-chain and flips the row to
  * 'confirmed' (currently a manual Supabase check — no admin UI for this
- * yet). Real wallet-signing and/or Stripe card payment (Deliverable 4) are
- * follow-up work that plugs into the same upload_payments table.
+ * yet). Real wallet-signing is still a follow-up (not built here); the
+ * "pay by card" option below goes through Stripe Checkout instead
+ * (app/api/stripe/checkout, Deliverable 4) — that path writes a confirmed
+ * row automatically via the webhook, no manual verification needed.
  */
 export function UploadPaymentGate({ children }: { children: ReactNode }) {
   const t = useTranslations("Onboarding.Upload.payment");
@@ -33,7 +35,14 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<"checking" | "redirecting" | "unpaid" | "pending" | "confirmed">("checking");
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState("");
-  const [submitting, setSubmitting] = useState<"usdc" | "invoice" | null>(null);
+  const [submitting, setSubmitting] = useState<"usdc" | "invoice" | "card" | null>(null);
+  // Set when returning from Stripe Checkout (?stripe=success) and the
+  // webhook hasn't written the confirmed row yet (it fires async, on
+  // Stripe's own delivery timing — not this request). Read from
+  // window.location rather than next/navigation's useSearchParams, which
+  // in the App Router requires wrapping this component in a <Suspense>
+  // boundary — not worth the structural change for a single transient flag.
+  const [awaitingWebhook, setAwaitingWebhook] = useState(false);
 
   useEffect(() => {
     const state = loadLocalState();
@@ -45,6 +54,7 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
     const { providerId: resolvedProviderId, sessionToken: resolvedSessionToken } = state;
     setProviderId(resolvedProviderId);
     setSessionToken(resolvedSessionToken);
+    setAwaitingWebhook(new URLSearchParams(window.location.search).get("stripe") === "success");
 
     void (async () => {
       const result = await checkUploadPaymentStatus(resolvedProviderId, resolvedSessionToken);
@@ -83,6 +93,33 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
     }
   };
 
+  /** Redirects to Stripe Checkout. The webhook (app/api/stripe/webhook)
+   * writes the confirmed upload_payments row once Stripe reports the
+   * payment succeeded — this tab won't see 'confirmed' until the provider
+   * returns from Stripe and the gate re-checks status on next mount. */
+  const handlePayByCard = async () => {
+    if (!providerId || !sessionToken) return;
+    setError(null);
+    setSubmitting("card");
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ purpose: "upload_fee", providerId, sessionToken, pdfSurcharge: false }),
+      });
+      const data = (await res.json()) as { checkoutUrl?: string; message?: string };
+      if (!res.ok || !data.checkoutUrl) {
+        setSubmitting(null);
+        setError(data.message ?? t("submitError"));
+        return;
+      }
+      window.location.href = data.checkoutUrl;
+    } catch {
+      setSubmitting(null);
+      setError(t("submitError"));
+    }
+  };
+
   if (status === "checking") {
     return <p className="mt-6 text-sm text-gray-500">{t("loading")}</p>;
   }
@@ -94,6 +131,17 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
   }
 
   const collectionAddress = process.env.NEXT_PUBLIC_SBP_UPLOAD_FEE_WALLET;
+
+  if (status === "unpaid" && awaitingWebhook) {
+    return (
+      <div className="mt-6 space-y-4">
+        <Alert variant="info">{t("confirmingPayment")}</Alert>
+        <button type="button" onClick={() => window.location.reload()} className="text-sm text-ocean underline">
+          {t("refresh")}
+        </button>
+      </div>
+    );
+  }
 
   if (status === "pending") {
     return (
@@ -145,6 +193,19 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
         ) : (
           <p className="text-sm text-gray-500">{t("usdc.notConfigured")}</p>
         )}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+        <h3 className="text-sm font-medium text-navy">{t("card.title")}</h3>
+        <p className="text-sm text-gray-600">{t("card.instruction")}</p>
+        <button
+          type="button"
+          onClick={() => void handlePayByCard()}
+          disabled={submitting !== null}
+          className="w-full rounded-md border border-ocean px-4 py-2 text-sm font-medium text-ocean disabled:opacity-50"
+        >
+          {submitting === "card" ? t("submitting") : t("card.pay")}
+        </button>
       </div>
 
       <div className="space-y-3 rounded-lg border border-gray-200 p-4">
