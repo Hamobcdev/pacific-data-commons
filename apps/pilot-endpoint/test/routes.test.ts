@@ -144,6 +144,112 @@ describe("Session 21 research and adoption routes", () => {
 });
 
 /**
+ * Session 23 — same reasoning as buildSliceTestApp below: resolveResearchTier
+ * throws ValidationError synchronously, so the 400-path tests need the same
+ * error handler index.ts installs, which buildTestApp above doesn't attach.
+ */
+function buildResearchErrorTestApp() {
+  const app = new Hono<AppBindings>();
+  const env = {
+    NODE_ENV: "test",
+    ALGORAND_NETWORK: "testnet",
+    AVM_ADDRESS: "TEST",
+    FACILITATOR_URL: "https://facilitator.goplausible.xyz",
+    PUBLIC_URL: "http://localhost:4021",
+    LOG_LEVEL: "info",
+  } as Env;
+
+  app.use("*", async (c, next) => {
+    c.set("env", env);
+    c.set("datasetHash", "a".repeat(64));
+    c.set("hashComputedAt", "2026-01-01T00:00:00.000Z");
+    await next();
+  });
+  app.route("/", researchRoute);
+  app.onError(errorHandlerMiddleware);
+  return app;
+}
+
+/**
+ * Session 23 — ?tier=summary|slice|full support added to all three research
+ * routes (Decision 42), plus the new third paper. Same "bare route, no
+ * payment gate" unit-level pattern as above.
+ */
+describe("Session 23 research tier support", () => {
+  it("GET /research/law-before-code with no tier defaults to summary, unchanged shape", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/law-before-code");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { title: string; sections?: unknown };
+    expect(body.title).toContain("SBP-WP-2026-001");
+    expect(body.sections).toBeUndefined();
+  });
+
+  it("GET /research/law-before-code?tier=slice&section=legislative_gaps returns just that section", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/law-before-code?tier=slice&section=legislative_gaps");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { tier: string; section: string; title: string; content: string };
+    expect(body.tier).toBe("slice");
+    expect(body.section).toBe("legislative_gaps");
+    expect(body.title).toContain("Five Legislative Gaps");
+    expect(body.content).toContain("Gap 1");
+  });
+
+  it("GET /research/law-before-code?tier=slice with no section returns all sections", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/law-before-code?tier=slice");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { sections: Record<string, { title: string }> };
+    expect(Object.keys(body.sections)).toEqual(["introduction", "production_gates", "three_ring_architecture", "legislative_gaps", "recommendations"]);
+  });
+
+  it("GET /research/law-before-code?tier=full returns summary plus all sections", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/law-before-code?tier=full");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { title: string; citation: string; sections: Record<string, unknown> };
+    expect(body.title).toContain("SBP-WP-2026-001");
+    expect(body.citation).toContain("Williams, A.G.");
+    expect(Object.keys(body.sections)).toHaveLength(5);
+  });
+
+  it("GET /research/law-before-code?tier=bogus returns 400 without cancelling settlement data", async () => {
+    const app = buildResearchErrorTestApp();
+    const res = await app.request("/research/law-before-code?tier=bogus");
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("invalid_request");
+  });
+
+  it("GET /research/law-before-code?tier=slice&section=bogus returns 400", async () => {
+    const app = buildResearchErrorTestApp();
+    const res = await app.request("/research/law-before-code?tier=slice&section=bogus");
+    expect(res.status).toBe(400);
+  });
+
+  it("GET /research/invisible-infrastructure returns the third paper's structured metadata", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/invisible-infrastructure");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { title: string; fraudulent_schemes_documented: string[]; standards_built_on_dlt: string[]; citation: string };
+    expect(body.title).toContain("SBP-WP-2026-003");
+    expect(body.fraudulent_schemes_documented.length).toBeGreaterThan(0);
+    expect(body.standards_built_on_dlt.length).toBeGreaterThan(0);
+    expect(body.citation).toContain("Williams, A.G.");
+  });
+
+  it("GET /research/invisible-infrastructure?tier=slice&section=global_standards returns just that section", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/research/invisible-infrastructure?tier=slice&section=global_standards");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { section: string; title: string };
+    expect(body.section).toBe("global_standards");
+    expect(body.title).toContain("What Global Standards Are Actually Built On");
+  });
+});
+
+/**
  * /slice's route handler and its query validation/filtering do not import
  * @pdc/x402-adapter — only src/index.ts's app composition gates it behind
  * payment. That means the HTTP-level 400 behaviour is fully testable here

@@ -27,7 +27,7 @@ import { expertRoute } from "./routes/paid/expert.js";
 import { commissionRoute } from "./routes/paid/commission.js";
 import { researchRoute } from "./routes/paid/research.js";
 import { pacificAdoptionRoute } from "./routes/paid/pacificAdoption.js";
-import { LAW_BEFORE_CODE, CRYPTOGRAPHIC_CONTINUITY } from "./data/research.js";
+import { LAW_BEFORE_CODE, CRYPTOGRAPHIC_CONTINUITY, INVISIBLE_INFRASTRUCTURE } from "./data/research.js";
 import { PACIFIC_ADOPTION_METADATA } from "./data/pacificAdoption.js";
 import type { AppBindings } from "./types.js";
 
@@ -77,6 +77,7 @@ async function main(): Promise<void> {
     "/commission": { category: DATASET_METADATA.category },
     "/research/law-before-code": { category: "governance", subCategory: "law_before_code" },
     "/research/cryptographic-continuity": { category: "governance", subCategory: "cryptographic_continuity" },
+    "/research/invisible-infrastructure": { category: "governance", subCategory: "invisible_infrastructure" },
     "/pacific/blockchain-adoption": { category: "governance", subCategory: "blockchain_adoption" },
   };
 
@@ -289,6 +290,20 @@ async function main(): Promise<void> {
         output: { example: { title: CRYPTOGRAPHIC_CONTINUITY.title, version: CRYPTOGRAPHIC_CONTINUITY.version, abstract: CRYPTOGRAPHIC_CONTINUITY.abstract } },
       }),
     },
+    // Session 23 — third working paper (Decision 42, same Tier 1 cap).
+    // ?tier=summary|slice|full supported on all three research routes; see
+    // resolveResearchTier's doc comment for why depth doesn't change price.
+    {
+      method: "GET",
+      path: "/research/invisible-infrastructure",
+      tier: "summary",
+      category: "governance",
+      description: `Structured metadata for "${INVISIBLE_INFRASTRUCTURE.title}" — key arguments, fraudulent schemes documented, standards built on DLT, policy gaps, recommendations, citation. Supports ?tier=summary|slice|full.`,
+      discovery: discoveryFor({
+        method: "GET",
+        output: { example: { title: INVISIBLE_INFRASTRUCTURE.title, version: INVISIBLE_INFRASTRUCTURE.version, abstract: INVISIBLE_INFRASTRUCTURE.abstract } },
+      }),
+    },
     // Session 21 (Deliverable 2)
     {
       method: "GET",
@@ -379,8 +394,9 @@ async function main(): Promise<void> {
           `/full (${formatUsdc(TIER_PRICING.full)})`,
           `/expert (${formatUsdc(TIER_PRICING.expert)})`,
           `/commission (${formatUsdc(TIER_PRICING.commission)})`,
-          `/research/law-before-code (${formatUsdc(TIER_PRICING.summary)})`,
-          `/research/cryptographic-continuity (${formatUsdc(TIER_PRICING.summary)})`,
+          `/research/law-before-code (${formatUsdc(TIER_PRICING.summary)}, ?tier=summary|slice|full)`,
+          `/research/cryptographic-continuity (${formatUsdc(TIER_PRICING.summary)}, ?tier=summary|slice|full)`,
+          `/research/invisible-infrastructure (${formatUsdc(TIER_PRICING.summary)}, ?tier=summary|slice|full)`,
           `/pacific/blockchain-adoption (${formatUsdc(TIER_PRICING.summary)})`,
         ],
         timestamp: new Date().toISOString(),
