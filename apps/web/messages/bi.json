@@ -216,6 +216,35 @@
         "rejected_type": "\"{filename}\" is not an accepted file type.",
         "rejected_size": "\"{filename}\" is over the 500MB limit."
       },
+      "payment": {
+        "loading": "Checking your payment status...",
+        "redirecting": "We couldn't find your registration session — taking you back to Step 1.",
+        "title": "Before uploading your dataset",
+        "fee": "Dataset formatting fee: ${amount} USDC",
+        "covers": {
+          "formatting": "Claude-assisted data structuring",
+          "security": "Security screening (5-layer pipeline)",
+          "review": "SBP review and approval",
+          "registration": "Endpoint registration in the PDC directory"
+        },
+        "usdc": {
+          "title": "Pay with your Algorand wallet",
+          "instruction": "Send the fee to SBP's collection address, then paste your transaction ID below.",
+          "txLabel": "Transaction ID",
+          "txPlaceholder": "e.g. ABCD1234...",
+          "submit": "Submit payment for verification",
+          "notConfigured": "USDC payment collection is not yet configured. Please use the invoice option below, or contact SBP directly."
+        },
+        "invoice": {
+          "title": "Or pay by invoice",
+          "instruction": "Request an invoice — bank transfer or card. SBP will follow up with payment details.",
+          "request": "Request invoice"
+        },
+        "submitting": "Submitting...",
+        "pendingNote": "Thanks — your payment is recorded and awaiting verification. SBP will confirm it shortly and this page will unlock automatically the next time you visit.",
+        "checkError": "Could not check your payment status. Please refresh the page.",
+        "submitError": "Could not submit your payment. Please try again."
+      },
       "scanned_pdf": {
         "question": "Is this a scanned document or does it contain text you can select?",
         "scanned": "Scanned (image only)",
