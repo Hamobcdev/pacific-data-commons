@@ -97,6 +97,9 @@ SBP is not a data processor, not a quality assessor, not a dispute arbitrator, n
 **P11 — SBP Has No Administrative Role Over Sovereign Rights Records**
 For sovereign rights infrastructure (EEZ records, customary land and sea stewardship records), SBP has no clawback authority, no freeze capability, no admin path, and no ability to alter, delete, or access community records. This is expressed in the RLS policies — there is no sbp-admin write policy on sovereign records tables. SBP cannot rescue a community from key loss; the recovery posture (including "no recovery") is the community's pre-configured choice. This is not a limitation — it is the design. Communities that have been harmed by external administrative control require infrastructure where that control genuinely does not exist.
 
+**P12 — Upload Security**
+Every file upload to the PDC platform is treated as untrusted input. Files are processed through a five-layer security pipeline (Decision 58) before any Claude API call. Prompt injection via file upload is a live attack vector. No LLM output from the upload pipeline becomes live endpoint content without explicit human provider approval. The $25 upload fee is both resource cost recovery and an accountability mechanism that traces malicious submissions to on-chain wallet identities.
+
 **P2 Extension — No Prepaid Agent Credits**
 SBP must never build prepaid credit balances for agent usage. Prepaid credits are stored value requiring a CBS stored value licence. Agent usage is pay-per-run only. Users fund their own Algorand wallets with USDC — that is their own asset management, not SBP custody.
 
@@ -104,7 +107,7 @@ SBP must never build prepaid credit balances for agent usage. Prepaid credits ar
 
 ## 5. Confirmed Pre-Build Decision Register
 
-All 38 decisions are final. Do not revisit unless explicitly instructed.
+All 58 decisions are final. Do not revisit unless explicitly instructed.
 
 | # | Decision | Confirmed Answer |
 |---|---|---|
@@ -147,6 +150,26 @@ All 38 decisions are final. Do not revisit unless explicitly instructed.
 | 36 | Sovereign records: no SBP admin role | SBP has no clawback, freeze, or administrative path on sovereign rights records. No sbp-admin write RLS policy on sovereign records tables. Community controls their records absolutely. SBP cannot rescue a community from key loss. Recovery posture is community's pre-configured choice. See P11. |
 | 37 | Agent attribution records | Every marketplace agent (first- and third-party) must submit a wallet-signed attribution record per run to POST /agent/attribution: {run_id, endpoint_tx_ids[], originating_user_wallet_hash, agent_id}. Stored in agent_run_endpoints. Compliance monitor reconciles nightly against on-chain payments. Unattributed payments above tolerance → compliance strike → delisting path. Required for Silver rating eligibility, self-dealing detection, and honest leaderboard volume. Build before any agent is built. |
 | 38 | No prepaid agent credits | SBP must never build prepaid credit balances for agent usage. Stored value requires CBS licence. Pay-per-run only. See P2 Extension. |
+| 39 | Cultural sovereignty price floor | Provider-set minimum price for cultural data endpoints, technically enforced at endpoint level. No SBP override capability. Schema field cultural_sovereignty_price_floor reserved in endpoints table. Phase 2 enforcement. |
+| 40 | Transaction log visibility | Buyer activity visible only to transacting provider (their earnings only) and SBP compliance function. Never visible to other buyers at any granularity. Architecturally enforced. |
+| 41 | verified_commercial flag | Parallel to verified_government. LLM-assisted identity verification, human confirmed before flag is set. Bypasses Bronze price cap. Defined verification checklist required before implementation. |
+| 42 | Research endpoint category | Maximum Tier 1 pricing ($0.01) for governance and policy research endpoints. Underlying document openly accessible. PDC hosts structured queryable endpoint only. Never a paywall on underlying document. |
+| 43 | Provider internal governance liability | ToS clause: provider solely responsible for internal data governance, staff access controls, and confidentiality. SBP not liable for insider extraction events. |
+| 44 | 24-month referral fee obligation | Providers who take PDC-discovered buyer relationships off-platform within 24 months of first query owe 3% commission on off-platform volume. Enforceable via provider ToS. |
+| 45 | Data auction mechanism (Phase 3) | Time-limited USDC auction for unique one-time datasets. 3% SBP commission on winning bid. Architecture must not preclude. No implementation timeline set. |
+| 46 | ZK-proof buyer anonymity (Phase 3) | Research item only. Zero-knowledge proof of payment for buyer query privacy. Contingent on CBS regulatory position and platform volume. |
+| 47 | Pacific e-commerce platform (future) | Sister application on x402 payment rail. Strategic direction. Current architecture must remain compatible. Not in current build scope. |
+| 48 | Data partitioning convention | Providers encouraged to structure datasets as partitioned queryable subsets at different price tiers. Pipeline service to support. Developer documentation to explain. |
+| 49 | Automatic integrity checks | Every agent endpoint query runs checkEndpointIntegrity() before payment. status === 'fail' (hash mismatch) blocks payment. 'no_cert_hash' and 'endpoint_unavailable' do not block. Implemented Session 17. |
+| 50 | Integrity flag threshold | 3 consecutive fail events from any trigger source flags the endpoint in directory. Flag not automatically cleared on pass — provider requests clearance via dashboard. Prevents gaming by cycling data back. |
+| 51 | Cultural sovereignty price floor schema | cultural_sovereignty_price_floor field reserved in endpoints table from Session 17. Enforcement logic is Phase 2. Field must exist in schema from Session 17 forward. |
+| 52 | Versioned snapshot anchoring (Phase 2) | Periodic hash-and-anchor cron for full dataset version history on-chain. Compatible with any storage architecture. Do not build now, do not design out. |
+| 53 | Sovereign distributed node architecture (Phase 3 only) | Each nation or community runs their own node on their own infrastructure within their own jurisdiction. Data never leaves provider jurisdiction. On-chain record is cryptographic commitment only, not a copy. Coordinated via regional collaboration (DAO-like governance, analogous to Estonia X-Road but Pacific-sovereign). SBP operates routing and trust layer only. Third-party content-addressed storage (IPFS, Algorand ASA metadata) explicitly rejected as a sovereignty solution — data that cannot be retracted from a third-party system is not sovereign data. |
+| 54 | Declared dataset update flow | Providers must declare updates before changing dataset. Four categories: additive, correction, expansion, methodology_change. pending_recertification state bypasses integrity block during 7-day update window. Implemented Session 18. |
+| 55 | Agent ecosystem notifications on update | All agent wallets that queried an endpoint in the last 90 days receive structured update notification on every certified version. Human buyers with email addresses receive email notification. |
+| 56 | PDC as central interoperability layer | PDC is the central interoperability and routing layer for the Pacific regional distributed node network. Every sovereign node deployed by SBP connects to PDC as the discovery and payment routing layer. Node deployment is a billable service. The OGIP government stack and PDC commercial layer share the same node infrastructure — a ministry node is simultaneously a PDC provider endpoint and an OGIP interoperability node. |
+| 57 | External x402 sources | PDC agents may query approved external x402-compatible endpoints as supplementary data sources. Pacific PDC data is always primary. External sources always supplementary, clearly labelled, controlled via approved_external_sources table. SBP approves all external sources. Agents never query unapproved external sources. |
+| 58 | Upload security architecture | All file uploads pass through five-layer security pipeline before Claude processing: (1) file type whitelist validation, (2) content sanitisation stripping metadata and executables, (3) Claude prompt construction treating content as data only with explicit injection rejection instructions, (4) output schema validation rejecting non-conforming Claude output, (5) mandatory human review gate before any formatted content is stored or deployed. No free upload tier for cold inbound submissions — $25 USDC minimum per dataset is both resource cost recovery and accountability mechanism. First-dataset-free policy does not apply to cold inbound external provider uploads — only to SBP's own pipeline service for verified providers. |
 
 ---
 
@@ -186,6 +209,21 @@ SBP earns from five streams. No hosting fee. No subscription fee. Zero cost to l
 | Pipeline service | $25/dataset ($0 first dataset) | Charged after provider approves output | +$10 scanned PDF surcharge |
 | Trust tier upgrade | $25 Silver / $100 Gold | One-time, annual renewal 50% | Compensation for clerical review time |
 | White-label licensing | $20K–100K/year | Phase 2+ | SIDS replication revenue |
+
+**Node Deployment Service — Confirmed Commercial Model (August 2026)**
+
+| Phase | Service | Price | Notes |
+|---|---|---|---|
+| Launch | Template download + self-deploy | Free | Institution does all work, SBP registers endpoint |
+| Launch | File upload, Claude-assisted formatting | $25 USDC per dataset | Paid on platform. No free tier for cold inbound uploads. |
+| Launch | Scanned PDF surcharge | +$10 USDC | Added to above |
+| Launch | Full SBP deployment | $150 USD invoiced | SBP structures + deploys + tests + registers |
+| Launch | Complex deployment (cultural data, multiple datasets) | $300 USD invoiced | Includes sovereignty flag setup |
+| Launch | Bank transfer surcharge | +$50 USD | Added to invoiced services if paying by bank |
+| Post-launch | Deployment fee | $200–$500 USD | Based on transaction intelligence from launch period |
+| All tiers | Transaction commission | 3% permanently | SBP earns when provider earns. No subscription. No hosting fee. |
+
+Stripe integration for online card payment of deployment services: Phase 2 (does not require CBS consultation — standard e-commerce, not payment intermediary function).
 
 ---
 

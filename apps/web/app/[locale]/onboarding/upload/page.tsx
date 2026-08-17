@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { UploadForm } from "@/components/upload/UploadForm";
+import { UploadPaymentGate } from "@/components/upload/UploadPaymentGate";
 import { StepIndicator } from "@/components/onboarding/StepIndicator";
 
 export default async function UploadPage() {
@@ -12,7 +13,9 @@ export default async function UploadPage() {
         <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>
         <p className="mt-2 text-gray-600">{t("subtitle")}</p>
       </div>
-      <UploadForm />
+      <UploadPaymentGate>
+        <UploadForm />
+      </UploadPaymentGate>
     </div>
   );
 }
