@@ -309,7 +309,16 @@ async function main(): Promise<void> {
       path: route.path,
       priceUsdc: TIER_PRICING[route.tier],
       description: route.description,
-      resource: `pdc-pilot-endpoint:${route.path}`,
+      // Session 22: was `pdc-pilot-endpoint:${route.path}`, a URN-style
+      // label rather than a fetchable URL. Confirmed live (curling this
+      // endpoint's own /summary and decoding its 402 PAYMENT-REQUIRED
+      // header) that this string reaches the facilitator verbatim as
+      // `resource.url`, and that GoPlausible's Bazaar catalog can't build a
+      // real, crawlable catalog entry from it — the one stale entry it had
+      // indexed showed up as resourceUrl "null/summary". A real URL is what
+      // Bazaar discovery needs to actually list and let agents call this
+      // resource.
+      resource: `${env.PUBLIC_URL}${route.path}`,
       extra: {
         service: "pacific-data-commons-pilot",
         category: route.category ?? DATASET_METADATA.category,

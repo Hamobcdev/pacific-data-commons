@@ -48,7 +48,14 @@ function main(): void {
       path: route.path,
       priceUsdc: DIRECTORY_QUERY_PRICE_USDC,
       description: route.description,
-      resource: `pdc-directory-api:${route.path}`,
+      // Session 22 — was `pdc-directory-api:${route.path}`, same URN-style
+      // non-URL bug as apps/pilot-endpoint's identical pattern; see that
+      // file's matching comment for how this was confirmed live against
+      // the facilitator. This app's routes don't declare a `bazaar`
+      // discovery extension at all yet (unlike pilot-endpoint's), so this
+      // fix alone won't make them Bazaar-discoverable — flagged separately,
+      // out of scope for this fix.
+      resource: `${env.PUBLIC_URL}${route.path}`,
     });
   }
 
