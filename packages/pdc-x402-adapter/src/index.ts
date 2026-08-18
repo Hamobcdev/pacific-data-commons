@@ -42,12 +42,42 @@ export type PdcAlgorandNetwork = "mainnet" | "testnet";
  */
 const COMPETITION_TAG = "x402-global-challenge";
 
+/**
+ * Session 24 — how a facilitator dashboard (GoPlausible's merchant list)
+ * shows something better than a raw payTo address ("LN745U...N3YY") for a
+ * service. There is no separate account-level "merchant profile" object
+ * anywhere in the installed @x402/core (2.19.x): RouteConfig itself carries
+ * `serviceName` / `iconUrl` / `tags` per route — confirmed by reading
+ * @x402/core's own RouteConfig type, not assumed. Set this once on the gate
+ * and every route registered via addRoute() gets the same identity, so
+ * callers don't repeat it per route.
+ *
+ * `description` and `url` have no matching RouteConfig field at all in this
+ * SDK version — carried in accepts[].extra instead (explicitly untyped/
+ * arbitrary), so a facilitator that does read custom extra fields still
+ * gets them, without fabricating spec fields @x402/core doesn't define.
+ */
+export interface PdcMerchantIdentity {
+  /** -> RouteConfig.serviceName */
+  serviceName: string;
+  /** -> RouteConfig.iconUrl */
+  iconUrl?: string;
+  /** -> RouteConfig.tags */
+  tags?: string[];
+  /** -> accepts[].extra.merchant_description (no RouteConfig field exists for this) */
+  description?: string;
+  /** -> accepts[].extra.merchant_url (no RouteConfig field exists for this) */
+  url?: string;
+}
+
 export interface PdcX402GateConfig {
   /** SBP's Algorand payTo address for this service (directory query fee lands here). */
   payToAddress: string;
   /** x402 facilitator base URL (GoPlausible per CLAUDE.md Section 6). */
   facilitatorUrl: string;
   network: PdcAlgorandNetwork;
+  /** Applied to every route registered via addRoute() — see PdcMerchantIdentity's doc comment. */
+  merchantIdentity?: PdcMerchantIdentity;
 }
 
 export interface PdcPaidRouteSpec {
@@ -141,6 +171,7 @@ export class PdcPaymentGate {
   private readonly network: PdcAlgorandNetwork;
   private readonly caip2Network: Network;
   private readonly payToAddress: string;
+  private readonly merchantIdentity: PdcMerchantIdentity | undefined;
   private readonly routesConfig: Record<string, RouteConfig> = {};
   private readonly settleListeners: SettleListener[] = [];
 
@@ -148,6 +179,7 @@ export class PdcPaymentGate {
     this.network = config.network;
     this.caip2Network = CAIP2_BY_NETWORK[config.network];
     this.payToAddress = config.payToAddress;
+    this.merchantIdentity = config.merchantIdentity;
 
     const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
     this.resourceServer = new x402ResourceServer(facilitator).register(
@@ -178,6 +210,7 @@ export class PdcPaymentGate {
   /** Register a paid route. Call once per route at startup, before `middleware()`. */
   addRoute(spec: PdcPaidRouteSpec): void {
     const key = `${spec.method.toUpperCase()} ${spec.path}`;
+    const identity = this.merchantIdentity;
     this.routesConfig[key] = {
       accepts: {
         scheme: "exact",
@@ -186,10 +219,18 @@ export class PdcPaymentGate {
         // network's default asset (USDC) atomic amount for us.
         price: spec.priceUsdc,
         network: this.caip2Network,
-        extra: { tag: COMPETITION_TAG, ...spec.extra },
+        extra: {
+          tag: COMPETITION_TAG,
+          ...(identity?.description ? { merchant_description: identity.description } : {}),
+          ...(identity?.url ? { merchant_url: identity.url } : {}),
+          ...spec.extra,
+        },
       },
       resource: spec.resource,
       description: spec.description,
+      ...(identity?.serviceName ? { serviceName: identity.serviceName } : {}),
+      ...(identity?.iconUrl ? { iconUrl: identity.iconUrl } : {}),
+      ...(identity?.tags ? { tags: identity.tags } : {}),
       ...(spec.extensions ? { extensions: spec.extensions } : {}),
     };
   }

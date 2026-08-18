@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCertifiedHashForEndpoint, recordIntegrityEvent } from "../services/integrityService.js";
 import { dispatchUpdateNotifications } from "../services/notificationService.js";
 import { selfRegisterAgent } from "../services/agentSelfRegisterService.js";
+import { runHealthCheck } from "../services/healthCheckService.js";
 import { internalAuth } from "../middleware/internalAuth.js";
 import { ValidationError } from "../lib/errors.js";
 import type { AppBindings } from "../types.js";
@@ -80,4 +81,17 @@ internalRoute.post("/internal/agents/self-register", async (c) => {
   const body: unknown = await c.req.json().catch(() => undefined);
   const result = await selfRegisterAgent(supabase, body);
   return c.json(result, 200);
+});
+
+/**
+ * Session 24 — CLAUDE.md §6's "endpoint health checker (Railway cron,
+ * every 5 min)". Intended caller is a Railway Cron Job configured in the
+ * Railway dashboard (not expressible as a repo file) hitting this route on
+ * schedule with the shared X-Internal-Api-Key secret — see
+ * healthCheckService.ts's doc comment for the full design.
+ */
+internalRoute.post("/internal/health-check", async (c) => {
+  const supabase = c.get("supabase");
+  const summary = await runHealthCheck(supabase);
+  return c.json(summary, 200);
 });

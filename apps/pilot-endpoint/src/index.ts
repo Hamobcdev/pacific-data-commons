@@ -96,10 +96,22 @@ async function main(): Promise<void> {
   }
 
   // ── x402 payment gate (via @pdc/x402-adapter — never import @x402/* directly, R1) ──
+  // Session 24 — merchantIdentity applied to every route's RouteConfig
+  // (see PdcMerchantIdentity's doc comment in the adapter for why this is
+  // set once here rather than per-route): without it, GoPlausible's
+  // dashboard has nothing but the raw payTo address to show for this
+  // service.
   const paymentGate = new PdcPaymentGate({
     payToAddress: env.AVM_ADDRESS,
     facilitatorUrl: env.FACILITATOR_URL,
     network: env.ALGORAND_NETWORK,
+    merchantIdentity: {
+      serviceName: "Pacific Data Commons",
+      description: "Sovereign data marketplace for Pacific Island institutions. AI agents pay Pacific institutions directly in USDC per query.",
+      url: "https://pdcweb-production.up.railway.app",
+      iconUrl: "https://pdcweb-production.up.railway.app/images/sbp-logo.png",
+      tags: ["data-marketplace", "pacific", "sovereign-infrastructure", "ai-agents"],
+    },
   });
 
   // Session 19 — every settled payment on the paid routes below now logs

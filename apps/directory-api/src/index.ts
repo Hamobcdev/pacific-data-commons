@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { declareDiscoveryExtension } from "@x402-avm/extensions";
 import { PdcPaymentGate } from "@pdc/x402-adapter";
 import { loadEnv } from "./lib/env.js";
 import { createSupabaseClient } from "./lib/supabase.js";
@@ -35,10 +36,63 @@ function main(): void {
     network: env.ALGORAND_NETWORK,
   });
 
-  const paidRoutes: Array<{ method: "GET"; path: string; description: string }> = [
-    { method: "GET", path: "/search", description: "Search Pacific data endpoints by category, country, price, keywords" },
+  // Session 24 — same discoveryFor pattern as apps/pilot-endpoint/src/index.ts
+  // (see that file's longer comment for why declareDiscoveryExtension is
+  // used directly rather than @x402-avm/extensions' bazaarResourceServerExtension,
+  // and why `method` is supplied up front). Only /search and /endpoint/:id
+  // get a discovery declaration here, not all 4 paid routes below —
+  // /provider/:id and /verify/:certHash remain undeclared, same as before
+  // this session; scoped to what Session 24's brief asked for.
+  type DiscoveryConfig = Parameters<typeof declareDiscoveryExtension>[0] & { method: "GET" | "POST" | "HEAD" | "DELETE" | "PUT" | "PATCH" };
+  function discoveryFor(config: DiscoveryConfig) {
+    return declareDiscoveryExtension(config).bazaar;
+  }
+
+  const paidRoutes: Array<{ method: "GET"; path: string; description: string; discovery?: ReturnType<typeof discoveryFor> }> = [
+    {
+      method: "GET",
+      path: "/search",
+      description: "Search Pacific data endpoints by category, country, price, keywords",
+      discovery: discoveryFor({
+        method: "GET",
+        input: { category: "fisheries", keywords: "tuna stock", country: "WS", trust_tier: "bronze", price_max: 1, time_period_start: 2020, page: 1, limit: 20 },
+        inputSchema: {
+          properties: {
+            category: { type: "string", description: "Data category filter, e.g. fisheries, ocean, governance" },
+            country: { type: "string", description: "ISO country code filter" },
+            trust_tier: { type: "string", enum: ["bronze", "silver", "gold"] },
+            price_max: { type: "number", description: "Maximum summary-tier price in USDC" },
+            time_period_start: { type: "integer", description: "Earliest data year" },
+            keywords: { type: "string", description: "Free-text search across title, description, sub-category" },
+            page: { type: "integer" },
+            limit: { type: "integer", description: "Max 100, default 20" },
+          },
+          required: [],
+        },
+        output: {
+          example: {
+            results: [{ id: "…", title: "Pacific Fisheries Status", category: "fisheries", trust_tier: "bronze" }],
+            page: 1,
+            limit: 20,
+            totalCount: 5,
+          },
+        },
+      }),
+    },
     { method: "GET", path: "/provider/:id", description: "Full provider profile and its listed endpoints" },
-    { method: "GET", path: "/endpoint/:id", description: "Full endpoint detail and sample response" },
+    {
+      method: "GET",
+      path: "/endpoint/:id",
+      description: "Full endpoint detail and sample response for one endpoint by its directory ID",
+      discovery: discoveryFor({
+        method: "GET",
+        output: {
+          example: {
+            endpoint: { id: "…", title: "Pacific Fisheries Status — SBP Pilot Endpoint", data_category: "fisheries", endpoint_url: "https://pdcpilot-endpoint-production.up.railway.app" },
+          },
+        },
+      }),
+    },
     { method: "GET", path: "/verify/:certHash", description: "Verify a Pacific Data Protocol provenance certificate" },
   ];
 
@@ -51,11 +105,9 @@ function main(): void {
       // Session 22 — was `pdc-directory-api:${route.path}`, same URN-style
       // non-URL bug as apps/pilot-endpoint's identical pattern; see that
       // file's matching comment for how this was confirmed live against
-      // the facilitator. This app's routes don't declare a `bazaar`
-      // discovery extension at all yet (unlike pilot-endpoint's), so this
-      // fix alone won't make them Bazaar-discoverable — flagged separately,
-      // out of scope for this fix.
+      // the facilitator.
       resource: `${env.PUBLIC_URL}${route.path}`,
+      ...(route.discovery ? { extensions: { bazaar: route.discovery } } : {}),
     });
   }
 

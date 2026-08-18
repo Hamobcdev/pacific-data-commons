@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { internalRoute } from "../routes/internal.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import { createFakeSupabase, getFakeInserts, getFakeUpdates } from "./testUtils.js";
@@ -319,5 +319,41 @@ describe("POST /internal/dispatch-update-notifications", () => {
     expect(inserts).toHaveLength(0);
     const versionUpdates = getFakeUpdates(supabase).filter((u) => u.table === "endpoint_versions");
     expect(versionUpdates[0]?.row).toMatchObject({ notification_count: 0 });
+  });
+});
+
+describe("POST /internal/health-check", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("401s without a valid X-Internal-Api-Key header", async () => {
+    const app = buildTestApp(createFakeSupabase({}));
+    const res = await app.request("/internal/health-check", { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+
+  it("pings active endpoints and returns a summary", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 200 })),
+    );
+    const supabase = createFakeSupabase({
+      endpoints: { data: [{ id: randomUUID(), title: "Pacific Fisheries Status", health_check_url: "https://pdcpilot-endpoint-production.up.railway.app/health", consecutive_health_fails: 0 }] },
+    });
+    const app = buildTestApp(supabase);
+
+    const res = await app.request("/internal/health-check", {
+      method: "POST",
+      headers: { "x-internal-api-key": INTERNAL_KEY },
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { checked: number; healthy: number };
+    expect(body.checked).toBe(1);
+    expect(body.healthy).toBe(1);
+
+    const updates = getFakeUpdates(supabase).filter((u) => u.table === "endpoints");
+    expect(updates[0]?.row).toMatchObject({ health_status: "healthy" });
   });
 });
