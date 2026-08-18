@@ -1,0 +1,57 @@
+# Pacific Data Commons
+> Sovereign data marketplace for Pacific Island institutions
+
+Pacific Data Commons (PDC) is an x402-gated data marketplace built on Algorand Mainnet. AI agents and researchers pay Pacific institutions directly in USDC per query. Data stays on provider infrastructure. SBP routes payments and trust signals only.
+
+## What you can query
+- Pacific Fisheries Status: stock assessments, tuna stock data, EEZ monitoring
+- Pacific Ocean Conditions: ENSO indicators, sea surface temperature, current anomalies
+- Governance Research: Pacific DPI policy papers, regulatory gap analysis, blockchain adoption data
+- More categories coming: Agriculture, Health, Climate, Maritime, Demographics
+
+## How to query
+1. Search the directory: GET https://pdcdirectory-api-production.up.railway.app/search?category=fisheries
+2. Get a quote: POST https://pdcagents-production.up.railway.app/agents/fisheries/quote
+3. Pay and execute: POST https://pdcagents-production.up.railway.app/agents/fisheries/execute
+4. Query research: GET https://pdcpilot-endpoint-production.up.railway.app/research/law-before-code
+
+## Pricing tiers
+All prices in USDC. Providers set their own rates — these are platform minimums.
+
+| Tier | From | What you get |
+|------|------|-------------|
+| Directory search | $0.01 | Confirm data exists, see metadata and pricing |
+| Summary | $0.01 | Key findings, headline statistics, citation |
+| Slice | $0.50 | Filtered subset by parameter (species, region, date range) |
+| Full dataset | $5.00 | Complete structured dataset, all records, all fields |
+| Expert | $200.00 | Full dataset plus methodology notes, citation-ready format, provider follow-up |
+| Commission | $1,000.00 | Custom query — provider and SBP engage directly with your research question |
+
+Provider pricing is fully configurable. High-value datasets (decades of EEZ monitoring,
+proprietary survey data, peer-reviewed research) may command significantly higher rates.
+Pricing is set by the provider based on data scarcity, commercial value, and buyer type.
+SBP earns 3% routing commission. Providers receive 97% directly to their Algorand wallet.
+
+## Trust tiers
+- Bronze: Identity verified (free, automated)
+- Silver: Community verified — 3 upvotes from verified buyers
+- Gold: Peer reviewed — documented academic or government validation
+
+## For data providers
+Pacific institutions can list their data at zero cost. SBP earns only when you earn.
+Template: https://github.com/Hamobcdev/pdc-endpoint-template
+Contact: anthony@synergybcpacific.com
+
+## For developers
+API documentation and quickstart:
+https://pdcweb-production.up.railway.app/en/developers
+Agent marketplace: https://pdcagents-production.up.railway.app/agents
+External sources API: https://pdcdirectory-api-production.up.railway.app/external-sources
+
+## Competition
+Algorand x402 Global Challenge — tag: x402-global-challenge
+Leaderboard: https://facilitator.goplausible.xyz/dashboard/leaderboards
+Bazaar: cataloged at pdcpilot-endpoint-production.up.railway.app
+
+## Contact
+anthony@synergybcpacific.com | synergybcpacific.com | Apia, Samoa
