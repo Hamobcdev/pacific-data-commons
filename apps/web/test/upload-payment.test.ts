@@ -88,6 +88,55 @@ describe("checkUploadPaymentStatus", () => {
     const result = await checkUploadPaymentStatus("prov-1", "bad-token");
     expect(result.success).toBe(false);
   });
+
+  // Session 28 — founding_partner is the only exemption from this gate
+  // (Decision 58: never otherwise waived for cold inbound uploads).
+  it("skips the upload_payments check entirely and returns eligible when founding_partner has quota remaining", async () => {
+    serviceClient = fakeServiceClient({
+      providers: { selectData: { founding_partner: true, pipeline_datasets_used: 1, founding_partner_free_limit: 3 } },
+      upload_payments: { selectData: { payment_status: "pending", payment_method: "invoice" } }, // must be ignored
+    });
+    const { checkUploadPaymentStatus } = await import("../actions/upload/upload-payment");
+    const result = await checkUploadPaymentStatus("prov-1", "session-token");
+    expect(result).toMatchObject({
+      success: true,
+      status: "unpaid",
+      foundingPartner: { eligible: true, remaining: 2, limit: 3 },
+    });
+  });
+
+  it("falls through to the normal $25 gate once a founding partner's quota is exhausted", async () => {
+    serviceClient = fakeServiceClient({
+      providers: { selectData: { founding_partner: true, pipeline_datasets_used: 3, founding_partner_free_limit: 3 } },
+      upload_payments: { selectData: null },
+    });
+    const { checkUploadPaymentStatus } = await import("../actions/upload/upload-payment");
+    const result = await checkUploadPaymentStatus("prov-1", "session-token");
+    expect(result.foundingPartner).toEqual({ eligible: false, remaining: 0, limit: 3 });
+    expect(result.status).toBe("unpaid");
+  });
+
+  it("a non-founding-partner provider still goes through the normal gate (Decision 58 — no free tier for cold inbound)", async () => {
+    serviceClient = fakeServiceClient({
+      providers: { selectData: { founding_partner: false, pipeline_datasets_used: 0, founding_partner_free_limit: 3 } },
+      upload_payments: { selectData: null },
+    });
+    const { checkUploadPaymentStatus } = await import("../actions/upload/upload-payment");
+    const result = await checkUploadPaymentStatus("prov-1", "session-token");
+    expect(result.foundingPartner?.eligible).toBe(false);
+    expect(result.status).toBe("unpaid");
+  });
+
+  it("fails closed (no founding-partner bypass) when the providers read errors, and still reports the upload_payments status", async () => {
+    serviceClient = fakeServiceClient({
+      providers: { selectData: null }, // simulates a read that finds no row
+      upload_payments: { selectData: { payment_status: "confirmed", payment_method: "stripe" } },
+    });
+    const { checkUploadPaymentStatus } = await import("../actions/upload/upload-payment");
+    const result = await checkUploadPaymentStatus("prov-1", "session-token");
+    expect(result.foundingPartner).toBeUndefined();
+    expect(result.status).toBe("confirmed");
+  });
 });
 
 describe("submitUsdcPaymentClaim", () => {

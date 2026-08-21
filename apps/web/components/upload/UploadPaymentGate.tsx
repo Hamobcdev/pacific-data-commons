@@ -4,9 +4,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { loadLocalState } from "@/lib/onboarding/state";
-import { checkUploadPaymentStatus, submitUsdcPaymentClaim, requestUploadInvoice } from "@/actions/upload/upload-payment";
+import { checkUploadPaymentStatus, submitUsdcPaymentClaim, requestUploadInvoice, type FoundingPartnerEligibility } from "@/actions/upload/upload-payment";
 import { UPLOAD_FEE_USDC } from "@/lib/upload/constants";
 import { Alert } from "@/components/ui/alert";
+import { FoundingPartnerWelcome } from "./FoundingPartnerWelcome";
 
 /**
  * Session 23 (Deliverable 3B, Decision 58) — blocks UploadForm behind a
@@ -32,7 +33,8 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
 
   const [providerId, setProviderId] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [status, setStatus] = useState<"checking" | "redirecting" | "unpaid" | "pending" | "confirmed">("checking");
+  const [status, setStatus] = useState<"checking" | "redirecting" | "unpaid" | "pending" | "confirmed" | "founding_partner">("checking");
+  const [foundingPartner, setFoundingPartner] = useState<FoundingPartnerEligibility | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState("");
   const [submitting, setSubmitting] = useState<"usdc" | "invoice" | "card" | null>(null);
@@ -61,6 +63,11 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
       if (!result.success) {
         setError(result.error ?? t("checkError"));
         setStatus("unpaid");
+        return;
+      }
+      if (result.foundingPartner?.eligible) {
+        setFoundingPartner(result.foundingPartner);
+        setStatus("founding_partner");
         return;
       }
       setStatus(result.status === "confirmed" ? "confirmed" : result.status === "pending" ? "pending" : "unpaid");
@@ -128,6 +135,14 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
   }
   if (status === "confirmed") {
     return <>{children}</>;
+  }
+  if (status === "founding_partner" && foundingPartner) {
+    return (
+      <div className="mt-6 space-y-6">
+        <FoundingPartnerWelcome remaining={foundingPartner.remaining} limit={foundingPartner.limit} />
+        {children}
+      </div>
+    );
   }
 
   const collectionAddress = process.env.NEXT_PUBLIC_SBP_UPLOAD_FEE_WALLET;

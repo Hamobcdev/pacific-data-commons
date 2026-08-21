@@ -1,0 +1,21 @@
+-- Session 28 — fixes the live "Could not check payment status. Please try
+-- again." error reported on the /onboarding/upload step (screenshot,
+-- pdcweb-production.up.railway.app/en/onboarding/upload). Confirmed by a
+-- direct query against this table with the app's own service-role
+-- credentials: it returned Postgres error 42501 "permission denied for
+-- table upload_payments", with Postgres's own hint being this exact GRANT.
+--
+-- Root cause: session23_upload_payments.sql (CREATE TABLE upload_payments)
+-- never issued the standard CRUD grants Supabase's tooling normally
+-- applies automatically. Confirmed isolated to this one table — every
+-- other table checked (formatting_runs, providers, endpoints,
+-- verification_queue) already has full service_role grants; same owner
+-- (postgres) on all of them, so this was a one-off gap in that migration,
+-- not a systemic default-privilege problem.
+--
+-- This is a pure permissions fix — no RLS policy, column, or data change.
+-- apps/web/actions/upload/upload-payment.ts (checkUploadPaymentStatus,
+-- submitUsdcPaymentClaim, requestUploadInvoice) is the only caller,
+-- reads/writes via createServiceClient() (service_role key).
+
+GRANT SELECT, INSERT, UPDATE ON public.upload_payments TO service_role;
