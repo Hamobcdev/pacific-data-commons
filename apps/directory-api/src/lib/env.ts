@@ -20,6 +20,14 @@ const envSchema = z.object({
   // volume (Volume Integrity Policy). Optional: /health must never fail
   // because this wasn't set, it just omits the canary block's wallet.
   AGENT_WALLET_ADDRESS: z.string().optional(),
+
+  // Session 27 — apps/web's public base URL, used only to build
+  // canary.policy_url on /health (the Volume Integrity Policy document
+  // lives at apps/web/public/.well-known/volume-integrity-policy.json,
+  // a different Railway service from this one). Optional, same posture as
+  // AGENT_WALLET_ADDRESS above: /health omits policy_url rather than
+  // failing when this isn't set.
+  WEB_APP_URL: z.string().url().optional(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_KEY: z.string().min(1, "SUPABASE_SERVICE_KEY is required"),
 

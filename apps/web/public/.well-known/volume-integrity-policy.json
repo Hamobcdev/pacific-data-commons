@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "issued": "2026-08-22",
+  "issued_by": "Synergy Blockchain Pacific Limited",
+  "company_number": "202307636",
+  "jurisdiction": "Samoa",
+  "policy_title": "Pacific Data Commons — Transaction Volume Integrity Policy",
+  "effective_date": "2026-08-22",
+  "competition": {
+    "name": "Algorand x402 Global Challenge",
+    "entry_type": "Composite",
+    "submission_deadline": "2026-09",
+    "leaderboard_window": "October 2026 (unannounced)"
+  },
+  "volume_sources": [
+    {
+      "source_id": "S1",
+      "label": "Institutional pilot providers",
+      "description": "Samoan and Pacific government agencies and research institutions publishing real operational data. Buyers are independent agents and researchers transacting for genuine research or commercial purposes.",
+      "counts_toward_claimed_volume": true
+    },
+    {
+      "source_id": "S2",
+      "label": "Independent agent developers (design partners)",
+      "description": "Third-party developers building Pacific-relevant tools against PDC endpoints. Where a small USDC onboarding grant has been provided, this is disclosed in writing to both the partner and competition organisers. Partners transact from their own independent wallets at their own discretion.",
+      "counts_toward_claimed_volume": true,
+      "disclosure_note": "Any grants provided to design partners are listed in the competition submission appendix."
+    },
+    {
+      "source_id": "S3",
+      "label": "Operational canary transactions",
+      "description": "Hourly self-funded uptime monitoring queries run from the SBP Agent wallet against SBP-managed pilot endpoints to confirm continuous liveness during the October measurement window.",
+      "counts_toward_claimed_volume": false,
+      "canary_wallet": "Q5XTALN45D32I572OZAVZ4FW6UYSW6A4FFAX4YOY6PP3YCD4JJJ3JQRYKI",
+      "labelling_method": "Off-chain structured logging. The x402 client SDK (pinned version) does not expose a caller-supplied note or extra field on outgoing AVM transactions — this is a known SDK limitation documented in packages/pdc-x402-adapter/src/index.ts. Canary tx IDs are logged per cycle in sbp-agent structured logs and surfaced via the /health API for cross-reference against on-chain records.",
+      "health_endpoint": "https://pdcdirectory-api-production.up.railway.app/health",
+      "on_chain_labelling_status": "Deferred post-competition pending upstream SDK support. See adapter TODO comment."
+    }
+  ],
+  "exclusions": {
+    "wash_trading": "SBP does not generate artificial query volume against PDC endpoints from SBP-controlled wallets for the purpose of inflating leaderboard position.",
+    "self_dealing": "The SBP PayTo wallet (LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY) receives fees only — it does not initiate queries. No SBP wallet acts as both payer and payee on the same endpoint.",
+    "synthetic_buyers": "All non-canary buyer wallets are independent of SBP. SBP does not control buyer wallets or instruct buyers on query behaviour."
+  },
+  "verification": {
+    "canary_tx_cross_reference": "Call GET /health on the directory API. The response includes the canary.wallet address and canary.enabled flag. Cross-reference tx IDs in sbp-agent Railway logs against on-chain records at https://algoexplorer.io or https://explorer.perawallet.app.",
+    "organiser_contact": "SBP will provide full log exports to competition organisers on request. Canary volume will be excluded from claimed volume figures if organisers determine it should not count — written confirmation sought from organisers before October window."
+  },
+  "signatory": {
+    "name": "Anthony George Williams",
+    "title": "Chief Executive Officer",
+    "organisation": "Synergy Blockchain Pacific Limited",
+    "email": "anthony@synergybcpacific.com",
+    "date": "2026-08-22"
+  }
+}
