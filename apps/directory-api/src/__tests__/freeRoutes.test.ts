@@ -48,6 +48,30 @@ describe("GET /health", () => {
     expect(body.status).toBe("degraded");
     expect(body.database).toBe("unreachable");
   });
+
+  it("surfaces the pending_recertification count (Decision 54 — informational, not an alert state)", async () => {
+    const app = buildTestApp(
+      createFakeSupabase({ providers: { data: [], count: 0 }, endpoints: { data: [], count: 2 } }),
+    );
+    const res = await app.request("/health");
+    const body = (await res.json()) as { endpoints: { pending_recertification: number } };
+    expect(body.endpoints.pending_recertification).toBe(2);
+  });
+
+  it("defaults pending_recertification to 0 when no endpoints table config is given", async () => {
+    const app = buildTestApp(createFakeSupabase({ providers: { data: [], count: 0 } }));
+    const res = await app.request("/health");
+    const body = (await res.json()) as { endpoints: { pending_recertification: number } };
+    expect(body.endpoints.pending_recertification).toBe(0);
+  });
+
+  it("publishes the canary block, unconfigured when AGENT_WALLET_ADDRESS is unset", async () => {
+    const app = buildTestApp(createFakeSupabase({ providers: { data: [], count: 0 } }));
+    const res = await app.request("/health");
+    const body = (await res.json()) as { canary: { configured: boolean; wallet: string | null } };
+    expect(body.canary.configured).toBe(false);
+    expect(body.canary.wallet).toBeNull();
+  });
 });
 
 describe("GET /categories", () => {

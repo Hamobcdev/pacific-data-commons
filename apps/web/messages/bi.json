@@ -161,7 +161,7 @@
           "emailPrompt": "Or email us"
         }
       },
-      "backupWarning": "You will see a list of 25 words. Write them down on paper and store them somewhere safe — like a locked drawer. This is your wallet backup. SBP cannot recover your wallet if these words are lost.",
+      "backupWarning": "You will see a list of 25 words. Write them down on paper and store them somewhere safe — like a locked drawer. Do not photograph the words or store them digitally. This is your wallet backup. SBP cannot recover your wallet if these words are lost.",
       "backupConfirm": "I have written down my backup words",
       "algoCredit": "SBP will automatically send you a small amount to cover this step — you pay nothing.",
       "custody": {
