@@ -13,12 +13,19 @@ ALTER TABLE providers
 
 -- Set SBP test provider as founding partner immediately
 -- Provider ID confirmed: 23688689-502a-437d-939b-3288d8292534
+--
+-- pipeline_datasets_used = 0 (not 3): the earlier seed here counted the
+-- research working papers against this account's quota, which correctly
+-- reflected real prior usage but meant this account could never show
+-- FoundingPartnerWelcome — it was permanently at its 3/3 limit. Reset to 0
+-- so the founding-partner welcome panel (not the $25 gate) is what's on
+-- screen for demos/testing, which is the actual purpose of this account.
 UPDATE providers
 SET
   founding_partner = TRUE,
   founding_partner_set_at = NOW(),
   founding_partner_note = 'SBP pilot test account — founding partner',
-  pipeline_datasets_used = 3  -- Already used 3 (the research working papers)
+  pipeline_datasets_used = 0
 WHERE id = '23688689-502a-437d-939b-3288d8292534';
 
 COMMENT ON COLUMN providers.founding_partner IS
