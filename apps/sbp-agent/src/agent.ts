@@ -74,6 +74,12 @@ export async function runQueryCycle(params: {
   agentWalletKey: string | undefined;
   network: PdcAlgorandNetwork;
   logger: Logger;
+  /** The agent's own operational wallet address, resolved once at startup
+   * (index.ts's getWalletStatus()) — same "startup-resolved, not re-derived
+   * per cycle" posture index.ts already uses for attribution's
+   * originatingUserWallet. Used only to tag canary log lines (Session 26,
+   * Volume Integrity Policy); omit in tests that don't care about it. */
+  walletAddress?: string | null;
   /** Injectable for tests — defaults to the real adapter. */
   createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
 }): Promise<CycleResult> {
@@ -109,6 +115,7 @@ export async function runQueryCycle(params: {
       agentWalletKey: params.agentWalletKey,
       network: params.network,
       logger: params.logger,
+      walletAddress: params.walletAddress ?? null,
     },
     cycleAt,
     payingFetch,
@@ -116,12 +123,27 @@ export async function runQueryCycle(params: {
 }
 
 async function runCycleWithPayingFetch(
-  params: { directoryUrl: string; category: string; agentWalletKey: string; network: PdcAlgorandNetwork; logger: Logger },
+  params: {
+    directoryUrl: string;
+    category: string;
+    agentWalletKey: string;
+    network: PdcAlgorandNetwork;
+    logger: Logger;
+    walletAddress: string | null;
+  },
   cycleAt: string,
   payingFetch: typeof fetch,
 ): Promise<CycleResult> {
   let directoryResult = emptyDirectoryResult();
   let pickedEndpointUrl: string | null = null;
+
+  // Volume Integrity Policy (Session 26) — the pinned x402 client SDK has no
+  // on-chain note/extra hook a payer can attach to (see the doc comment on
+  // createManualPaymentFetch in @pdc/x402-adapter), so every settled cycle's
+  // structured log carries this instead: type/source/purpose plus the
+  // agent's own wallet address, so canary transactions can be cross-
+  // referenced by tx_id + wallet address against organic buyer volume.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress };
 
   try {
     const searchUrl = `${params.directoryUrl.replace(/\/$/, "")}/search?category=${params.category}`;
@@ -141,7 +163,12 @@ async function runCycleWithPayingFetch(
       results_count: results.length,
       amount_usdc: DIRECTORY_QUERY_PRICE_USDC,
     };
-    params.logger.info("agent_directory_query_succeeded", { ...directoryResult, category: params.category, picked_endpoint: pickedEndpointUrl });
+    params.logger.info("agent_directory_query_succeeded", {
+      ...directoryResult,
+      category: params.category,
+      picked_endpoint: pickedEndpointUrl,
+      ...canaryLog,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     params.logger.error("agent_directory_query_failed", { error: message, category: params.category });
@@ -188,7 +215,7 @@ async function runCycleWithPayingFetch(
       tier: "summary",
       amount_usdc: paidBody.amount_paid_usdc ?? ENDPOINT_SUMMARY_FALLBACK_PRICE_USDC,
     };
-    params.logger.info("agent_endpoint_query_succeeded", { ...endpointResult, category: params.category });
+    params.logger.info("agent_endpoint_query_succeeded", { ...endpointResult, category: params.category, ...canaryLog });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     cycleError = message;

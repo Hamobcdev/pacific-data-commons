@@ -116,6 +116,7 @@ async function main(): Promise<void> {
         agentWalletKey,
         network: env.ALGORAND_NETWORK,
         logger,
+        walletAddress: wallet.address,
       });
       results.push(result);
 

@@ -13,6 +13,13 @@ const envSchema = z.object({
   ALGORAND_NETWORK: z.enum(["mainnet", "testnet"]).default("testnet"),
   AVM_ADDRESS: z.string().min(1, "AVM_ADDRESS (SBP directory payTo wallet) is required"),
   FACILITATOR_URL: z.string().url(),
+
+  // Session 26 — public Algorand address of apps/sbp-agent's operational
+  // wallet, published on /health so a third party can cross-reference the
+  // agent's own hourly monitoring transactions against Mainnet leaderboard
+  // volume (Volume Integrity Policy). Optional: /health must never fail
+  // because this wasn't set, it just omits the canary block's wallet.
+  AGENT_WALLET_ADDRESS: z.string().optional(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_KEY: z.string().min(1, "SUPABASE_SERVICE_KEY is required"),
 

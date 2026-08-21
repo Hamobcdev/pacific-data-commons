@@ -300,6 +300,23 @@ export interface ManualPaymentFetchConfig {
  * apps/sbp-agent, apps/agents) — any client-side payer, not dev-only.
  * Server-side is different: a server gates payments with PdcPaymentGate, it
  * doesn't make them, so never wire this into a server request path.
+ *
+ * Session 26 — checked for a client-side canary/note hook (Volume Integrity
+ * Policy: label sbp-agent's own monitoring transactions as non-organic
+ * volume) and confirmed there isn't one at the pinned @x402/* 2.19.x
+ * version: `wrapFetchWithPayment(fetch, client)` takes no metadata param,
+ * and `ExactAvmScheme.createPaymentPayload` (client-side, @x402/avm) builds
+ * its transaction group from `paymentRequirements` alone — no note-field or
+ * extra passthrough. `accepts[].extra` (PdcPaidRouteSpec.extra above) is
+ * server-advertised payment terms, not something a payer can attach to.
+ * TODO post-competition: investigate on-chain canary labelling via a
+ * hand-constructed AVM transaction group with a note field — deliberately
+ * deferred rather than attempted here, since it means bypassing
+ * wrapFetchWithPayment and touching the competition-critical payment path
+ * two days before the Session 26 NUS pilot demo. Current approach is
+ * off-chain: apps/sbp-agent/src/agent.ts tags its own structured logs
+ * (`type: "canary"`) on every settled cycle, and directory-api's /health
+ * publishes the monitoring wallet address for cross-reference.
  */
 export function createManualPaymentFetch(config: ManualPaymentFetchConfig): typeof fetch {
   const signer = toClientAvmSigner(config.privateKeyBase64);
