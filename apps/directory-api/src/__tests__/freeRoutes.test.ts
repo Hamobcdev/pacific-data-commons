@@ -13,9 +13,9 @@ import type { Env } from "../lib/env.js";
  * (free routes don't need it, and constructing PdcPaymentGate would make a
  * real network call to the facilitator — out of scope for a unit test).
  */
-function buildTestApp(supabase: ReturnType<typeof createFakeSupabase>) {
+function buildTestApp(supabase: ReturnType<typeof createFakeSupabase>, envOverrides: Partial<Env> = {}) {
   const app = new Hono<AppBindings>();
-  const env = { ALGORAND_NETWORK: "testnet" } as Env;
+  const env = { ALGORAND_NETWORK: "testnet", ...envOverrides } as Env;
 
   app.use("*", async (c, next) => {
     c.set("supabase", supabase);
@@ -71,6 +71,22 @@ describe("GET /health", () => {
     const body = (await res.json()) as { canary: { configured: boolean; wallet: string | null } };
     expect(body.canary.configured).toBe(false);
     expect(body.canary.wallet).toBeNull();
+  });
+
+  it("omits canary.policy_url (null) when WEB_APP_URL is unset — never guesses a URL that might 404", async () => {
+    const app = buildTestApp(createFakeSupabase({ providers: { data: [], count: 0 } }));
+    const res = await app.request("/health");
+    const body = (await res.json()) as { canary: { policy_url: string | null } };
+    expect(body.canary.policy_url).toBeNull();
+  });
+
+  it("builds canary.policy_url from WEB_APP_URL (Session 27 — Volume Integrity Policy)", async () => {
+    const app = buildTestApp(createFakeSupabase({ providers: { data: [], count: 0 } }), {
+      WEB_APP_URL: "https://pdcweb-production.up.railway.app",
+    });
+    const res = await app.request("/health");
+    const body = (await res.json()) as { canary: { policy_url: string | null } };
+    expect(body.canary.policy_url).toBe("https://pdcweb-production.up.railway.app/.well-known/volume-integrity-policy.json");
   });
 });
 

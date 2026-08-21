@@ -33,6 +33,8 @@ healthRoute.get("/health", async (c) => {
   // Real alerting reads `database` from the body (CLAUDE.md Section 9: the
   // endpoint health checker cron + Supabase queries, not container orchestration).
   const agentWalletAddress = c.get("env").AGENT_WALLET_ADDRESS;
+  const webAppUrl = c.get("env").WEB_APP_URL;
+  const policyUrl = webAppUrl ? `${webAppUrl.replace(/\/$/, "")}/.well-known/volume-integrity-policy.json` : null;
   return c.json({
     status: dbOk ? "ok" : "degraded",
     service: "pdc-directory-api",
@@ -54,6 +56,9 @@ healthRoute.get("/health", async (c) => {
       configured: Boolean(agentWalletAddress),
       wallet: agentWalletAddress ?? null,
       description: "Hourly self-funded uptime monitoring queries from SBP's own operational wallet.",
+      // Session 27 — apps/web/public/.well-known/volume-integrity-policy.json.
+      // null (not a 404-prone guess) until WEB_APP_URL is actually set.
+      policy_url: policyUrl,
     },
     timestamp: new Date().toISOString(),
   });
