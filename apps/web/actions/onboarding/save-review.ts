@@ -184,7 +184,11 @@ export async function saveReview(providerId: string, sessionToken: string, data:
   const baseline = (run.stage_classification ?? {}) as StageClassification;
   const providerEdits = diffProviderEdits(baseline, parsed.data);
 
-  const { data: provider } = await supabase.from("providers").select("verified_government").eq("id", providerId).maybeSingle();
+  const { data: provider } = await supabase
+    .from("providers")
+    .select("verified_government, pipeline_datasets_used")
+    .eq("id", providerId)
+    .maybeSingle();
   const bypassBronzeCap = provider?.verified_government === true;
 
   for (const row of parsed.data.pricing) {
@@ -250,6 +254,26 @@ export async function saveReview(providerId: string, sessionToken: string, data:
   if (endpointError) {
     console.error("Review save — endpoints upsert failed:", endpointError);
     return { success: false, error: getServerMessage("actions.saveReview.endpointSaveError") };
+  }
+
+  // Session 28 — counts this formatting run as "used" only once the whole
+  // approval genuinely succeeds (formatting_run marked approved AND the
+  // endpoint row saved). Incrementing earlier (e.g. right after the
+  // formatting_runs update) would burn a founding partner's free-dataset
+  // quota even on a run that ultimately failed to produce an endpoint.
+  // Read-then-write, not atomic — acceptable here: one provider approving
+  // one review at a time, not a high-concurrency counter.
+  if (provider) {
+    const { error: usageUpdateError } = await supabase
+      .from("providers")
+      .update({ pipeline_datasets_used: ((provider.pipeline_datasets_used as number) ?? 0) + 1 })
+      .eq("id", providerId);
+    if (usageUpdateError) {
+      // Non-fatal — the review itself already saved successfully. Worst
+      // case a founding partner's free-dataset count under-counts by one,
+      // which is safer than blocking their already-approved submission.
+      console.error("Review save — pipeline_datasets_used increment failed:", usageUpdateError);
+    }
   }
 
   return { success: true, nextStep: "/onboarding/provenance" };

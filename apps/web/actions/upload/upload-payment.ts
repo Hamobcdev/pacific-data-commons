@@ -4,11 +4,25 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { validateOnboardingSession, InvalidOnboardingSessionError } from "@/lib/onboarding/session";
 import { UPLOAD_FEE_USDC, SCANNED_PDF_SURCHARGE_USDC } from "@/lib/upload/constants";
 
+export interface FoundingPartnerEligibility {
+  eligible: boolean;
+  /** founding_partner_free_limit - pipeline_datasets_used, clamped >= 0. */
+  remaining: number;
+  limit: number;
+}
+
 export interface UploadPaymentStatusResult {
   success: boolean;
   status?: "unpaid" | "pending" | "confirmed";
   paymentMethod?: "usdc" | "stripe" | "invoice" | null;
   error?: string;
+  /** Session 28 — set whenever the founding_partner read succeeds,
+   * regardless of eligibility, so UploadPaymentGate can distinguish "not a
+   * founding partner" from "founding partner, quota exhausted" if it ever
+   * needs to (currently both fall through to the same $25 gate). Absent
+   * (not false) only if the providers read itself failed — in which case
+   * the gate fails closed to the existing $25 flow, never a free bypass. */
+  foundingPartner?: FoundingPartnerEligibility;
 }
 
 /**
@@ -16,6 +30,14 @@ export interface UploadPaymentStatusResult {
  * cycle (dataset_slot = their onboarding_session_token, see this session's
  * migration doc comment) has a confirmed upload_payments row. Called by
  * UploadPaymentGate.tsx before it will render UploadForm.
+ *
+ * Session 28 — also resolves founding-partner eligibility here rather than
+ * a second round trip: founding_partner is the *only* exemption from this
+ * gate (Decision 58 — cold inbound uploads are never otherwise free, see
+ * the doc comment on session23_upload_payments.sql). If the providers read
+ * fails, foundingPartner is simply omitted and the caller falls through to
+ * the normal paid flow — a transient read failure must never grant a free
+ * bypass.
  */
 export async function checkUploadPaymentStatus(providerId: string, sessionToken: string): Promise<UploadPaymentStatusResult> {
   try {
@@ -25,6 +47,26 @@ export async function checkUploadPaymentStatus(providerId: string, sessionToken:
   }
 
   const supabase = createServiceClient();
+
+  const { data: provider, error: providerError } = await supabase
+    .from("providers")
+    .select("founding_partner, pipeline_datasets_used, founding_partner_free_limit")
+    .eq("id", providerId)
+    .maybeSingle();
+
+  const foundingPartner: FoundingPartnerEligibility | undefined =
+    providerError || !provider
+      ? undefined
+      : {
+          eligible: provider.founding_partner === true && (provider.pipeline_datasets_used as number) < (provider.founding_partner_free_limit as number),
+          remaining: Math.max(0, (provider.founding_partner_free_limit as number) - (provider.pipeline_datasets_used as number)),
+          limit: provider.founding_partner_free_limit as number,
+        };
+
+  if (foundingPartner?.eligible) {
+    return { success: true, status: "unpaid", paymentMethod: null, foundingPartner };
+  }
+
   const { data, error } = await supabase
     .from("upload_payments")
     .select("payment_status, payment_method")
@@ -38,13 +80,14 @@ export async function checkUploadPaymentStatus(providerId: string, sessionToken:
     return { success: false, error: "Could not check payment status. Please try again." };
   }
   if (!data) {
-    return { success: true, status: "unpaid", paymentMethod: null };
+    return { success: true, status: "unpaid", paymentMethod: null, foundingPartner };
   }
 
   return {
     success: true,
     status: data.payment_status as "pending" | "confirmed",
     paymentMethod: data.payment_method as "usdc" | "stripe" | "invoice" | null,
+    foundingPartner,
   };
 }
 

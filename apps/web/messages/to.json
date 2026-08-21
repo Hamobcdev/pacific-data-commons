@@ -333,6 +333,39 @@
         "sensitivity_high": "High",
         "confirm_label": "I confirm these sensitivity selections are accurate. I understand SBP publishes this information alongside my dataset listing.",
         "cultural_coming_soon": "Cultural and indigenous data requires additional community consent steps. SBP will contact you directly to discuss the process before your data is listed."
+      },
+      "foundingPartner": {
+        "badge": "Founding Partner",
+        "title": "Welcome to Pacific Data Commons",
+        "message": "As a founding partner, your first {limit} datasets are formatted and published at no cost. You have {remaining, plural, one {# free dataset} other {# free datasets}} remaining.",
+        "includes": {
+          "formatting": "Claude-assisted data structuring",
+          "security": "Security screening (5-layer pipeline)",
+          "reviewAndRegistration": "SBP review and endpoint registration",
+          "listed": "Listed in the Pacific Data Commons directory"
+        },
+        "usdcNote": "When buyers query your data, payments settle in USDC directly to your Algorand wallet. 97% goes to you — SBP retains 3% as an infrastructure fee."
+      },
+      "dataFlow": {
+        "toggle": "How does this work?",
+        "steps": {
+          "dataStaysWithYou": {
+            "title": "Your data stays with you",
+            "body": "You upload a file so we can help structure it. The original file is deleted from our systems after processing. Your data never moves to SBP servers permanently."
+          },
+          "weStructureIt": {
+            "title": "We structure it for you",
+            "body": "Our AI assistant reads your data and creates a clean, structured version ready for international researchers to query. You review and approve every field before anything goes live."
+          },
+          "buyersQuery": {
+            "title": "Buyers query your endpoint",
+            "body": "When a researcher or AI system wants your data, they pay a small fee per query. That payment goes directly to your Algorand wallet — SBP never touches your earnings."
+          },
+          "revenueShare": {
+            "title": "97% goes directly to you",
+            "body": "Every payment settles on the Algorand blockchain. 97 cents of every dollar goes directly to your institution. SBP keeps 3% as an infrastructure fee."
+          }
+        }
       }
     },
     "Review": {
@@ -610,7 +643,13 @@
     "tx_date": "Date",
     "tx_type": "Type",
     "tx_amount": "Amount",
-    "tx_algo_id": "Algo TX ID"
+    "tx_algo_id": "Algo TX ID",
+    "foundingPartnerBanner": {
+      "title": "You are a Pacific Data Commons Founding Partner",
+      "message": "You have {remaining, plural, one {# free dataset} other {# free datasets}} remaining. Upload your data and start earning from international research queries.",
+      "cta": "Add a dataset",
+      "dismiss": "Dismiss"
+    }
   },
   "Nav": {
     "dashboard": "Dashboard",

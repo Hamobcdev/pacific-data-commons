@@ -33,6 +33,11 @@ const providerRow: ProviderRow = {
   total_revenue_usdc: 0,
   last_query_at: null,
   agent_spend_usdc: 0,
+  founding_partner: false,
+  founding_partner_set_at: null,
+  founding_partner_note: null,
+  pipeline_datasets_used: 0,
+  founding_partner_free_limit: 3,
   created_at: "2025-12-01T00:00:00.000Z",
   updated_at: "2025-12-01T00:00:00.000Z",
 };

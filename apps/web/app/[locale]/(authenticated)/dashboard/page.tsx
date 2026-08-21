@@ -6,6 +6,7 @@ import { WalletPanel } from "@/components/dashboard/WalletPanel";
 import { EarningsPanel } from "@/components/dashboard/EarningsPanel";
 import { EndpointList } from "@/components/dashboard/EndpointList";
 import { TrustTierProgress } from "@/components/dashboard/TrustTierProgress";
+import { FoundingPartnerDashboardBanner } from "@/components/dashboard/FoundingPartnerDashboardBanner";
 import { Button } from "@/components/ui/button";
 import { slugify } from "@/lib/onboarding/slug";
 
@@ -29,6 +30,10 @@ export default async function DashboardPage({ params }: { params: { locale: stri
     return redirect({ href: "/onboarding/register", locale });
   }
 
+  const foundingPartnerRemaining = data.provider.founding_partner
+    ? Math.max(0, data.provider.founding_partner_free_limit - data.provider.pipeline_datasets_used)
+    : 0;
+
   return (
     // Session 12 fix: the page's own coral-reef aside is gone — the
     // (authenticated) layout now renders a route-aware Pacific side panel
@@ -48,6 +53,7 @@ export default async function DashboardPage({ params }: { params: { locale: stri
           </Button>
         </Link>
       </div>
+      {foundingPartnerRemaining > 0 && <FoundingPartnerDashboardBanner remaining={foundingPartnerRemaining} />}
       <WalletPanel provider={data.provider} />
       <EarningsPanel provider={data.provider} transactions={data.recentTransactions} />
       <TrustTierProgress provider={data.provider} bestUpvoteCount={data.bestUpvoteCount} />

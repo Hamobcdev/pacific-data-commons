@@ -65,6 +65,18 @@ export interface Provider {
    * Session 7 added it. */
   agent_spend_usdc: number;
 
+  /** Session 28 — Decision 27 extended. Manually set by an SBP admin for
+   * named pilot partners only; never true for a cold inbound submission
+   * (Decision 58). Grants free pipeline processing up to
+   * founding_partner_free_limit datasets — see UploadPaymentGate.tsx. */
+  founding_partner: boolean;
+  founding_partner_set_at: string | null;
+  founding_partner_note: string | null;
+  /** Incremented in saveReview() (Step 4 submit) when a formatting_runs row
+   * is marked provider_approved — not at upload time. */
+  pipeline_datasets_used: number;
+  founding_partner_free_limit: number;
+
   created_at: string;
   updated_at: string;
 }
