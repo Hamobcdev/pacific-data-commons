@@ -46,6 +46,22 @@ const envSchema = z.object({
   // (P4/P5 — the check that matters, the payment block, already happened).
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Pacific Data Commons <alerts@synergybp.com>"),
+
+  // Session 29 — GET /algorand/wallet-balance reads live Algorand Mainnet
+  // chain state, independent of ALGORAND_NETWORK above (which controls the
+  // x402 payment settlement network, not what chain this route queries —
+  // the wallet-balance utility is always Mainnet by design). Defaults to
+  // Nodely's free public Mainnet endpoint (no token required) so "primary"
+  // is genuinely Nodely per CLAUDE.md Section 6, without depending on the
+  // paid tier's credentials existing yet. services/algorandBalanceService.ts
+  // hardcodes AlgoNode's free tier as the fallback (CLAUDE.md Section 6:
+  // "Never single node in production") — not configurable here, since a
+  // fallback that shared this same var would defeat the point of it.
+  ALGORAND_NODE_URL: z.string().url().default("https://mainnet-api.4160.nodely.io"),
+  // Optional bearer for Nodely's paid tier once provisioned — sent as
+  // X-Algo-API-Token only when set. The free public endpoint above works
+  // without it.
+  NODELY_API_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -7,6 +7,17 @@ const DIRECTORY_QUERY_PRICE_USDC = 0.01;
  * Tier 1 price every pilot/provider endpoint uses today (Decision 23: Tier
  * 1-2 price cap, $0.01 default for Tier 1). */
 const ENDPOINT_SUMMARY_FALLBACK_PRICE_USDC = 0.01;
+/** Session 29 — must match WALLET_BALANCE_PRICE_USDC registered for
+ * GET /algorand/wallet-balance in apps/directory-api/src/index.ts. The
+ * response carries no amount_paid_usdc field to read back (unlike the
+ * endpoint /summary query above), so this is logged directly rather than
+ * echoed from the response body. */
+const WALLET_BALANCE_PRICE_USDC = 0.005;
+/** SBP's own directory payTo wallet (CLAUDE.md "Payment flows to" address) —
+ * the query subject for the wallet-balance canary check below. Any valid
+ * Mainnet address would exercise the endpoint; this one doubles as a live
+ * check that SBP's own payTo wallet is funded and USDC opted-in. */
+export const WALLET_BALANCE_CANARY_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY";
 
 export interface CycleResult {
   cycle_at: string;
@@ -231,4 +242,115 @@ async function runCycleWithPayingFetch(
     total_usdc_spent: directoryResult.amount_usdc + endpointResult.amount_usdc,
     error: cycleError,
   };
+}
+
+export interface WalletBalanceCanaryResult {
+  cycle_at: string;
+  dry_run: boolean;
+  success: boolean;
+  tx_id: string | null;
+  amount_usdc: number;
+  address: string;
+  exists: boolean | null;
+  algo_balance: number | null;
+  usdc_balance: number | null;
+  error: string | null;
+}
+
+/** Just enough of GET /algorand/wallet-balance's response shape to log —
+ * deliberately not the full route response type, same "untrusted HTTP JSON"
+ * posture as DirectorySearchResponseShape above. */
+interface WalletBalanceResponseShape {
+  exists?: boolean;
+  algo_balance?: number;
+  usdc_balance?: number;
+}
+
+function emptyWalletBalanceResult(cycleAt: string, dryRun: boolean, error: string | null): WalletBalanceCanaryResult {
+  return {
+    cycle_at: cycleAt,
+    dry_run: dryRun,
+    success: false,
+    tx_id: null,
+    amount_usdc: 0,
+    address: WALLET_BALANCE_CANARY_ADDRESS,
+    exists: null,
+    algo_balance: null,
+    usdc_balance: null,
+    error,
+  };
+}
+
+/**
+ * Session 29 — queries directory-api's GET /algorand/wallet-balance once per
+ * tick, not once per category (unlike runQueryCycle above): this is a single
+ * category-agnostic utility endpoint, so index.ts calls this once per tick
+ * alongside, not inside, the per-category loop.
+ *
+ * Same dry-run / payingFetch construction as runQueryCycle, and the same
+ * Volume Integrity Policy canary-log shape (Session 26) — this settled
+ * payment needs to be identifiable against organic buyer volume the same
+ * way the directory/endpoint queries already are.
+ */
+export async function runWalletBalanceCanaryCheck(params: {
+  directoryUrl: string;
+  agentWalletKey: string | undefined;
+  network: PdcAlgorandNetwork;
+  logger: Logger;
+  /** Same purpose as runQueryCycle's walletAddress param — tags the canary
+   * log line, omit in tests that don't care about it. */
+  walletAddress?: string | null;
+  /** Injectable for tests — defaults to the real adapter. */
+  createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
+}): Promise<WalletBalanceCanaryResult> {
+  const cycleAt = new Date().toISOString();
+
+  if (!params.agentWalletKey) {
+    params.logger.info("agent_wallet_balance_canary_dry_run", {
+      cycle_at: cycleAt,
+      would_query: `${params.directoryUrl}/algorand/wallet-balance?address=${WALLET_BALANCE_CANARY_ADDRESS}`,
+      would_pay_usdc: WALLET_BALANCE_PRICE_USDC,
+      reason: "AGENT_WALLET_KEY not set",
+    });
+    return emptyWalletBalanceResult(cycleAt, true, null);
+  }
+
+  const buildPayingFetch =
+    params.createPayingFetch ??
+    ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
+  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+
+  // Volume Integrity Policy (Session 26) — see runCycleWithPayingFetch's
+  // matching comment above for why this log shape exists instead of an
+  // on-chain note field.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress ?? null };
+
+  try {
+    const url = `${params.directoryUrl.replace(/\/$/, "")}/algorand/wallet-balance?address=${WALLET_BALANCE_CANARY_ADDRESS}`;
+    const res = await payingFetch(url);
+    if (!res.ok) {
+      throw new Error(`wallet-balance query returned HTTP ${res.status}`);
+    }
+    const body = (await res.json()) as WalletBalanceResponseShape;
+    const settlement = decodeSettlementFromResponse(res);
+
+    const result: WalletBalanceCanaryResult = {
+      cycle_at: cycleAt,
+      dry_run: false,
+      success: true,
+      tx_id: settlement?.algoTxId ?? null,
+      amount_usdc: WALLET_BALANCE_PRICE_USDC,
+      address: WALLET_BALANCE_CANARY_ADDRESS,
+      exists: body.exists ?? null,
+      algo_balance: body.algo_balance ?? null,
+      usdc_balance: body.usdc_balance ?? null,
+      error: null,
+    };
+    params.logger.info("agent_wallet_balance_query_succeeded", { ...result, ...canaryLog });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    params.logger.error("agent_wallet_balance_query_failed", { error: message, address: WALLET_BALANCE_CANARY_ADDRESS });
+    return emptyWalletBalanceResult(cycleAt, false, message);
+  }
 }
