@@ -23,6 +23,11 @@ export const WALLET_BALANCE_CANARY_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQ
  * posture as WALLET_BALANCE_PRICE_USDC above — the FX response carries no
  * amount_paid_usdc field either. */
 const FX_PRICE_USDC = 0.001;
+/** Session 31 — must match PACIFIC_BRIEF_PRICE_USDC registered for
+ * GET /intelligence/pacific-brief in apps/directory-api/src/index.ts. Same
+ * "logged directly, not echoed back" posture as WALLET_BALANCE_PRICE_USDC
+ * and FX_PRICE_USDC above. */
+const PACIFIC_BRIEF_PRICE_USDC = 0.05;
 
 export interface CycleResult {
   cycle_at: string;
@@ -456,5 +461,111 @@ export async function runFxCanaryCheck(params: {
     const message = err instanceof Error ? err.message : String(err);
     params.logger.error("agent_fx_query_failed", { error: message });
     return emptyFxResult(cycleAt, false, message);
+  }
+}
+
+export interface OrchestratorCanaryResult {
+  cycle_at: string;
+  dry_run: boolean;
+  success: boolean;
+  tx_id: string | null;
+  amount_usdc: number;
+  sub_payments_count: number | null;
+  total_sub_payments_usdc: number | null;
+  confidence: string | null;
+  error: string | null;
+}
+
+/** Just enough of GET /intelligence/pacific-brief's response shape to log —
+ * deliberately not the full PacificBrief type, same "untrusted HTTP JSON"
+ * posture as WalletBalanceResponseShape/FxResponseShape above. */
+interface OrchestratorResponseShape {
+  payments?: unknown[];
+  total_sub_payments_usdc?: number;
+  confidence?: string;
+}
+
+function emptyOrchestratorResult(cycleAt: string, dryRun: boolean, error: string | null): OrchestratorCanaryResult {
+  return {
+    cycle_at: cycleAt,
+    dry_run: dryRun,
+    success: false,
+    tx_id: null,
+    amount_usdc: 0,
+    sub_payments_count: null,
+    total_sub_payments_usdc: null,
+    confidence: null,
+    error,
+  };
+}
+
+/**
+ * Session 31 — queries directory-api's GET /intelligence/pacific-brief once
+ * per tick, not once per category, same "single category-agnostic utility
+ * endpoint" posture as runWalletBalanceCanaryCheck/runFxCanaryCheck above.
+ * A fixed topic/country (fisheries/WS): the canary just needs to exercise
+ * the orchestrator end-to-end, not explore every topic. This is the one
+ * canary check that itself triggers further sub-payments server-side (the
+ * orchestrator pays 3 more PDC sub-endpoints per call) — one canary tick
+ * here contributes up to 4 settled leaderboard transactions, not 1.
+ */
+export async function runOrchestratorCanaryCheck(params: {
+  directoryUrl: string;
+  agentWalletKey: string | undefined;
+  network: PdcAlgorandNetwork;
+  logger: Logger;
+  /** Same purpose as runWalletBalanceCanaryCheck's walletAddress param —
+   * tags the canary log line, omit in tests that don't care about it. */
+  walletAddress?: string | null;
+  /** Injectable for tests — defaults to the real adapter. */
+  createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
+}): Promise<OrchestratorCanaryResult> {
+  const cycleAt = new Date().toISOString();
+
+  if (!params.agentWalletKey) {
+    params.logger.info("agent_orchestrator_canary_dry_run", {
+      cycle_at: cycleAt,
+      would_query: `${params.directoryUrl}/intelligence/pacific-brief?topic=fisheries&country=WS`,
+      would_pay_usdc: PACIFIC_BRIEF_PRICE_USDC,
+      reason: "AGENT_WALLET_KEY not set",
+    });
+    return emptyOrchestratorResult(cycleAt, true, null);
+  }
+
+  const buildPayingFetch =
+    params.createPayingFetch ??
+    ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
+  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+
+  // Volume Integrity Policy (Session 26) — same canary-log shape as every
+  // other canary check in this file.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress ?? null };
+
+  try {
+    const url = `${params.directoryUrl.replace(/\/$/, "")}/intelligence/pacific-brief?topic=fisheries&country=WS`;
+    const res = await payingFetch(url);
+    if (!res.ok) {
+      throw new Error(`pacific-brief query returned HTTP ${res.status}`);
+    }
+    const body = (await res.json()) as OrchestratorResponseShape;
+    const settlement = decodeSettlementFromResponse(res);
+
+    const result: OrchestratorCanaryResult = {
+      cycle_at: cycleAt,
+      dry_run: false,
+      success: true,
+      tx_id: settlement?.algoTxId ?? null,
+      amount_usdc: PACIFIC_BRIEF_PRICE_USDC,
+      sub_payments_count: body.payments?.length ?? null,
+      total_sub_payments_usdc: body.total_sub_payments_usdc ?? null,
+      confidence: body.confidence ?? null,
+      error: null,
+    };
+    params.logger.info("agent_orchestrator_query_succeeded", { ...result, ...canaryLog });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    params.logger.error("agent_orchestrator_query_failed", { error: message });
+    return emptyOrchestratorResult(cycleAt, false, message);
   }
 }
