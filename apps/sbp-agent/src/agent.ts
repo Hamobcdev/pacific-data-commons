@@ -18,6 +18,11 @@ const WALLET_BALANCE_PRICE_USDC = 0.005;
  * Mainnet address would exercise the endpoint; this one doubles as a live
  * check that SBP's own payTo wallet is funded and USDC opted-in. */
 export const WALLET_BALANCE_CANARY_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY";
+/** Session 30 — must match FX_PRICE_USDC registered for GET /finance/fx in
+ * apps/directory-api/src/index.ts. Same "logged directly, not echoed back"
+ * posture as WALLET_BALANCE_PRICE_USDC above — the FX response carries no
+ * amount_paid_usdc field either. */
+const FX_PRICE_USDC = 0.001;
 
 export interface CycleResult {
   cycle_at: string;
@@ -352,5 +357,104 @@ export async function runWalletBalanceCanaryCheck(params: {
     const message = err instanceof Error ? err.message : String(err);
     params.logger.error("agent_wallet_balance_query_failed", { error: message, address: WALLET_BALANCE_CANARY_ADDRESS });
     return emptyWalletBalanceResult(cycleAt, false, message);
+  }
+}
+
+export interface FxCanaryResult {
+  cycle_at: string;
+  dry_run: boolean;
+  success: boolean;
+  tx_id: string | null;
+  amount_usdc: number;
+  source: string | null;
+  rates_count: number | null;
+  error: string | null;
+}
+
+/** Just enough of GET /finance/fx's response shape to log — deliberately
+ * not the full FxRates type, same "untrusted HTTP JSON" posture as
+ * WalletBalanceResponseShape above. */
+interface FxResponseShape {
+  source?: string;
+  rates?: Record<string, number>;
+}
+
+function emptyFxResult(cycleAt: string, dryRun: boolean, error: string | null): FxCanaryResult {
+  return {
+    cycle_at: cycleAt,
+    dry_run: dryRun,
+    success: false,
+    tx_id: null,
+    amount_usdc: 0,
+    source: null,
+    rates_count: null,
+    error,
+  };
+}
+
+/**
+ * Session 30 — queries directory-api's GET /finance/fx once per tick, not
+ * once per category, same "single category-agnostic utility endpoint"
+ * posture as runWalletBalanceCanaryCheck above. No query params: the
+ * canary just needs to exercise the endpoint and confirm it's serving
+ * rates, not perform a conversion.
+ */
+export async function runFxCanaryCheck(params: {
+  directoryUrl: string;
+  agentWalletKey: string | undefined;
+  network: PdcAlgorandNetwork;
+  logger: Logger;
+  /** Same purpose as runWalletBalanceCanaryCheck's walletAddress param —
+   * tags the canary log line, omit in tests that don't care about it. */
+  walletAddress?: string | null;
+  /** Injectable for tests — defaults to the real adapter. */
+  createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
+}): Promise<FxCanaryResult> {
+  const cycleAt = new Date().toISOString();
+
+  if (!params.agentWalletKey) {
+    params.logger.info("agent_fx_canary_dry_run", {
+      cycle_at: cycleAt,
+      would_query: `${params.directoryUrl}/finance/fx`,
+      would_pay_usdc: FX_PRICE_USDC,
+      reason: "AGENT_WALLET_KEY not set",
+    });
+    return emptyFxResult(cycleAt, true, null);
+  }
+
+  const buildPayingFetch =
+    params.createPayingFetch ??
+    ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
+  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+
+  // Volume Integrity Policy (Session 26) — same canary-log shape as every
+  // other canary check in this file.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress ?? null };
+
+  try {
+    const url = `${params.directoryUrl.replace(/\/$/, "")}/finance/fx`;
+    const res = await payingFetch(url);
+    if (!res.ok) {
+      throw new Error(`fx query returned HTTP ${res.status}`);
+    }
+    const body = (await res.json()) as FxResponseShape;
+    const settlement = decodeSettlementFromResponse(res);
+
+    const result: FxCanaryResult = {
+      cycle_at: cycleAt,
+      dry_run: false,
+      success: true,
+      tx_id: settlement?.algoTxId ?? null,
+      amount_usdc: FX_PRICE_USDC,
+      source: body.source ?? null,
+      rates_count: body.rates ? Object.keys(body.rates).length : null,
+      error: null,
+    };
+    params.logger.info("agent_fx_query_succeeded", { ...result, ...canaryLog });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    params.logger.error("agent_fx_query_failed", { error: message });
+    return emptyFxResult(cycleAt, false, message);
   }
 }

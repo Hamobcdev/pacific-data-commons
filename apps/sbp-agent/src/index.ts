@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { loadEnv } from "./env.js";
 import { logger } from "./logger.js";
 import { getWalletStatus } from "./wallet.js";
-import { runQueryCycle, runWalletBalanceCanaryCheck, type CycleResult, type WalletBalanceCanaryResult } from "./agent.js";
+import { runQueryCycle, runWalletBalanceCanaryCheck, runFxCanaryCheck, type CycleResult, type WalletBalanceCanaryResult, type FxCanaryResult } from "./agent.js";
 import { getAgentWalletKey } from "./key-provider.js";
 import { ensureAgentRegistered } from "./lib/self-register.js";
 import { submitAttribution } from "./lib/attribution.js";
@@ -101,6 +101,7 @@ async function main(): Promise<void> {
 
   let lastCycles: CycleResult[] = [];
   let lastWalletBalanceCheck: WalletBalanceCanaryResult | null = null;
+  let lastFxCheck: FxCanaryResult | null = null;
 
   async function tick(): Promise<void> {
     // Retrieved fresh every cycle, not reused from startup — this is the
@@ -171,6 +172,32 @@ async function main(): Promise<void> {
         logger.warn("agent_attribution_submission_failed", { context: "wallet_balance_canary", error: attribution.error });
       }
     }
+
+    // Session 30 — once per tick, same "single category-agnostic utility
+    // endpoint" posture as the wallet-balance canary above.
+    const fxResult = await runFxCanaryCheck({
+      directoryUrl: env.DIRECTORY_URL,
+      agentWalletKey,
+      network: env.ALGORAND_NETWORK,
+      logger,
+      walletAddress: wallet.address,
+    });
+    lastFxCheck = fxResult;
+
+    if (!fxResult.dry_run && fxResult.tx_id && agentId && agentWalletKey && wallet.address) {
+      const attribution = await submitAttribution({
+        directoryApiUrl: env.DIRECTORY_URL,
+        agentWalletKeyBase64: agentWalletKey,
+        agentOperationalWalletAddress: wallet.address,
+        agentId,
+        runId: randomUUID(),
+        endpointTxIds: [fxResult.tx_id],
+        originatingUserWallet: wallet.address,
+      });
+      if (!attribution.success) {
+        logger.warn("agent_attribution_submission_failed", { context: "fx_canary", error: attribution.error });
+      }
+    }
   }
 
   // Run immediately on startup, then on the configured schedule.
@@ -194,6 +221,7 @@ async function main(): Promise<void> {
       categories,
       last_cycles: lastCycles,
       last_wallet_balance_check: lastWalletBalanceCheck,
+      last_fx_check: lastFxCheck,
     }),
   );
 
