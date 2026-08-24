@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runQueryCycle, runWalletBalanceCanaryCheck, runFxCanaryCheck, WALLET_BALANCE_CANARY_ADDRESS } from "../src/agent.js";
+import { runQueryCycle, runWalletBalanceCanaryCheck, runFxCanaryCheck, runOrchestratorCanaryCheck, WALLET_BALANCE_CANARY_ADDRESS } from "../src/agent.js";
 import type { Logger } from "../src/logger.js";
 
 function fakeLogger(): Logger & { calls: Array<{ level: string; message: string }> } {
@@ -262,5 +262,79 @@ describe("runFxCanaryCheck — live (mocked payingFetch)", () => {
     expect(result.error).toContain("402");
     expect(result.tx_id).toBeNull();
     expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_fx_query_failed")).toBe(true);
+  });
+});
+
+describe("runOrchestratorCanaryCheck — dry run", () => {
+  it("never constructs a payment client when AGENT_WALLET_KEY is unset", async () => {
+    const createPayingFetch = vi.fn();
+    const logger = fakeLogger();
+
+    const result = await runOrchestratorCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: undefined,
+      network: "mainnet",
+      logger,
+      createPayingFetch,
+    });
+
+    expect(createPayingFetch).not.toHaveBeenCalled();
+    expect(result.dry_run).toBe(true);
+    expect(result.sub_payments_count).toBeNull();
+    expect(logger.calls.some((c) => c.message === "agent_orchestrator_canary_dry_run")).toBe(true);
+  });
+});
+
+describe("runOrchestratorCanaryCheck — live (mocked payingFetch)", () => {
+  it("queries GET /intelligence/pacific-brief and logs a canary-tagged success", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        confidence: "high",
+        total_sub_payments_usdc: 0.016,
+        payments: [
+          { endpoint: "https://pdcpilot-endpoint-production.up.railway.app/summary", category: "fisheries", tx_id: null, amount_usdc: 0.01 },
+          { endpoint: "https://directory.example/finance/fx", category: "finance", tx_id: null, amount_usdc: 0.001 },
+          { endpoint: "https://directory.example/algorand/wallet-balance", category: "algorand", tx_id: null, amount_usdc: 0.005 },
+        ],
+      }),
+    );
+
+    const result = await runOrchestratorCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      walletAddress: "AGENTWALLETADDR",
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(payingFetch).toHaveBeenCalledWith("https://directory.example/intelligence/pacific-brief?topic=fisheries&country=WS");
+    expect(result.dry_run).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.error).toBeNull();
+    expect(result.sub_payments_count).toBe(3);
+    expect(result.total_sub_payments_usdc).toBeCloseTo(0.016);
+    expect(result.confidence).toBe("high");
+    expect(result.amount_usdc).toBeCloseTo(0.05);
+    expect(logger.calls.some((c) => c.message === "agent_orchestrator_query_succeeded")).toBe(true);
+  });
+
+  it("logs an error and returns success:false without throwing on a non-ok response", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(jsonResponse({ error: "payment_required" }, { status: 402 }));
+
+    const result = await runOrchestratorCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("402");
+    expect(result.tx_id).toBeNull();
+    expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_orchestrator_query_failed")).toBe(true);
   });
 });

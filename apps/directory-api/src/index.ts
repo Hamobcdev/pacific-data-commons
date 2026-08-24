@@ -22,6 +22,7 @@ import { updatesRoute } from "./routes/updates.js";
 import { externalSourcesRoute } from "./routes/externalSources.js";
 import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
 import { fxRoute } from "./routes/finance/fx.js";
+import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import type { AppBindings } from "./types.js";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
@@ -39,6 +40,12 @@ const WALLET_BALANCE_PRICE_USDC = 0.005;
 // once), so low friction per call matters more than per-call revenue for
 // generating leaderboard transaction count.
 const FX_PRICE_USDC = 0.001;
+
+// Session 31 — Pacific Intelligence Orchestrator. Priced well above its own
+// ~$0.016 in sub-endpoint payments (fisheries $0.01 + fx $0.001 +
+// wallet-balance $0.005) plus Claude synthesis cost, so the spread is real
+// margin, not just cost pass-through (CLAUDE.md Section 19, Model F).
+const PACIFIC_BRIEF_PRICE_USDC = 0.05;
 
 function main(): void {
   const env = loadEnv();
@@ -166,6 +173,48 @@ function main(): void {
         },
       }),
     },
+    {
+      method: "GET",
+      path: "/intelligence/pacific-brief",
+      description:
+        "Pacific Intelligence Orchestrator: autonomously pays 3 live PDC sub-endpoints (fisheries stock summary, FX rates, Algorand wallet-balance check) via x402, then synthesises the results into a structured intelligence brief using Claude. One payment triggers multiple sub-payments settling on Algorand Mainnet. Specify topic (fisheries/marine/ocean/economic/climate/general) and country code (WS/FJ/TO/PG/SB/VU/CK/NU) to shape which findings are emphasised. Returns executive summary, key findings, data sources, synthetic-data warning, and the full sub-payment trail.",
+      priceUsdc: PACIFIC_BRIEF_PRICE_USDC,
+      discovery: discoveryFor({
+        method: "GET",
+        input: { topic: "fisheries", country: "WS" },
+        inputSchema: {
+          properties: {
+            topic: { type: "string", enum: ["fisheries", "marine", "ocean", "economic", "climate", "general"], description: "Shapes synthesis framing — does not change which sub-endpoints are queried" },
+            country: { type: "string", enum: ["WS", "FJ", "TO", "PG", "SB", "VU", "CK", "NU"], description: "Pacific ISO country code — shapes synthesis framing" },
+          },
+          required: [],
+        },
+        output: {
+          example: {
+            topic: "fisheries",
+            country: "WS",
+            executive_summary: "Synthetic demo fisheries data shows a healthy skipjack stock index alongside stable FX conditions for Samoa.",
+            key_findings: ["Skipjack stock index 0.92 in the synthetic demo dataset (fisheries)", "WST/USD rate stable (finance)", "SBP payTo wallet funded and USDC opted-in (algorand)"],
+            data_sources: [
+              { name: "fisheries", queried_at: "2026-08-25T00:00:00.000Z", category: "fisheries" },
+              { name: "fx", queried_at: "2026-08-25T00:00:00.000Z", category: "finance" },
+              { name: "wallet_balance", queried_at: "2026-08-25T00:00:00.000Z", category: "algorand" },
+            ],
+            limitations: "Fisheries data is synthetic demonstration data, not a real stock assessment.",
+            confidence: "high",
+            data_warning: "SYNTHETIC DATA: This dataset demonstrates the Pacific Data Commons payment infrastructure. All values are fabricated.",
+            payments: [
+              { endpoint: "https://pdcpilot-endpoint-production.up.railway.app/summary", category: "fisheries", tx_id: "…", amount_usdc: 0.01 },
+              { endpoint: "https://api.synergybcpacific.com/finance/fx", category: "finance", tx_id: "…", amount_usdc: 0.001 },
+              { endpoint: "https://api.synergybcpacific.com/algorand/wallet-balance", category: "algorand", tx_id: "…", amount_usdc: 0.005 },
+            ],
+            total_sub_payments_usdc: 0.016,
+            orchestrated_at: "2026-08-25T00:00:00.000Z",
+            run_id: "…",
+          },
+        },
+      }),
+    },
   ];
 
   for (const route of paidRoutes) {
@@ -216,6 +265,7 @@ function main(): void {
   app.route("/", externalSourcesRoute);
   app.route("/", walletBalanceRoute);
   app.route("/", fxRoute);
+  app.route("/", pacificBriefRoute);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);

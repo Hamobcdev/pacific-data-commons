@@ -62,6 +62,43 @@ const envSchema = z.object({
   // X-Algo-API-Token only when set. The free public endpoint above works
   // without it.
   NODELY_API_TOKEN: z.string().optional(),
+
+  // Session 31 — Pacific Intelligence Orchestrator's payer wallet
+  // (GET /intelligence/pacific-brief pays 3 PDC sub-endpoints per run).
+  // User-confirmed for the Sep 2026 Monash timeline: this reuses
+  // apps/sbp-agent's own operational wallet (the same AGENT_WALLET_KEY
+  // value, copied into this service's env too) rather than minting a
+  // dedicated orchestrator wallet. Consequence: selfRegisterAgent looks up
+  // `agents` rows by wallet address alone (agentSelfRegisterService.ts), so
+  // the orchestrator's attribution records resolve to the same existing
+  // "SBP Pilot Agent" row sbp-agent's own canary already uses — Orchestrator
+  // volume is not separately distinguishable from dogfooding-canary volume
+  // on the leaderboard until this is split out.
+  // TODO post-Monash: mint a dedicated orchestrator wallet + its own
+  // AGENT_WALLET_KEY here, and self-register it under a distinct identity.
+  // Optional here (not required-at-boot like apps/agents' own
+  // AGENT_WALLET_KEY): this is one route among many in a general-purpose
+  // service — an unset key degrades that one route to 503, not a boot
+  // failure, same posture as RESEND_API_KEY above.
+  AGENT_WALLET_KEY: z.string().optional(),
+
+  // Session 31 — pilot-endpoint's public base URL, the one live PDC
+  // provider endpoint the orchestrator queries for fisheries data. Not a
+  // secret (a public URL) — a real default rather than required, same
+  // posture as ALGORAND_NODE_URL above.
+  PILOT_ENDPOINT_URL: z.string().url().default("https://pdcpilot-endpoint-production.up.railway.app"),
+
+  // Session 31 — Pacific Intelligence Orchestrator synthesis (Claude via
+  // @anthropic-ai/sdk). Optional, same posture as AGENT_WALLET_KEY above:
+  // GET /intelligence/pacific-brief degrades to 503 when unset rather than
+  // failing service boot. CLAUDE_MODEL follows this repo's existing model-id
+  // convention (apps/agents' CLAUDE_MODEL, apps/web's assistant route) —
+  // Haiku rather than Sonnet here deliberately: synthesis runs on every
+  // $0.05 query, so the cheaper/faster model keeps the orchestrator's own
+  // margin (price minus ~$0.016 in sub-payments minus synthesis cost)
+  // sane at volume.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  CLAUDE_MODEL: z.string().default("claude-haiku-4-5"),
 });
 
 export type Env = z.infer<typeof envSchema>;
