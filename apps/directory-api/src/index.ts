@@ -21,6 +21,7 @@ import { internalRoute } from "./routes/internal.js";
 import { updatesRoute } from "./routes/updates.js";
 import { externalSourcesRoute } from "./routes/externalSources.js";
 import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
+import { fxRoute } from "./routes/finance/fx.js";
 import type { AppBindings } from "./types.js";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
@@ -32,6 +33,12 @@ const DIRECTORY_QUERY_PRICE_USDC = 0.01;
 // Pacific-domain lookup), meant to attract organic x402 traffic and
 // leaderboard volume from agents that have never queried PDC before.
 const WALLET_BALANCE_PRICE_USDC = 0.005;
+
+// Session 30 — priced below even the wallet-balance utility fee: FX is a
+// repeat-query pattern (agents check rates multiple times per day, not
+// once), so low friction per call matters more than per-call revenue for
+// generating leaderboard transaction count.
+const FX_PRICE_USDC = 0.001;
 
 function main(): void {
   const env = loadEnv();
@@ -132,6 +139,33 @@ function main(): void {
         },
       }),
     },
+    {
+      method: "GET",
+      path: "/finance/fx",
+      description:
+        "Pacific FX rates: WST, FJD, TOP, PGK, SBD, VUV plus AUD, NZD, EUR, GBP, JPY, CNY, ALGO, and USDC, base USD. Optional conversion via ?from=&to=&amount=. Updated daily, 60-minute cache.",
+      priceUsdc: FX_PRICE_USDC,
+      discovery: discoveryFor({
+        method: "GET",
+        input: { from: "WST", to: "USD", amount: 100 },
+        inputSchema: {
+          properties: {
+            from: { type: "string", description: "Source currency code — optional, required together with to and amount for conversion" },
+            to: { type: "string", description: "Target currency code — optional, required together with from and amount for conversion" },
+            amount: { type: "number", description: "Amount to convert — optional, required together with from and to for conversion" },
+          },
+          required: [],
+        },
+        output: {
+          example: {
+            base: "USD",
+            timestamp: "2026-08-25T00:00:00.000Z",
+            source: "currency-api",
+            rates: { WST: 2.72, FJD: 2.19, TOP: 2.41, PGK: 4.44, SBD: 8.01, VUV: 118.36, AUD: 1.4, NZD: 1.67, EUR: 0.86, GBP: 0.73, JPY: 159.1, CNY: 6.72, ALGO: 0.092, USDC: 1.0 },
+          },
+        },
+      }),
+    },
   ];
 
   for (const route of paidRoutes) {
@@ -181,6 +215,7 @@ function main(): void {
   app.route("/", updatesRoute);
   app.route("/", externalSourcesRoute);
   app.route("/", walletBalanceRoute);
+  app.route("/", fxRoute);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
