@@ -237,16 +237,15 @@ async function main(): Promise<void> {
     }
   }
 
-  // Run immediately on startup, then on the configured schedule.
-  await tick();
-  setInterval(() => {
-    tick().catch((err: unknown) => {
-      logger.error("agent_cycle_unhandled_error", { error: err instanceof Error ? err.message : String(err) });
-    });
-  }, intervalMs);
-
   // Railway requires a port even for background workers — this also gives
   // operators a live look at the last cycle without grepping logs.
+  //
+  // Started before the first tick() below (not after) — Railway's
+  // healthcheck window is 30 seconds, and a tick can run well past that
+  // (multiple sequential x402 payments plus, for the orchestrator canary,
+  // a Claude synthesis call). The server must be listening and answering
+  // /health immediately at boot; the first tick then runs as soon as the
+  // event loop is free, not before.
   const app = new Hono();
   app.get("/health", (c) =>
     c.json({
@@ -266,6 +265,14 @@ async function main(): Promise<void> {
   serve({ fetch: app.fetch, port: env.PORT }, (info) => {
     logger.info("sbp_agent_ready", { port: info.port });
   });
+
+  // Run immediately after the server is listening, then on the configured schedule.
+  await tick();
+  setInterval(() => {
+    tick().catch((err: unknown) => {
+      logger.error("agent_cycle_unhandled_error", { error: err instanceof Error ? err.message : String(err) });
+    });
+  }, intervalMs);
 }
 
 main();
