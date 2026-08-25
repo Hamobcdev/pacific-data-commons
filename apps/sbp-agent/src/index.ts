@@ -1,3 +1,4 @@
+// Redeploy trigger: comment-only change, picks up the build:sbp-agent shared-types fix.
 import { randomUUID } from "node:crypto";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
