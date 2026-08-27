@@ -285,10 +285,33 @@ export async function generatePacificTravelBrief(params: GeneratePacificTravelBr
     { key: "weather", category: "weather", url: `${params.publicUrl.replace(/\/$/, "")}/pacific/weather?country=${params.destination}`, priceUsdc: 0.002 },
   ];
 
-  // Sequential, not Promise.all — same settlement-ordering reasoning as
-  // pacificIntelligenceService.ts and sbp-agent's tick()/runQueryCycle loops.
-  for (const spec of subEndpoints) {
-    try {
+  // Parallel via Promise.allSettled, not sequential (Session 36 fix) — this
+  // used to await each sub-endpoint in turn, on the reasoning that parallel
+  // signing against the same agent wallet key adds settlement-ordering
+  // risk (same posture as pacificIntelligenceService.ts and sbp-agent's
+  // tick()/runQueryCycle loops, both of which still run sequentially: they
+  // sign against a *shared* per-process wallet across separate calls in a
+  // loop, a different situation from the 4 independent, single-shot
+  // sub-payments made once per brief here). That caution turned out to cost
+  // more than it protected against: each x402 payment carries its own
+  // signed Algorand transaction with a short validity window (~10 rounds,
+  // ~30 seconds — hardcoded inside the pinned @x402/avm package's
+  // ExactAvmScheme.createPaymentPayload, confirmed not configurable from
+  // here — see the Session 36 investigation notes in the PR description).
+  // This orchestrator's own outer payment is only settled by directory-api
+  // *after* this whole function returns (P4/x402 "charge on handler
+  // success" — see directoryPaymentLogger.ts), so 4 sequential sub-payment
+  // round trips plus Claude synthesis routinely pushed total handler time
+  // past that ~30-second window, expiring the buyer's own already-signed
+  // payment before settlement ever got attempted ("txn dead: round N
+  // outside of firstValid--lastValid"). Signing 4 independent transactions
+  // to 4 different payTo addresses concurrently from one Ed25519 key has no
+  // Algorand-protocol-level ordering requirement (unlike account-nonce
+  // chains) — the original caution doesn't actually apply to this
+  // particular fan-out shape, only to a shared long-lived wallet issuing
+  // many sequential transactions over time.
+  const settledSubResults = await Promise.allSettled(
+    subEndpoints.map(async (spec) => {
       const res = await payingFetch(spec.url);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -300,26 +323,37 @@ export async function generatePacificTravelBrief(params: GeneratePacificTravelBr
       // service's own /pacific/events and /finance/fx don't — same
       // both-shapes handling as pacificIntelligenceService.ts.
       const data = "data" in body ? body.data : body;
+      return {
+        payment: { endpoint: spec.url, category: spec.category, tx_id: settlement?.algoTxId ?? null, amount_usdc: spec.priceUsdc },
+        subResult: { key: spec.key, category: spec.category, data, dataWarning } satisfies SubQueryResult,
+      };
+    }),
+  );
 
-      payments.push({
-        endpoint: spec.url,
-        category: spec.category,
-        tx_id: settlement?.algoTxId ?? null,
-        amount_usdc: spec.priceUsdc,
-      });
-      subResults.push({ key: spec.key, category: spec.category, data, dataWarning });
-    } catch (err) {
-      // Log but don't fail the whole run — synthesise from whatever
-      // sub-endpoints did succeed, same posture as every other multi-source
-      // aggregation in this codebase.
-      logger.error("tourism_orchestrator_sub_endpoint_failed", {
-        run_id: runId,
-        key: spec.key,
-        url: spec.url,
-        error: err instanceof Error ? err.message : String(err),
-      });
+  // Reconciled in subEndpoints' original order (Promise.allSettled preserves
+  // input-array index correspondence regardless of actual completion order),
+  // so payments[]/subResults[]/data_sources[] ordering is unchanged from the
+  // previous sequential behaviour — nothing downstream needed to change.
+  settledSubResults.forEach((outcome, i) => {
+    const spec = subEndpoints[i];
+    if (!spec) return; // unreachable — outcome index always matches subEndpoints' length
+    if (outcome.status === "fulfilled") {
+      payments.push(outcome.value.payment);
+      subResults.push(outcome.value.subResult);
+      return;
     }
-  }
+    // Log but don't fail the whole run — synthesise from whatever
+    // sub-endpoints did succeed, same posture as every other multi-source
+    // aggregation in this codebase. Promise.allSettled (not Promise.all) is
+    // exactly what preserves this: one rejected sub-payment must not abort
+    // the others already in flight or the brief as a whole.
+    logger.error("tourism_orchestrator_sub_endpoint_failed", {
+      run_id: runId,
+      key: spec.key,
+      url: spec.url,
+      error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+    });
+  });
 
   // Checked before the (free) tourism-stats read below is added to
   // subResults — this error means "the buyer paid $0.10 and every paid

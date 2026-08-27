@@ -177,6 +177,43 @@ describe("generatePacificTravelBrief — service (dependency-injected payingFetc
     expect(brief.data_warning).toContain("events, exchange rates, weather, tourism statistics");
   });
 
+  it("queries all 4 paid sub-endpoints concurrently, not sequentially (Session 36 latency fix)", async () => {
+    // Each mock only resolves once every one of the 4 calls has started —
+    // this can only pass if all 4 are in flight at the same time. Under the
+    // old sequential-await implementation, call 2 would never even start
+    // until call 1 had already resolved, so this would hang and the test
+    // would time out.
+    let inFlight = 0;
+    const allStarted = new Promise<void>((resolve) => {
+      const check = () => {
+        if (inFlight >= 4) resolve();
+      };
+      // Poll on a microtask basis — cheap and avoids adding a fake timer
+      // dependency just for this one assertion.
+      const interval = setInterval(() => {
+        check();
+        if (inFlight >= 4) clearInterval(interval);
+      }, 1);
+    });
+
+    const payingFetch = vi.fn().mockImplementation(async () => {
+      inFlight += 1;
+      await allStarted;
+      return jsonResponse({ base: "USD", source: "currency-api", rates: { WST: 2.72 } });
+    });
+    const synthesizeFn = vi.fn().mockResolvedValue({
+      raw_text: "…",
+      structured_data: { executive_summary: "Test.", seasonal_context: "Test.", booking_advice: "Test.", confidence: "medium" },
+    });
+
+    const brief = await generatePacificTravelBrief(
+      baseParams({ createPayingFetch: () => payingFetch as unknown as typeof fetch, synthesizeFn }),
+    );
+
+    expect(payingFetch).toHaveBeenCalledTimes(4);
+    expect(brief.payments).toHaveLength(4);
+  });
+
   it("throws AllTourismSubEndpointsFailedError when every paid sub-endpoint fails", async () => {
     const payingFetch = vi.fn().mockResolvedValue(jsonResponse({ error: "payment_required" }, 402));
 
