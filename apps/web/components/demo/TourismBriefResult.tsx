@@ -38,6 +38,22 @@ export function TourismBriefResult({ brief, destinationName }: Props) {
         </CardContent>
       </Card>
 
+      {brief.weather && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>{t("weather_title")}</CardTitle>
+            <Badge variant={brief.weather.tourism_rating === "Excellent" || brief.weather.tourism_rating === "Good" ? "success" : "warning"}>
+              {brief.weather.tourism_rating}
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <p className="text-base text-navy">{brief.weather.current_conditions}</p>
+            <p className="text-sm text-gray-600 mt-1">{brief.weather.week_summary}</p>
+            <p className="text-xs text-gray-400 mt-2">{t("weather_source", { days: brief.weather.forecast_days })}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {brief.upcoming_events.length > 0 && (
         <Card>
           <CardHeader>
@@ -86,6 +102,26 @@ export function TourismBriefResult({ brief, destinationName }: Props) {
                 </tbody>
               </table>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {brief.tourism_stats && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("stats_title", { year: brief.tourism_stats.year })}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {brief.tourism_stats.international_arrivals != null && (
+              <p className="text-gray-700">{t("stats_arrivals", { count: brief.tourism_stats.international_arrivals.toLocaleString() })}</p>
+            )}
+            {brief.tourism_stats.avg_spend_per_visitor_usd != null && (
+              <p className="text-gray-700">{t("stats_avg_spend", { amount: brief.tourism_stats.avg_spend_per_visitor_usd.toLocaleString() })}</p>
+            )}
+            {brief.tourism_stats.peak_months && brief.tourism_stats.peak_months.length > 0 && (
+              <p className="text-gray-700">{t("stats_peak_months", { months: brief.tourism_stats.peak_months.join(", ") })}</p>
+            )}
+            <p className="text-xs text-gray-400 mt-2">{brief.tourism_stats.source}</p>
           </CardContent>
         </Card>
       )}

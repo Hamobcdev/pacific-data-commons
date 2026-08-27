@@ -24,6 +24,7 @@ import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
 import { fxRoute } from "./routes/finance/fx.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
+import { pacificWeatherRoute } from "./routes/pacific/weather.js";
 import { pacificTravelRoute } from "./routes/intelligence/pacific-travel.js";
 import type { AppBindings } from "./types.js";
 
@@ -56,11 +57,17 @@ const PACIFIC_BRIEF_PRICE_USDC = 0.05;
 // reasoning as FX_PRICE_USDC above.
 const EVENTS_PRICE_USDC = 0.002;
 
+// Session 34 — Pacific Weather. Same pricing tier and reasoning as
+// EVENTS_PRICE_USDC: a narrow, high-frequency lookup an agent or booking
+// platform may poll often for a given destination.
+const WEATHER_PRICE_USDC = 0.002;
+
 // Session 32 — Pacific Tourism Orchestrator, the live demonstration behind
 // SBP's Samoa Tourism Authority proposal. Priced well above its own
-// ~$0.013 in sub-endpoint payments (events $0.002 + fx $0.001 + fisheries
-// $0.01) plus Claude synthesis cost, same margin reasoning as
-// PACIFIC_BRIEF_PRICE_USDC above.
+// ~$0.015 in sub-endpoint payments (events $0.002 + fx $0.001 + fisheries
+// $0.01 + weather $0.002, Session 34 — tourism stats is a direct Supabase
+// read, no x402 payment) plus Claude synthesis cost, same margin reasoning
+// as PACIFIC_BRIEF_PRICE_USDC above.
 const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 
 function main(): void {
@@ -270,9 +277,46 @@ function main(): void {
     },
     {
       method: "GET",
+      path: "/pacific/weather",
+      description:
+        "Real-time weather and 7-day forecast for Pacific Island destinations. Returns current temperature, humidity, precipitation, wind speed, and conditions plus a 7-day forecast with daily tourism ratings (Excellent/Good/Fair/Poor). Data from Open-Meteo (ECMWF model), updated hourly. Requires country: WS (Samoa), FJ (Fiji), TO (Tonga), PG (Papua New Guinea), SB (Solomon Islands), VU (Vanuatu), CK (Cook Islands).",
+      priceUsdc: WEATHER_PRICE_USDC,
+      discovery: discoveryFor({
+        method: "GET",
+        input: { country: "WS" },
+        inputSchema: {
+          properties: {
+            country: { type: "string", enum: ["WS", "FJ", "TO", "PG", "SB", "VU", "CK"], description: "Pacific ISO country code — required" },
+          },
+          required: ["country"],
+        },
+        output: {
+          example: {
+            country_code: "WS",
+            country_name: "Samoa",
+            current: {
+              temperature_c: 25.8,
+              humidity_percent: 78,
+              precipitation_mm: 0,
+              wind_speed_kmh: 4.3,
+              conditions: "Partly cloudy",
+              tourism_rating: "Excellent",
+            },
+            forecast_7_day: [
+              { date: "2026-08-27", temp_max_c: 26.8, temp_min_c: 25.3, precipitation_mm: 0.2, conditions: "Drizzle", tourism_rating: "Excellent" },
+            ],
+            week_summary: "Excellent conditions — 27°C average, mostly dry",
+            queried_at: "2026-08-27T00:00:00.000Z",
+            source: "open-meteo",
+          },
+        },
+      }),
+    },
+    {
+      method: "GET",
       path: "/intelligence/pacific-travel",
       description:
-        "Pacific Travel Intelligence Orchestrator: given a destination and travel window, autonomously queries upcoming events, live exchange rates, and seasonal marine conditions, then synthesises a structured travel intelligence brief using Claude. Designed for travel agents, booking platforms, and AI travel assistants. One payment triggers multiple sub-payments to Pacific data providers. Returns executive summary, upcoming events, seasonal context, exchange rates, booking advice, and the full payment trail.",
+        "Pacific Travel Intelligence Orchestrator: given a destination and travel window, autonomously queries upcoming events, live exchange rates, real-time weather, tourism arrival/spend statistics, and seasonal marine conditions, then synthesises a structured travel intelligence brief using Claude. Designed for travel agents, booking platforms, and AI travel assistants. One payment triggers multiple sub-payments to Pacific data providers. Returns executive summary, upcoming events, weather, exchange rates, tourism statistics, booking advice, and the full payment trail.",
       priceUsdc: PACIFIC_TRAVEL_PRICE_USDC,
       discovery: discoveryFor({
         method: "GET",
@@ -288,24 +332,29 @@ function main(): void {
           example: {
             destination: "WS",
             travel_window: "christmas_2026",
-            executive_summary: "Samoa's Christmas and New Year peak season overlaps favourably with stable FX conditions and healthy synthetic marine indicators.",
+            executive_summary: "Samoa's Christmas and New Year peak season overlaps favourably with excellent current weather and stable FX conditions.",
             upcoming_events: [{ name: "Samoa Christmas and New Year", dates: "2026-12-20 to 2027-01-05", impact: "very_high" }],
             seasonal_context: "Synthetic demo marine data shows stable conditions for the travel window.",
             exchange_rates: { note: "Live rates from currency-api, base USD.", key_rates: { WST: 2.72 } },
+            weather: { current_conditions: "25.8°C, Partly cloudy", week_summary: "Excellent conditions — 27°C average, mostly dry", tourism_rating: "Excellent", forecast_days: 7 },
+            tourism_stats: { country_code: "WS", country_name: "Samoa", year: 2023, international_arrivals: 164000, tourism_receipts_usd_millions: 180.5, avg_spend_per_visitor_usd: 1100, avg_length_stay_days: 8.5, peak_months: ["December", "January", "July", "August"], low_months: ["March", "April", "May"], source: "World Bank / Samoa Tourism Authority", data_quality: "verified" },
             booking_advice: "Book at least 3 months ahead — flights from Auckland and Sydney fill up by October.",
             data_sources: [
               { name: "events", queried_at: "2026-08-27T00:00:00.000Z", category: "events" },
               { name: "fx", queried_at: "2026-08-27T00:00:00.000Z", category: "finance" },
               { name: "fisheries", queried_at: "2026-08-27T00:00:00.000Z", category: "fisheries" },
+              { name: "weather", queried_at: "2026-08-27T00:00:00.000Z", category: "weather" },
+              { name: "tourism_stats", queried_at: "2026-08-27T00:00:00.000Z", category: "tourism_stats" },
             ],
-            data_warning: "SYNTHETIC DATA: This dataset demonstrates the Pacific Data Commons payment infrastructure. All values are fabricated.",
+            data_warning: "Only the fisheries/marine component of this brief is demonstration data — SYNTHETIC DATA: This dataset demonstrates the Pacific Data Commons payment infrastructure. All values are fabricated. All other sections (events, exchange rates, weather, tourism statistics) are live, real data.",
             confidence: "high",
             payments: [
               { endpoint: "https://api.synergybcpacific.com/pacific/events", category: "events", tx_id: "…", amount_usdc: 0.002 },
               { endpoint: "https://api.synergybcpacific.com/finance/fx", category: "finance", tx_id: "…", amount_usdc: 0.001 },
               { endpoint: "https://pdcpilot-endpoint-production.up.railway.app/summary", category: "fisheries", tx_id: "…", amount_usdc: 0.01 },
+              { endpoint: "https://api.synergybcpacific.com/pacific/weather", category: "weather", tx_id: "…", amount_usdc: 0.002 },
             ],
-            total_sub_payments_usdc: 0.013,
+            total_sub_payments_usdc: 0.015,
             orchestrated_at: "2026-08-27T00:00:00.000Z",
             run_id: "…",
           },
@@ -364,6 +413,7 @@ function main(): void {
   app.route("/", fxRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
+  app.route("/", pacificWeatherRoute);
   app.route("/", pacificTravelRoute);
 
   app.notFound(notFoundHandler);

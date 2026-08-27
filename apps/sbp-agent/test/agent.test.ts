@@ -6,6 +6,7 @@ import {
   runOrchestratorCanaryCheck,
   runEventsCanaryCheck,
   runTourismCanaryCheck,
+  runWeatherCanaryCheck,
   WALLET_BALANCE_CANARY_ADDRESS,
 } from "../src/agent.js";
 import type { Logger } from "../src/logger.js";
@@ -485,5 +486,73 @@ describe("runTourismCanaryCheck — live (mocked payingFetch)", () => {
     expect(result.error).toContain("402");
     expect(result.tx_id).toBeNull();
     expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_tourism_query_failed")).toBe(true);
+  });
+});
+
+describe("runWeatherCanaryCheck — dry run", () => {
+  it("never constructs a payment client when AGENT_WALLET_KEY is unset", async () => {
+    const createPayingFetch = vi.fn();
+    const logger = fakeLogger();
+
+    const result = await runWeatherCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: undefined,
+      network: "mainnet",
+      logger,
+      createPayingFetch,
+    });
+
+    expect(createPayingFetch).not.toHaveBeenCalled();
+    expect(result.dry_run).toBe(true);
+    expect(result.temperature_c).toBeNull();
+    expect(logger.calls.some((c) => c.message === "agent_weather_canary_dry_run")).toBe(true);
+  });
+});
+
+describe("runWeatherCanaryCheck — live (mocked payingFetch)", () => {
+  it("queries GET /pacific/weather and logs a canary-tagged success", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        country_code: "WS",
+        current: { temperature_c: 25.8, tourism_rating: "Excellent" },
+      }),
+    );
+
+    const result = await runWeatherCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      walletAddress: "AGENTWALLETADDR",
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(payingFetch).toHaveBeenCalledWith("https://directory.example/pacific/weather?country=WS");
+    expect(result.dry_run).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.error).toBeNull();
+    expect(result.temperature_c).toBe(25.8);
+    expect(result.tourism_rating).toBe("Excellent");
+    expect(result.amount_usdc).toBeCloseTo(0.002);
+    expect(logger.calls.some((c) => c.message === "agent_weather_query_succeeded")).toBe(true);
+  });
+
+  it("logs an error and returns success:false without throwing on a non-ok response", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(jsonResponse({ error: "payment_required" }, { status: 402 }));
+
+    const result = await runWeatherCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("402");
+    expect(result.tx_id).toBeNull();
+    expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_weather_query_failed")).toBe(true);
   });
 });
