@@ -11,13 +11,13 @@ import {
 } from "../src/agent.js";
 import type { Logger } from "../src/logger.js";
 
-function fakeLogger(): Logger & { calls: Array<{ level: string; message: string }> } {
-  const calls: Array<{ level: string; message: string }> = [];
+function fakeLogger(): Logger & { calls: Array<{ level: string; message: string; fields?: Record<string, unknown> }> } {
+  const calls: Array<{ level: string; message: string; fields?: Record<string, unknown> }> = [];
   return {
     calls,
-    info: (message: string) => calls.push({ level: "info", message }),
-    warn: (message: string) => calls.push({ level: "warn", message }),
-    error: (message: string) => calls.push({ level: "error", message }),
+    info: (message: string, fields?: Record<string, unknown>) => calls.push({ level: "info", message, fields }),
+    warn: (message: string, fields?: Record<string, unknown>) => calls.push({ level: "warn", message, fields }),
+    error: (message: string, fields?: Record<string, unknown>) => calls.push({ level: "error", message, fields }),
   };
 }
 
@@ -486,6 +486,42 @@ describe("runTourismCanaryCheck — live (mocked payingFetch)", () => {
     expect(result.error).toContain("402");
     expect(result.tx_id).toBeNull();
     expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_tourism_query_failed")).toBe(true);
+  });
+
+  it("captures the full response body and payment headers on a rejected settlement, not just the status code", async () => {
+    const logger = fakeLogger();
+    const rejectionBody = { error: "invalid_payment", reason: "amount mismatch" };
+    const payingFetch = vi.fn().mockResolvedValueOnce(
+      jsonResponse(rejectionBody, {
+        status: 402,
+        headers: {
+          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjpmYWxzZX0=",
+          "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6Mn0=",
+        },
+      }),
+    );
+
+    const result = await runTourismCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      walletAddress: "AGENTWALLETADDR",
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(result.success).toBe(false);
+    // The thrown error (and therefore result.error) must carry the actual
+    // rejection body, not just "HTTP 402".
+    expect(result.error).toContain("invalid_payment");
+    expect(result.error).toContain("amount mismatch");
+
+    const rejectedLog = logger.calls.find((c) => c.message === "agent_tourism_payment_rejected");
+    expect(rejectedLog).toBeDefined();
+    expect(rejectedLog?.fields?.status).toBe(402);
+    expect(rejectedLog?.fields?.body).toEqual(rejectionBody);
+    expect(rejectedLog?.fields?.payment_response_header).toBe("eyJzdWNjZXNzIjpmYWxzZX0=");
+    expect(rejectedLog?.fields?.payment_required_header).toBe("eyJ4NDAyVmVyc2lvbiI6Mn0=");
   });
 });
 

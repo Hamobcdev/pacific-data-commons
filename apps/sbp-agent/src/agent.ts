@@ -714,6 +714,48 @@ function emptyTourismResult(cycleAt: string, dryRun: boolean, error: string | nu
   };
 }
 
+const FAILED_PAYMENT_BODY_MAX_CHARS = 2000;
+
+/**
+ * Session 35 investigation — reads the full body and payment-related
+ * headers off a non-ok response BEFORE it's discarded, so the actual
+ * x402/facilitator rejection reason reaches the logs instead of just the
+ * bare HTTP status. Safe to call on any Response: every read is wrapped so
+ * a body-read failure degrades to null fields rather than throwing a
+ * second error out of an already-failing path. Header names match
+ * decodeSettlementFromResponse's own PAYMENT-RESPONSE/payment-response
+ * fallback pattern in @pdc/x402-adapter, plus PAYMENT-REQUIRED (a second
+ * 402 challenge, if that's what the server sent back) and X-PAYMENT-RESPONSE
+ * (the alternate name @x402/fetch lists in its CORS expose-headers set).
+ */
+async function describeFailedPaymentResponse(res: Response): Promise<{
+  status: number;
+  body: unknown;
+  payment_response_header: string | null;
+  payment_required_header: string | null;
+}> {
+  let body: unknown = null;
+  try {
+    const text = await res.text();
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text.length > FAILED_PAYMENT_BODY_MAX_CHARS ? `${text.slice(0, FAILED_PAYMENT_BODY_MAX_CHARS)}…(truncated)` : text;
+      }
+    }
+  } catch {
+    body = null;
+  }
+
+  return {
+    status: res.status,
+    body,
+    payment_response_header: res.headers.get("PAYMENT-RESPONSE") ?? res.headers.get("payment-response") ?? res.headers.get("X-PAYMENT-RESPONSE") ?? null,
+    payment_required_header: res.headers.get("PAYMENT-REQUIRED") ?? res.headers.get("payment-required") ?? null,
+  };
+}
+
 /**
  * Session 32 — queries directory-api's GET /intelligence/pacific-travel
  * once per tick, same "single category-agnostic utility endpoint" posture
@@ -760,7 +802,17 @@ export async function runTourismCanaryCheck(params: {
     const url = `${params.directoryUrl.replace(/\/$/, "")}/intelligence/pacific-travel?destination=WS`;
     const res = await payingFetch(url);
     if (!res.ok) {
-      throw new Error(`pacific-travel query returned HTTP ${res.status}`);
+      // wrapFetchWithPayment (Session 34/35 investigation) retries a 402
+      // with a real signed payment and, if the server rejects that
+      // settlement, returns the second response as-is — a 402 here does
+      // NOT mean "never paid," it can mean "paid, and the server/
+      // facilitator rejected the settlement." The response body and
+      // PAYMENT-RESPONSE/PAYMENT-REQUIRED headers carry the actual
+      // rejection reason; without reading them here that reason is lost
+      // and only the bare status code ever reaches the logs.
+      const failure = await describeFailedPaymentResponse(res);
+      params.logger.error("agent_tourism_payment_rejected", { cycle_at: cycleAt, ...failure, ...canaryLog });
+      throw new Error(`pacific-travel query returned HTTP ${res.status} — ${JSON.stringify(failure)}`);
     }
     const body = (await res.json()) as TourismResponseShape;
     const settlement = decodeSettlementFromResponse(res);
