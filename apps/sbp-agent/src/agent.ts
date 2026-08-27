@@ -37,6 +37,10 @@ const EVENTS_PRICE_USDC = 0.002;
  * "logged directly, not echoed back" posture as PACIFIC_BRIEF_PRICE_USDC
  * above. */
 const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
+/** Session 34 — must match WEATHER_PRICE_USDC registered for
+ * GET /pacific/weather in apps/directory-api/src/index.ts. Same "logged
+ * directly, not echoed back" posture as EVENTS_PRICE_USDC above. */
+const WEATHER_PRICE_USDC = 0.002;
 
 export interface CycleResult {
   cycle_at: string;
@@ -778,5 +782,106 @@ export async function runTourismCanaryCheck(params: {
     const message = err instanceof Error ? err.message : String(err);
     params.logger.error("agent_tourism_query_failed", { error: message });
     return emptyTourismResult(cycleAt, false, message);
+  }
+}
+
+export interface WeatherCanaryResult {
+  cycle_at: string;
+  dry_run: boolean;
+  success: boolean;
+  tx_id: string | null;
+  amount_usdc: number;
+  temperature_c: number | null;
+  tourism_rating: string | null;
+  error: string | null;
+}
+
+/** Just enough of GET /pacific/weather's response shape to log —
+ * deliberately not the full PacificWeather type, same "untrusted HTTP
+ * JSON" posture as EventsResponseShape/FxResponseShape above. */
+interface WeatherResponseShape {
+  current?: {
+    temperature_c?: number;
+    tourism_rating?: string;
+  };
+}
+
+function emptyWeatherResult(cycleAt: string, dryRun: boolean, error: string | null): WeatherCanaryResult {
+  return {
+    cycle_at: cycleAt,
+    dry_run: dryRun,
+    success: false,
+    tx_id: null,
+    amount_usdc: 0,
+    temperature_c: null,
+    tourism_rating: null,
+    error,
+  };
+}
+
+/**
+ * Session 34 — queries directory-api's GET /pacific/weather once per tick,
+ * same "single category-agnostic utility endpoint" posture as
+ * runEventsCanaryCheck above. Fixed to Samoa (country=WS) — the canary
+ * just needs to exercise the endpoint end-to-end, not explore every
+ * country.
+ */
+export async function runWeatherCanaryCheck(params: {
+  directoryUrl: string;
+  agentWalletKey: string | undefined;
+  network: PdcAlgorandNetwork;
+  logger: Logger;
+  /** Same purpose as runEventsCanaryCheck's walletAddress param — tags the
+   * canary log line, omit in tests that don't care about it. */
+  walletAddress?: string | null;
+  /** Injectable for tests — defaults to the real adapter. */
+  createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
+}): Promise<WeatherCanaryResult> {
+  const cycleAt = new Date().toISOString();
+
+  if (!params.agentWalletKey) {
+    params.logger.info("agent_weather_canary_dry_run", {
+      cycle_at: cycleAt,
+      would_query: `${params.directoryUrl}/pacific/weather?country=WS`,
+      would_pay_usdc: WEATHER_PRICE_USDC,
+      reason: "AGENT_WALLET_KEY not set",
+    });
+    return emptyWeatherResult(cycleAt, true, null);
+  }
+
+  const buildPayingFetch =
+    params.createPayingFetch ??
+    ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
+  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+
+  // Volume Integrity Policy (Session 26) — same canary-log shape as every
+  // other canary check in this file.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress ?? null };
+
+  try {
+    const url = `${params.directoryUrl.replace(/\/$/, "")}/pacific/weather?country=WS`;
+    const res = await payingFetch(url);
+    if (!res.ok) {
+      throw new Error(`pacific/weather query returned HTTP ${res.status}`);
+    }
+    const body = (await res.json()) as WeatherResponseShape;
+    const settlement = decodeSettlementFromResponse(res);
+
+    const result: WeatherCanaryResult = {
+      cycle_at: cycleAt,
+      dry_run: false,
+      success: true,
+      tx_id: settlement?.algoTxId ?? null,
+      amount_usdc: WEATHER_PRICE_USDC,
+      temperature_c: body.current?.temperature_c ?? null,
+      tourism_rating: body.current?.tourism_rating ?? null,
+      error: null,
+    };
+    params.logger.info("agent_weather_query_succeeded", { ...result, ...canaryLog });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    params.logger.error("agent_weather_query_failed", { error: message });
+    return emptyWeatherResult(cycleAt, false, message);
   }
 }

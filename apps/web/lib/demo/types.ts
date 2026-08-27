@@ -20,6 +20,27 @@ export interface TravelEventSummary {
   impact: string | null;
 }
 
+export interface WeatherSummary {
+  current_conditions: string;
+  week_summary: string;
+  tourism_rating: string;
+  forecast_days: number;
+}
+
+export interface PacificTourismStats {
+  country_code: string;
+  country_name: string;
+  year: number;
+  international_arrivals: number | null;
+  tourism_receipts_usd_millions: number | null;
+  avg_spend_per_visitor_usd: number | null;
+  avg_length_stay_days: number | null;
+  peak_months: string[] | null;
+  low_months: string[] | null;
+  source: string;
+  data_quality: string;
+}
+
 export interface PacificTravelBrief {
   destination: string;
   travel_window: string;
@@ -27,9 +48,14 @@ export interface PacificTravelBrief {
   upcoming_events: TravelEventSummary[];
   seasonal_context: string;
   exchange_rates: { note: string; key_rates: Record<string, number> } | null;
+  weather: WeatherSummary | null;
+  tourism_stats: PacificTourismStats | null;
   booking_advice: string;
   data_sources: Array<{ name: string; queried_at: string; category: string }>;
-  data_warning: string;
+  /** Session 34 — nullable now that events/FX/weather/tourism stats are
+   * all real: this is only ever populated when the fisheries/marine
+   * sub-endpoint is part of the run, scoped explicitly to that source. */
+  data_warning: string | null;
   confidence: "high" | "medium" | "low";
   payments: TourismSubPayment[];
   total_sub_payments_usdc: number;

@@ -12,12 +12,14 @@ import {
   runOrchestratorCanaryCheck,
   runEventsCanaryCheck,
   runTourismCanaryCheck,
+  runWeatherCanaryCheck,
   type CycleResult,
   type WalletBalanceCanaryResult,
   type FxCanaryResult,
   type OrchestratorCanaryResult,
   type EventsCanaryResult,
   type TourismCanaryResult,
+  type WeatherCanaryResult,
 } from "./agent.js";
 import { getAgentWalletKey } from "./key-provider.js";
 import { ensureAgentRegistered } from "./lib/self-register.js";
@@ -119,6 +121,7 @@ async function main(): Promise<void> {
   let lastOrchestratorCheck: OrchestratorCanaryResult | null = null;
   let lastEventsCheck: EventsCanaryResult | null = null;
   let lastTourismCheck: TourismCanaryResult | null = null;
+  let lastWeatherCheck: WeatherCanaryResult | null = null;
 
   async function tick(): Promise<void> {
     // Retrieved fresh every cycle, not reused from startup — this is the
@@ -295,6 +298,32 @@ async function main(): Promise<void> {
         logger.warn("agent_attribution_submission_failed", { context: "tourism_canary", error: attribution.error });
       }
     }
+
+    // Session 34 — once per tick, same "single category-agnostic utility
+    // endpoint" posture as the events/fx/wallet-balance canaries above.
+    const weatherResult = await runWeatherCanaryCheck({
+      directoryUrl: env.DIRECTORY_URL,
+      agentWalletKey,
+      network: env.ALGORAND_NETWORK,
+      logger,
+      walletAddress: wallet.address,
+    });
+    lastWeatherCheck = weatherResult;
+
+    if (!weatherResult.dry_run && weatherResult.tx_id && agentId && agentWalletKey && wallet.address) {
+      const attribution = await submitAttribution({
+        directoryApiUrl: env.DIRECTORY_URL,
+        agentWalletKeyBase64: agentWalletKey,
+        agentOperationalWalletAddress: wallet.address,
+        agentId,
+        runId: randomUUID(),
+        endpointTxIds: [weatherResult.tx_id],
+        originatingUserWallet: wallet.address,
+      });
+      if (!attribution.success) {
+        logger.warn("agent_attribution_submission_failed", { context: "weather_canary", error: attribution.error });
+      }
+    }
   }
 
   // Railway requires a port even for background workers — this also gives
@@ -321,6 +350,7 @@ async function main(): Promise<void> {
       last_orchestrator_check: lastOrchestratorCheck,
       last_events_check: lastEventsCheck,
       last_tourism_check: lastTourismCheck,
+      last_weather_check: lastWeatherCheck,
     }),
   );
 
