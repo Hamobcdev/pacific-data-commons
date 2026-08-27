@@ -168,6 +168,18 @@ export default async function DevelopersPage() {
             </section>
 
             <section>
+              <h2 className="text-xl font-bold text-navy border-b border-gray-200 pb-3 mb-4">Pacific Service Registry</h2>
+              <p className="text-base text-gray-700">
+                PDC implements the{" "}
+                <Link href="/developers/psr" className="text-ocean hover:underline">
+                  Pacific Service Registry (PSR)
+                </Link>{" "}
+                — the machine-readable specification other institutions can implement to run their own
+                PSR-compatible endpoints, connected back to PDC for discovery and payment routing.
+              </p>
+            </section>
+
+            <section>
               <h2 className="text-xl font-bold text-navy border-b border-gray-200 pb-3 mb-4">External sources</h2>
               <p className="text-base text-gray-700">
                 PDC agents can query any approved x402-compatible endpoint beyond PDC&apos;s own listings.

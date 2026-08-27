@@ -82,6 +82,14 @@ discoveryRoute.get("/.well-known/x402-directory.json", async (c) => {
     competition_tag: "x402-global-challenge",
     bazaar_url: process.env.GOPLAUSIBLE_BAZAAR_URL ?? null,
     docs_url: process.env.PDC_DOCS_URL ?? "https://docs.pacificdatacommons.io",
+    // Session 35 — Pacific Service Registry (PSR). Appended fields only;
+    // nothing above this point was altered (P6, no breaking change to a
+    // published discovery response).
+    psr_spec: `${directoryApiUrl}/psr/v1/spec`,
+    psr_schema: `${directoryApiUrl}/psr/v1/schema`,
+    registry_name: "Pacific Service Registry",
+    registry_version: "1.0.0",
+    operated_by: "Synergy Blockchain Pacific Limited",
     stats,
     sbp_info: {
       name: "Synergy Blockchain Pacific",

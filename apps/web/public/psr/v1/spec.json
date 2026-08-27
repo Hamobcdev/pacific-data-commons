@@ -1,0 +1,41 @@
+{
+  "psr_version": "1.0.0",
+  "name": "Pacific Service Registry",
+  "description": "Machine-readable specification for discoverable, x402-payable Pacific data service endpoints. Operated by Synergy Blockchain Pacific Limited under the Pacific Data Commons platform.",
+  "operator": {
+    "name": "Synergy Blockchain Pacific Limited",
+    "country": "WS",
+    "contact": "anthony@synergybcpacific.com",
+    "website": "https://synergybcpacific.com"
+  },
+  "network": "algorand-mainnet",
+  "payment_protocol": "x402",
+  "settlement_currency": "USDC",
+  "directory_endpoint": "https://pdcdirectory-api-production.up.railway.app/search",
+  "discovery_file": "https://pdcdirectory-api-production.up.railway.app/.well-known/x402-directory.json",
+  "specification_url": "https://pdcweb-production.up.railway.app/psr/v1/spec.json",
+  "developer_docs": "https://pdcweb-production.up.railway.app/en/developers",
+  "endpoint_schema_version": "1.0.0",
+  "trust_tiers": ["bronze", "silver", "gold"],
+  "categories": [
+    "fisheries", "climate", "trade", "demographics", "health",
+    "agriculture", "cultural", "remittance", "legal", "geospatial",
+    "energy", "carbon", "tourism", "disaster_risk", "biodiversity",
+    "ocean", "education", "governance", "financial_flows", "research",
+    "other"
+  ],
+  "pricing": {
+    "directory_query_fee_usdc": 0.01,
+    "provider_share_pct": 97,
+    "sbp_share_pct": 3,
+    "bronze_tier_cap_usdc": 0.50
+  },
+  "interoperability": {
+    "model": "x-road-compatible",
+    "data_stays_at_source": true,
+    "sbp_holds_data": false,
+    "sbp_holds_funds": false
+  },
+  "published": "2026-08-28",
+  "next_review": "2027-01-01"
+}
