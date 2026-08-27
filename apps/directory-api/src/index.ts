@@ -23,6 +23,8 @@ import { externalSourcesRoute } from "./routes/externalSources.js";
 import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
 import { fxRoute } from "./routes/finance/fx.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
+import { pacificEventsRoute } from "./routes/pacific/events.js";
+import { pacificTravelRoute } from "./routes/intelligence/pacific-travel.js";
 import type { AppBindings } from "./types.js";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
@@ -46,6 +48,20 @@ const FX_PRICE_USDC = 0.001;
 // wallet-balance $0.005) plus Claude synthesis cost, so the spread is real
 // margin, not just cost pass-through (CLAUDE.md Section 19, Model F).
 const PACIFIC_BRIEF_PRICE_USDC = 0.05;
+
+// Session 32 — Pacific Events discovery. Priced at the same tier as a
+// single directory search result but below the standard $0.01 directory
+// fee: events data is a narrow, high-frequency lookup (an agent or booking
+// platform may poll it often for a given destination), same low-friction
+// reasoning as FX_PRICE_USDC above.
+const EVENTS_PRICE_USDC = 0.002;
+
+// Session 32 — Pacific Tourism Orchestrator, the live demonstration behind
+// SBP's Samoa Tourism Authority proposal. Priced well above its own
+// ~$0.013 in sub-endpoint payments (events $0.002 + fx $0.001 + fisheries
+// $0.01) plus Claude synthesis cost, same margin reasoning as
+// PACIFIC_BRIEF_PRICE_USDC above.
+const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 
 function main(): void {
   const env = loadEnv();
@@ -215,6 +231,87 @@ function main(): void {
         },
       }),
     },
+    {
+      method: "GET",
+      path: "/pacific/events",
+      description:
+        "Upcoming Pacific Island events: festivals, concerts, sporting events, cultural celebrations, and national days. Filter by country (WS/FJ/TO/PG/SB/VU/CK), days ahead (1-365), and category. Returns structured event data including dates, attendance, tourism impact, and booking advice. Sourced from SPTO, tourism authorities, and official event sources.",
+      priceUsdc: EVENTS_PRICE_USDC,
+      discovery: discoveryFor({
+        method: "GET",
+        input: { country: "WS", days_ahead: 90, category: "festival" },
+        inputSchema: {
+          properties: {
+            country: { type: "string", description: "Pacific ISO country code filter — WS, FJ, TO, PG, SB, VU, CK" },
+            days_ahead: { type: "integer", description: "How many days ahead to look, 1-365, default 90" },
+            category: { type: "string", enum: ["festival", "concert", "sport", "cultural", "religious", "political", "business", "other"] },
+          },
+          required: [],
+        },
+        output: {
+          example: {
+            results: [
+              {
+                id: "…",
+                name: "Teuila Tourism Festival",
+                category: "festival",
+                country_code: "WS",
+                country_name: "Samoa",
+                start_date: "2026-09-01",
+                end_date: "2026-09-05",
+                tourism_impact: "very_high",
+                booking_lead_time: "2 months ahead",
+              },
+            ],
+            count: 1,
+          },
+        },
+      }),
+    },
+    {
+      method: "GET",
+      path: "/intelligence/pacific-travel",
+      description:
+        "Pacific Travel Intelligence Orchestrator: given a destination and travel window, autonomously queries upcoming events, live exchange rates, and seasonal marine conditions, then synthesises a structured travel intelligence brief using Claude. Designed for travel agents, booking platforms, and AI travel assistants. One payment triggers multiple sub-payments to Pacific data providers. Returns executive summary, upcoming events, seasonal context, exchange rates, booking advice, and the full payment trail.",
+      priceUsdc: PACIFIC_TRAVEL_PRICE_USDC,
+      discovery: discoveryFor({
+        method: "GET",
+        input: { destination: "WS", travel_window: "christmas_2026" },
+        inputSchema: {
+          properties: {
+            destination: { type: "string", enum: ["WS", "FJ", "TO", "PG", "SB", "VU", "CK"], description: "Pacific ISO country code" },
+            travel_window: { type: "string", enum: ["next_30_days", "next_90_days", "christmas_2026", "school_holidays"], description: "Shapes how far ahead events are searched — default next_90_days" },
+          },
+          required: ["destination"],
+        },
+        output: {
+          example: {
+            destination: "WS",
+            travel_window: "christmas_2026",
+            executive_summary: "Samoa's Christmas and New Year peak season overlaps favourably with stable FX conditions and healthy synthetic marine indicators.",
+            upcoming_events: [{ name: "Samoa Christmas and New Year", dates: "2026-12-20 to 2027-01-05", impact: "very_high" }],
+            seasonal_context: "Synthetic demo marine data shows stable conditions for the travel window.",
+            exchange_rates: { note: "Live rates from currency-api, base USD.", key_rates: { WST: 2.72 } },
+            booking_advice: "Book at least 3 months ahead — flights from Auckland and Sydney fill up by October.",
+            data_sources: [
+              { name: "events", queried_at: "2026-08-27T00:00:00.000Z", category: "events" },
+              { name: "fx", queried_at: "2026-08-27T00:00:00.000Z", category: "finance" },
+              { name: "fisheries", queried_at: "2026-08-27T00:00:00.000Z", category: "fisheries" },
+            ],
+            data_warning: "SYNTHETIC DATA: This dataset demonstrates the Pacific Data Commons payment infrastructure. All values are fabricated.",
+            confidence: "high",
+            payments: [
+              { endpoint: "https://api.synergybcpacific.com/pacific/events", category: "events", tx_id: "…", amount_usdc: 0.002 },
+              { endpoint: "https://api.synergybcpacific.com/finance/fx", category: "finance", tx_id: "…", amount_usdc: 0.001 },
+              { endpoint: "https://pdcpilot-endpoint-production.up.railway.app/summary", category: "fisheries", tx_id: "…", amount_usdc: 0.01 },
+            ],
+            total_sub_payments_usdc: 0.013,
+            orchestrated_at: "2026-08-27T00:00:00.000Z",
+            run_id: "…",
+          },
+        },
+      }),
+    },
   ];
 
   for (const route of paidRoutes) {
@@ -266,6 +363,8 @@ function main(): void {
   app.route("/", walletBalanceRoute);
   app.route("/", fxRoute);
   app.route("/", pacificBriefRoute);
+  app.route("/", pacificEventsRoute);
+  app.route("/", pacificTravelRoute);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);

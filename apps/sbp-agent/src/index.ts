@@ -10,10 +10,14 @@ import {
   runWalletBalanceCanaryCheck,
   runFxCanaryCheck,
   runOrchestratorCanaryCheck,
+  runEventsCanaryCheck,
+  runTourismCanaryCheck,
   type CycleResult,
   type WalletBalanceCanaryResult,
   type FxCanaryResult,
   type OrchestratorCanaryResult,
+  type EventsCanaryResult,
+  type TourismCanaryResult,
 } from "./agent.js";
 import { getAgentWalletKey } from "./key-provider.js";
 import { ensureAgentRegistered } from "./lib/self-register.js";
@@ -113,6 +117,8 @@ async function main(): Promise<void> {
   let lastWalletBalanceCheck: WalletBalanceCanaryResult | null = null;
   let lastFxCheck: FxCanaryResult | null = null;
   let lastOrchestratorCheck: OrchestratorCanaryResult | null = null;
+  let lastEventsCheck: EventsCanaryResult | null = null;
+  let lastTourismCheck: TourismCanaryResult | null = null;
 
   async function tick(): Promise<void> {
     // Retrieved fresh every cycle, not reused from startup — this is the
@@ -235,6 +241,60 @@ async function main(): Promise<void> {
         logger.warn("agent_attribution_submission_failed", { context: "orchestrator_canary", error: attribution.error });
       }
     }
+
+    // Session 32 — once per tick, same "single category-agnostic utility
+    // endpoint" posture as the wallet-balance/fx/orchestrator canaries above.
+    const eventsResult = await runEventsCanaryCheck({
+      directoryUrl: env.DIRECTORY_URL,
+      agentWalletKey,
+      network: env.ALGORAND_NETWORK,
+      logger,
+      walletAddress: wallet.address,
+    });
+    lastEventsCheck = eventsResult;
+
+    if (!eventsResult.dry_run && eventsResult.tx_id && agentId && agentWalletKey && wallet.address) {
+      const attribution = await submitAttribution({
+        directoryApiUrl: env.DIRECTORY_URL,
+        agentWalletKeyBase64: agentWalletKey,
+        agentOperationalWalletAddress: wallet.address,
+        agentId,
+        runId: randomUUID(),
+        endpointTxIds: [eventsResult.tx_id],
+        originatingUserWallet: wallet.address,
+      });
+      if (!attribution.success) {
+        logger.warn("agent_attribution_submission_failed", { context: "events_canary", error: attribution.error });
+      }
+    }
+
+    // Session 32 — once per tick, same posture as above. Contributes up to
+    // 4 settled leaderboard transactions per tick (the tourism orchestrator
+    // itself pays 3 further sub-endpoints server-side), same as the
+    // pacific-brief orchestrator canary.
+    const tourismResult = await runTourismCanaryCheck({
+      directoryUrl: env.DIRECTORY_URL,
+      agentWalletKey,
+      network: env.ALGORAND_NETWORK,
+      logger,
+      walletAddress: wallet.address,
+    });
+    lastTourismCheck = tourismResult;
+
+    if (!tourismResult.dry_run && tourismResult.tx_id && agentId && agentWalletKey && wallet.address) {
+      const attribution = await submitAttribution({
+        directoryApiUrl: env.DIRECTORY_URL,
+        agentWalletKeyBase64: agentWalletKey,
+        agentOperationalWalletAddress: wallet.address,
+        agentId,
+        runId: randomUUID(),
+        endpointTxIds: [tourismResult.tx_id],
+        originatingUserWallet: wallet.address,
+      });
+      if (!attribution.success) {
+        logger.warn("agent_attribution_submission_failed", { context: "tourism_canary", error: attribution.error });
+      }
+    }
   }
 
   // Railway requires a port even for background workers — this also gives
@@ -259,6 +319,8 @@ async function main(): Promise<void> {
       last_wallet_balance_check: lastWalletBalanceCheck,
       last_fx_check: lastFxCheck,
       last_orchestrator_check: lastOrchestratorCheck,
+      last_events_check: lastEventsCheck,
+      last_tourism_check: lastTourismCheck,
     }),
   );
 
