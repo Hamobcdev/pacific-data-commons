@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { runQueryCycle, runWalletBalanceCanaryCheck, runFxCanaryCheck, runOrchestratorCanaryCheck, WALLET_BALANCE_CANARY_ADDRESS } from "../src/agent.js";
+import {
+  runQueryCycle,
+  runWalletBalanceCanaryCheck,
+  runFxCanaryCheck,
+  runOrchestratorCanaryCheck,
+  runEventsCanaryCheck,
+  runTourismCanaryCheck,
+  WALLET_BALANCE_CANARY_ADDRESS,
+} from "../src/agent.js";
 import type { Logger } from "../src/logger.js";
 
 function fakeLogger(): Logger & { calls: Array<{ level: string; message: string }> } {
@@ -336,5 +344,146 @@ describe("runOrchestratorCanaryCheck — live (mocked payingFetch)", () => {
     expect(result.error).toContain("402");
     expect(result.tx_id).toBeNull();
     expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_orchestrator_query_failed")).toBe(true);
+  });
+});
+
+describe("runEventsCanaryCheck — dry run", () => {
+  it("never constructs a payment client when AGENT_WALLET_KEY is unset", async () => {
+    const createPayingFetch = vi.fn();
+    const logger = fakeLogger();
+
+    const result = await runEventsCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: undefined,
+      network: "mainnet",
+      logger,
+      createPayingFetch,
+    });
+
+    expect(createPayingFetch).not.toHaveBeenCalled();
+    expect(result.dry_run).toBe(true);
+    expect(result.results_count).toBeNull();
+    expect(logger.calls.some((c) => c.message === "agent_events_canary_dry_run")).toBe(true);
+  });
+});
+
+describe("runEventsCanaryCheck — live (mocked payingFetch)", () => {
+  it("queries GET /pacific/events and logs a canary-tagged success", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        results: [{ name: "Teuila Tourism Festival", category: "festival", country_code: "WS" }],
+        count: 1,
+      }),
+    );
+
+    const result = await runEventsCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      walletAddress: "AGENTWALLETADDR",
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(payingFetch).toHaveBeenCalledWith("https://directory.example/pacific/events?country=WS&days_ahead=90");
+    expect(result.dry_run).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.error).toBeNull();
+    expect(result.results_count).toBe(1);
+    expect(result.amount_usdc).toBeCloseTo(0.002);
+    expect(logger.calls.some((c) => c.message === "agent_events_query_succeeded")).toBe(true);
+  });
+
+  it("logs an error and returns success:false without throwing on a non-ok response", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(jsonResponse({ error: "payment_required" }, { status: 402 }));
+
+    const result = await runEventsCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("402");
+    expect(result.tx_id).toBeNull();
+    expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_events_query_failed")).toBe(true);
+  });
+});
+
+describe("runTourismCanaryCheck — dry run", () => {
+  it("never constructs a payment client when AGENT_WALLET_KEY is unset", async () => {
+    const createPayingFetch = vi.fn();
+    const logger = fakeLogger();
+
+    const result = await runTourismCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: undefined,
+      network: "mainnet",
+      logger,
+      createPayingFetch,
+    });
+
+    expect(createPayingFetch).not.toHaveBeenCalled();
+    expect(result.dry_run).toBe(true);
+    expect(result.sub_payments_count).toBeNull();
+    expect(logger.calls.some((c) => c.message === "agent_tourism_canary_dry_run")).toBe(true);
+  });
+});
+
+describe("runTourismCanaryCheck — live (mocked payingFetch)", () => {
+  it("queries GET /intelligence/pacific-travel and logs a canary-tagged success", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        confidence: "high",
+        total_sub_payments_usdc: 0.013,
+        payments: [
+          { endpoint: "https://directory.example/pacific/events", category: "events", tx_id: null, amount_usdc: 0.002 },
+          { endpoint: "https://directory.example/finance/fx", category: "finance", tx_id: null, amount_usdc: 0.001 },
+          { endpoint: "https://pdcpilot-endpoint-production.up.railway.app/summary", category: "fisheries", tx_id: null, amount_usdc: 0.01 },
+        ],
+      }),
+    );
+
+    const result = await runTourismCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      walletAddress: "AGENTWALLETADDR",
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(payingFetch).toHaveBeenCalledWith("https://directory.example/intelligence/pacific-travel?destination=WS");
+    expect(result.dry_run).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.error).toBeNull();
+    expect(result.sub_payments_count).toBe(3);
+    expect(result.total_sub_payments_usdc).toBeCloseTo(0.013);
+    expect(result.confidence).toBe("high");
+    expect(result.amount_usdc).toBeCloseTo(0.1);
+    expect(logger.calls.some((c) => c.message === "agent_tourism_query_succeeded")).toBe(true);
+  });
+
+  it("logs an error and returns success:false without throwing on a non-ok response", async () => {
+    const logger = fakeLogger();
+    const payingFetch = vi.fn().mockResolvedValueOnce(jsonResponse({ error: "payment_required" }, { status: 402 }));
+
+    const result = await runTourismCanaryCheck({
+      directoryUrl: "https://directory.example",
+      agentWalletKey: "fake-key",
+      network: "mainnet",
+      logger,
+      createPayingFetch: () => payingFetch as unknown as typeof fetch,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("402");
+    expect(result.tx_id).toBeNull();
+    expect(logger.calls.some((c) => c.level === "error" && c.message === "agent_tourism_query_failed")).toBe(true);
   });
 });

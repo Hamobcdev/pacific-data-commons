@@ -28,6 +28,15 @@ const FX_PRICE_USDC = 0.001;
  * "logged directly, not echoed back" posture as WALLET_BALANCE_PRICE_USDC
  * and FX_PRICE_USDC above. */
 const PACIFIC_BRIEF_PRICE_USDC = 0.05;
+/** Session 32 — must match EVENTS_PRICE_USDC registered for
+ * GET /pacific/events in apps/directory-api/src/index.ts. Same "logged
+ * directly, not echoed back" posture as FX_PRICE_USDC above. */
+const EVENTS_PRICE_USDC = 0.002;
+/** Session 32 — must match PACIFIC_TRAVEL_PRICE_USDC registered for
+ * GET /intelligence/pacific-travel in apps/directory-api/src/index.ts. Same
+ * "logged directly, not echoed back" posture as PACIFIC_BRIEF_PRICE_USDC
+ * above. */
+const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 
 export interface CycleResult {
   cycle_at: string;
@@ -567,5 +576,207 @@ export async function runOrchestratorCanaryCheck(params: {
     const message = err instanceof Error ? err.message : String(err);
     params.logger.error("agent_orchestrator_query_failed", { error: message });
     return emptyOrchestratorResult(cycleAt, false, message);
+  }
+}
+
+export interface EventsCanaryResult {
+  cycle_at: string;
+  dry_run: boolean;
+  success: boolean;
+  tx_id: string | null;
+  amount_usdc: number;
+  results_count: number | null;
+  error: string | null;
+}
+
+/** Just enough of GET /pacific/events's response shape to log — deliberately
+ * not the full PacificEvent type, same "untrusted HTTP JSON" posture as
+ * FxResponseShape/OrchestratorResponseShape above. */
+interface EventsResponseShape {
+  results?: unknown[];
+  count?: number;
+}
+
+function emptyEventsResult(cycleAt: string, dryRun: boolean, error: string | null): EventsCanaryResult {
+  return {
+    cycle_at: cycleAt,
+    dry_run: dryRun,
+    success: false,
+    tx_id: null,
+    amount_usdc: 0,
+    results_count: null,
+    error,
+  };
+}
+
+/**
+ * Session 32 — queries directory-api's GET /pacific/events once per tick,
+ * same "single category-agnostic utility endpoint" posture as
+ * runFxCanaryCheck/runWalletBalanceCanaryCheck above. Fixed to Samoa
+ * (country=WS) and a 90-day window — the canary just needs to exercise the
+ * endpoint end-to-end, not explore every country/category combination.
+ */
+export async function runEventsCanaryCheck(params: {
+  directoryUrl: string;
+  agentWalletKey: string | undefined;
+  network: PdcAlgorandNetwork;
+  logger: Logger;
+  /** Same purpose as runFxCanaryCheck's walletAddress param — tags the
+   * canary log line, omit in tests that don't care about it. */
+  walletAddress?: string | null;
+  /** Injectable for tests — defaults to the real adapter. */
+  createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
+}): Promise<EventsCanaryResult> {
+  const cycleAt = new Date().toISOString();
+
+  if (!params.agentWalletKey) {
+    params.logger.info("agent_events_canary_dry_run", {
+      cycle_at: cycleAt,
+      would_query: `${params.directoryUrl}/pacific/events?country=WS&days_ahead=90`,
+      would_pay_usdc: EVENTS_PRICE_USDC,
+      reason: "AGENT_WALLET_KEY not set",
+    });
+    return emptyEventsResult(cycleAt, true, null);
+  }
+
+  const buildPayingFetch =
+    params.createPayingFetch ??
+    ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
+  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+
+  // Volume Integrity Policy (Session 26) — same canary-log shape as every
+  // other canary check in this file.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress ?? null };
+
+  try {
+    const url = `${params.directoryUrl.replace(/\/$/, "")}/pacific/events?country=WS&days_ahead=90`;
+    const res = await payingFetch(url);
+    if (!res.ok) {
+      throw new Error(`pacific/events query returned HTTP ${res.status}`);
+    }
+    const body = (await res.json()) as EventsResponseShape;
+    const settlement = decodeSettlementFromResponse(res);
+
+    const result: EventsCanaryResult = {
+      cycle_at: cycleAt,
+      dry_run: false,
+      success: true,
+      tx_id: settlement?.algoTxId ?? null,
+      amount_usdc: EVENTS_PRICE_USDC,
+      results_count: body.count ?? (body.results ? body.results.length : null),
+      error: null,
+    };
+    params.logger.info("agent_events_query_succeeded", { ...result, ...canaryLog });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    params.logger.error("agent_events_query_failed", { error: message });
+    return emptyEventsResult(cycleAt, false, message);
+  }
+}
+
+export interface TourismCanaryResult {
+  cycle_at: string;
+  dry_run: boolean;
+  success: boolean;
+  tx_id: string | null;
+  amount_usdc: number;
+  sub_payments_count: number | null;
+  total_sub_payments_usdc: number | null;
+  confidence: string | null;
+  error: string | null;
+}
+
+/** Just enough of GET /intelligence/pacific-travel's response shape to log —
+ * deliberately not the full PacificTravelBrief type, same "untrusted HTTP
+ * JSON" posture as OrchestratorResponseShape above. */
+interface TourismResponseShape {
+  payments?: unknown[];
+  total_sub_payments_usdc?: number;
+  confidence?: string;
+}
+
+function emptyTourismResult(cycleAt: string, dryRun: boolean, error: string | null): TourismCanaryResult {
+  return {
+    cycle_at: cycleAt,
+    dry_run: dryRun,
+    success: false,
+    tx_id: null,
+    amount_usdc: 0,
+    sub_payments_count: null,
+    total_sub_payments_usdc: null,
+    confidence: null,
+    error,
+  };
+}
+
+/**
+ * Session 32 — queries directory-api's GET /intelligence/pacific-travel
+ * once per tick, same "single category-agnostic utility endpoint" posture
+ * as runOrchestratorCanaryCheck above. Fixed to Samoa (destination=WS),
+ * default travel_window — the canary just needs to exercise the tourism
+ * orchestrator end-to-end, not explore every destination/window. Same as
+ * the pacific-brief canary, this one canary tick itself triggers 3 further
+ * sub-payments server-side (events + fx + fisheries), contributing up to 4
+ * settled leaderboard transactions per tick, not 1.
+ */
+export async function runTourismCanaryCheck(params: {
+  directoryUrl: string;
+  agentWalletKey: string | undefined;
+  network: PdcAlgorandNetwork;
+  logger: Logger;
+  /** Same purpose as runOrchestratorCanaryCheck's walletAddress param —
+   * tags the canary log line, omit in tests that don't care about it. */
+  walletAddress?: string | null;
+  /** Injectable for tests — defaults to the real adapter. */
+  createPayingFetch?: (key: string, network: PdcAlgorandNetwork) => typeof fetch;
+}): Promise<TourismCanaryResult> {
+  const cycleAt = new Date().toISOString();
+
+  if (!params.agentWalletKey) {
+    params.logger.info("agent_tourism_canary_dry_run", {
+      cycle_at: cycleAt,
+      would_query: `${params.directoryUrl}/intelligence/pacific-travel?destination=WS`,
+      would_pay_usdc: PACIFIC_TRAVEL_PRICE_USDC,
+      reason: "AGENT_WALLET_KEY not set",
+    });
+    return emptyTourismResult(cycleAt, true, null);
+  }
+
+  const buildPayingFetch =
+    params.createPayingFetch ??
+    ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
+  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+
+  // Volume Integrity Policy (Session 26) — same canary-log shape as every
+  // other canary check in this file.
+  const canaryLog = { type: "canary" as const, source: "sbp-agent", purpose: "uptime-monitoring", wallet_address: params.walletAddress ?? null };
+
+  try {
+    const url = `${params.directoryUrl.replace(/\/$/, "")}/intelligence/pacific-travel?destination=WS`;
+    const res = await payingFetch(url);
+    if (!res.ok) {
+      throw new Error(`pacific-travel query returned HTTP ${res.status}`);
+    }
+    const body = (await res.json()) as TourismResponseShape;
+    const settlement = decodeSettlementFromResponse(res);
+
+    const result: TourismCanaryResult = {
+      cycle_at: cycleAt,
+      dry_run: false,
+      success: true,
+      tx_id: settlement?.algoTxId ?? null,
+      amount_usdc: PACIFIC_TRAVEL_PRICE_USDC,
+      sub_payments_count: body.payments?.length ?? null,
+      total_sub_payments_usdc: body.total_sub_payments_usdc ?? null,
+      confidence: body.confidence ?? null,
+      error: null,
+    };
+    params.logger.info("agent_tourism_query_succeeded", { ...result, ...canaryLog });
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    params.logger.error("agent_tourism_query_failed", { error: message });
+    return emptyTourismResult(cycleAt, false, message);
   }
 }

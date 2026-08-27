@@ -19,11 +19,11 @@ interface FakeTableConfig {
 /**
  * Minimal fake for the chainable supabase-js query builder — implements only
  * the methods this service layer actually calls (from/select/eq/or/ilike/
- * range/order/maybeSingle/single/insert/update), each returning itself so
- * calls can chain in any order, and thenable so `await query` resolves like
- * the real client. Full payment-flow / facilitator integration testing
- * belongs to Session 4 (CLAUDE.md Part 3 §12 — end-to-end x402 payment
- * test), not this unit suite.
+ * range/order/limit/gte/lte/not/overlaps/maybeSingle/single/insert/update),
+ * each returning itself so calls can chain in any order, and thenable so
+ * `await query` resolves like the real client. Full payment-flow /
+ * facilitator integration testing belongs to Session 4 (CLAUDE.md Part 3
+ * §12 — end-to-end x402 payment test), not this unit suite.
  */
 export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): SupabaseClient {
   const inserts: Array<{ table: string; row: unknown }> = [];
@@ -42,6 +42,7 @@ export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): 
       order: () => chain,
       limit: () => chain,
       gte: () => chain,
+      lte: () => chain,
       not: () => chain,
       overlaps: () => chain,
       maybeSingle: () => {
