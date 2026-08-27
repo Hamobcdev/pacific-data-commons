@@ -7,8 +7,10 @@ import type { AppBindings } from "../../types.js";
 // handler — same posture as pacificBriefRoute, fxRoute, walletBalanceRoute).
 export const pacificTravelRoute = new Hono<AppBindings>();
 
-const VALID_DESTINATIONS = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
-const VALID_TRAVEL_WINDOWS = new Set(["next_30_days", "next_90_days", "christmas_2026", "school_holidays"]);
+// Exported for reuse by routes/internal.ts's POST /internal/tourism-demo
+// (Session 33) — same destination/window validation, no x402 gate.
+export const VALID_DESTINATIONS = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
+export const VALID_TRAVEL_WINDOWS = new Set(["next_30_days", "next_90_days", "christmas_2026", "school_holidays"]);
 
 pacificTravelRoute.get("/intelligence/pacific-travel", async (c) => {
   const destination = c.req.query("destination")?.toUpperCase();

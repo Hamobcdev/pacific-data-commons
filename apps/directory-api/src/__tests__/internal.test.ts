@@ -357,3 +357,65 @@ describe("POST /internal/health-check", () => {
     expect(updates[0]?.row).toMatchObject({ health_status: "healthy" });
   });
 });
+
+describe("POST /internal/tourism-demo", () => {
+  it("401s without a valid X-Internal-Api-Key header", async () => {
+    const app = buildTestApp(createFakeSupabase({}));
+    const res = await app.request("/internal/tourism-demo", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ destination: "WS" }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("400s for a missing destination", async () => {
+    const app = buildTestApp(createFakeSupabase({}));
+    const res = await app.request("/internal/tourism-demo", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-api-key": INTERNAL_KEY },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("400s for an invalid destination", async () => {
+    const app = buildTestApp(createFakeSupabase({}));
+    const res = await app.request("/internal/tourism-demo", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-api-key": INTERNAL_KEY },
+      body: JSON.stringify({ destination: "US" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("400s for an invalid travel_window", async () => {
+    const app = buildTestApp(createFakeSupabase({}));
+    const res = await app.request("/internal/tourism-demo", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-api-key": INTERNAL_KEY },
+      body: JSON.stringify({ destination: "WS", travel_window: "next_year" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("503s when ANTHROPIC_API_KEY is not configured", async () => {
+    const app = buildTestApp(createFakeSupabase({}), { AGENT_WALLET_KEY: "test-wallet-key" });
+    const res = await app.request("/internal/tourism-demo", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-api-key": INTERNAL_KEY },
+      body: JSON.stringify({ destination: "WS" }),
+    });
+    expect(res.status).toBe(503);
+  });
+
+  it("503s when AGENT_WALLET_KEY is not configured", async () => {
+    const app = buildTestApp(createFakeSupabase({}), { ANTHROPIC_API_KEY: "test-key" });
+    const res = await app.request("/internal/tourism-demo", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-api-key": INTERNAL_KEY },
+      body: JSON.stringify({ destination: "WS" }),
+    });
+    expect(res.status).toBe(503);
+  });
+});

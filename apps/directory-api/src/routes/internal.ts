@@ -4,8 +4,10 @@ import { getCertifiedHashForEndpoint, recordIntegrityEvent } from "../services/i
 import { dispatchUpdateNotifications } from "../services/notificationService.js";
 import { selfRegisterAgent } from "../services/agentSelfRegisterService.js";
 import { runHealthCheck } from "../services/healthCheckService.js";
+import { generatePacificTravelBrief, AllTourismSubEndpointsFailedError } from "../services/pacificTourismService.js";
+import { VALID_DESTINATIONS, VALID_TRAVEL_WINDOWS } from "./intelligence/pacific-travel.js";
 import { internalAuth } from "../middleware/internalAuth.js";
-import { ValidationError } from "../lib/errors.js";
+import { AppError, ValidationError } from "../lib/errors.js";
 import type { AppBindings } from "../types.js";
 
 /**
@@ -94,4 +96,69 @@ internalRoute.post("/internal/health-check", async (c) => {
   const supabase = c.get("supabase");
   const summary = await runHealthCheck(supabase);
   return c.json(summary, 200);
+});
+
+const tourismDemoSchema = z.object({
+  destination: z.string(),
+  travel_window: z.string().optional(),
+});
+
+/**
+ * Session 33 — backs the /en/demo/tourism STA demo page (apps/web). Same
+ * generatePacificTravelBrief() call as the public x402-gated
+ * GET /intelligence/pacific-travel, but reached via the service-to-service
+ * /internal/* gate instead of a buyer payment: the demo page has no wallet
+ * connection and pays nothing itself. The orchestrator still makes its own
+ * 3 real sub-endpoint payments from the agent wallet either way — this
+ * route only bypasses the *outer* x402 charge for the demo, not the
+ * underlying Mainnet activity. apps/web's server action rate-limits calls
+ * to this route (see actions/demo/tourism-brief.ts) precisely because each
+ * call costs real USDC from SBP's own wallet with no offsetting payment.
+ */
+internalRoute.post("/internal/tourism-demo", async (c) => {
+  const body: unknown = await c.req.json().catch(() => undefined);
+  const parsed = tourismDemoSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new ValidationError(`Invalid tourism-demo request — ${parsed.error.issues.map((i) => `${i.path.join(".") || "(body)"}: ${i.message}`).join("; ")}`);
+  }
+
+  const destination = parsed.data.destination.toUpperCase();
+  const travelWindow = parsed.data.travel_window?.toLowerCase() ?? "next_90_days";
+
+  if (!VALID_DESTINATIONS.has(destination)) {
+    throw new ValidationError(`destination must be a Pacific ISO code: ${Array.from(VALID_DESTINATIONS).join(", ")}`);
+  }
+  if (!VALID_TRAVEL_WINDOWS.has(travelWindow)) {
+    throw new ValidationError(`travel_window must be one of: ${Array.from(VALID_TRAVEL_WINDOWS).join(", ")}`);
+  }
+
+  const env = c.get("env");
+  const supabase = c.get("supabase");
+
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AppError(503, "service_unavailable", "Travel intelligence synthesis service is not configured.");
+  }
+  if (!env.AGENT_WALLET_KEY) {
+    throw new AppError(503, "service_unavailable", "Orchestrator payment wallet is not configured.");
+  }
+
+  try {
+    const brief = await generatePacificTravelBrief({
+      destination,
+      travelWindow,
+      supabase,
+      agentWalletKey: env.AGENT_WALLET_KEY,
+      network: env.ALGORAND_NETWORK,
+      pilotEndpointUrl: env.PILOT_ENDPOINT_URL,
+      publicUrl: env.PUBLIC_URL,
+      anthropicApiKey: env.ANTHROPIC_API_KEY,
+      claudeModel: env.CLAUDE_MODEL,
+    });
+    return c.json(brief, 200);
+  } catch (err) {
+    if (err instanceof AllTourismSubEndpointsFailedError) {
+      throw new AppError(503, "endpoints_unavailable", "Pacific data endpoints are temporarily unavailable. Try again shortly.");
+    }
+    throw err;
+  }
 });
