@@ -24,9 +24,22 @@ const ITEMS = [
   { key: "faq", href: "/faq", icon: "❓" },
 ] as const;
 
-export function ProviderSidebar() {
+/** Session 37B — "Deployment Invoices" isn't in the translated Nav
+ * namespace (hardcoded label, matching the Deploy step's own new copy) and
+ * is conditionally rendered rather than a static ITEMS entry: unlike every
+ * other destination here, a provider with zero deployment_invoices rows
+ * would only ever see an empty table, so it's hidden until they have at
+ * least one (see dashboard/layout.tsx's providerHasDeploymentInvoices
+ * check). */
+export interface ProviderSidebarProps {
+  hasInvoices?: boolean;
+}
+
+export function ProviderSidebar({ hasInvoices = false }: ProviderSidebarProps) {
   const t = useTranslations("Nav");
   const pathname = usePathname();
+
+  const invoicesActive = pathname.startsWith("/dashboard/invoices");
 
   return (
     <nav
@@ -50,6 +63,19 @@ export function ProviderSidebar() {
             </li>
           );
         })}
+        {hasInvoices && (
+          <li>
+            <Link
+              href="/dashboard/invoices"
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm min-h-[44px] sm:min-h-0 transition-colors ${
+                invoicesActive ? "bg-ocean/10 text-ocean font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-navy"
+              }`}
+            >
+              <span aria-hidden="true">🧾</span>
+              <span className="hidden sm:inline">Deployment Invoices</span>
+            </Link>
+          </li>
+        )}
       </ul>
     </nav>
   );

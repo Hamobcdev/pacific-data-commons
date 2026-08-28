@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import type { Endpoint, Provider, TransactionLogEntry } from "@pdc/shared-types";
+import type { DeploymentInvoice, Endpoint, Provider, TransactionLogEntry } from "@pdc/shared-types";
 
 export interface DashboardData {
   provider: Provider;
@@ -93,4 +93,33 @@ export async function getAllTransactions(providerId: string): Promise<Transactio
     .order("queried_at", { ascending: false })
     .limit(500);
   return (data ?? []) as TransactionLogEntry[];
+}
+
+/**
+ * Session 37B, Deliverable 5 — this provider's deployment_invoices rows for
+ * /dashboard/invoices. Same service-role-after-getResumedProvider posture
+ * as getAllTransactions above.
+ */
+export async function getProviderDeploymentInvoices(providerId: string): Promise<DeploymentInvoice[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("deployment_invoices")
+    .select("*")
+    .eq("provider_id", providerId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as DeploymentInvoice[];
+}
+
+/**
+ * Lightweight existence check for ProviderSidebar's conditional
+ * "Deployment Invoices" link — head-only count query, cheaper than
+ * fetching full rows just to check length in the layout.
+ */
+export async function providerHasDeploymentInvoices(providerId: string): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { count } = await supabase
+    .from("deployment_invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("provider_id", providerId);
+  return (count ?? 0) > 0;
 }
