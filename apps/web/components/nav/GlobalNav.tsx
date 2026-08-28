@@ -53,6 +53,14 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {t("developers")}
     </Link>
   );
+  // Session 37A — standalone item alongside Developers, not a dropdown: this
+  // nav has no sub-link/dropdown pattern anywhere, so this follows what
+  // already exists rather than introducing a new one.
+  const psrLink = (
+    <Link href="/developers/psr" onClick={() => setMobileOpen(false)} className={linkClass}>
+      Pacific Service Registry
+    </Link>
+  );
   const faqLink = (
     <Link href="/faq" onClick={() => setMobileOpen(false)} className={linkClass}>
       {t("faq")}
@@ -67,6 +75,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {browseDataLink}
       {agentMarketplaceLink}
       {developersLink}
+      {psrLink}
       {faqLink}
       {/* Placeholder until a standalone wallet management page exists —
           this re-enters the onboarding wallet step directly (Session 12
@@ -82,7 +91,8 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {browseDataLink}
       {agentMarketplaceLink}
       {developersLink}
-      <Link href="/onboarding/register" onClick={() => setMobileOpen(false)} className={linkClass}>
+      {psrLink}
+      <Link href="/for-providers" onClick={() => setMobileOpen(false)} className={linkClass}>
         {t("forProviders")}
       </Link>
       {faqLink}

@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { completeOnboarding } from "@/actions/onboarding/complete-onboarding";
-import { loadLocalState, clearLocalState } from "@/lib/onboarding/state";
+import { loadLocalState, clearLocalState, type DeployPath } from "@/lib/onboarding/state";
 import { SESSION_EXPIRED_ERROR } from "@/lib/onboarding/session-constants";
 import { flagSessionExpired } from "@/lib/onboarding/flag-session-expired";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CompletionCard } from "./CompletionCard";
 import { NextStepsTimeline } from "./NextStepsTimeline";
 import { UsdcRealitySection } from "./UsdcRealitySection";
+import { WhatHappensNext } from "./WhatHappensNext";
 
 /** Not itself in the Session 6 file list — same glue role as
  * ReviewLayout/ProvenanceForm/DeployLayout for the earlier steps: page.tsx
@@ -28,6 +29,10 @@ export function CompleteLayout() {
   // its own message, same as every other step.
   const [status, setStatus] = useState<"checking" | "redirecting" | "ready">("checking");
   const [summary, setSummary] = useState<{ institutionName: string; datasetTitle: string; providerSlug: string } | null>(null);
+  // Session 37A — read once alongside providerId/sessionToken below, before
+  // clearLocalState() removes it, so the "what happens next" section can
+  // show the copy for the path the provider actually chose in Step 6.
+  const [deployPath, setDeployPath] = useState<DeployPath | "">("");
 
   useEffect(() => {
     const state = loadLocalState();
@@ -36,6 +41,7 @@ export function CompleteLayout() {
       router.replace("/onboarding/register");
       return;
     }
+    setDeployPath(state.deploy.path);
 
     completeOnboarding(state.providerId, state.sessionToken).then((result) => {
       if (result.success) {
@@ -99,6 +105,20 @@ export function CompleteLayout() {
       <Button type="button" onClick={() => router.push("/dashboard")}>
         {t("dashboardLink")}
       </Button>
+
+      <WhatHappensNext deployPath={deployPath} />
+
+      <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-gray-200 pt-4 text-sm">
+        <Link href="/faq" className="text-ocean hover:underline">
+          Frequently asked questions
+        </Link>
+        <Link href="/developers" className="text-ocean hover:underline">
+          How buyers query your data
+        </Link>
+        <Link href="/for-providers" className="text-ocean hover:underline">
+          Add another dataset
+        </Link>
+      </div>
     </div>
   );
 }
