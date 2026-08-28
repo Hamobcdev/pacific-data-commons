@@ -28,6 +28,11 @@ interface FakeTableConfig {
 export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): SupabaseClient {
   const inserts: Array<{ table: string; row: unknown }> = [];
   const updates: Array<{ table: string; row: unknown }> = [];
+  // Hotfix (agentSelfRegisterService lookup-column regression) — records
+  // which column(s) .eq() filtered on per table, so a test can assert the
+  // service queried the column it's supposed to, not just that it got back
+  // whatever `data` this fake was configured with regardless of filter.
+  const eqCalls: Array<{ table: string; column: string; value: unknown }> = [];
 
   function builder(table: string) {
     const config = tableData[table] ?? { data: [], error: null, count: 0 };
@@ -35,7 +40,10 @@ export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): 
 
     const chain = {
       select: () => chain,
-      eq: () => chain,
+      eq: (column: string, value: unknown) => {
+        eqCalls.push({ table, column, value });
+        return chain;
+      },
       or: () => chain,
       ilike: () => chain,
       range: () => chain,
@@ -92,6 +100,7 @@ export function createFakeSupabase(tableData: Record<string, FakeTableConfig>): 
     from: (table: string) => builder(table),
     __inserts: inserts,
     __updates: updates,
+    __eqCalls: eqCalls,
   };
 
   return fake as unknown as SupabaseClient;
@@ -103,4 +112,8 @@ export function getFakeInserts(client: SupabaseClient): Array<{ table: string; r
 
 export function getFakeUpdates(client: SupabaseClient): Array<{ table: string; row: unknown }> {
   return (client as unknown as { __updates: Array<{ table: string; row: unknown }> }).__updates;
+}
+
+export function getFakeEqCalls(client: SupabaseClient): Array<{ table: string; column: string; value: unknown }> {
+  return (client as unknown as { __eqCalls: Array<{ table: string; column: string; value: unknown }> }).__eqCalls;
 }
