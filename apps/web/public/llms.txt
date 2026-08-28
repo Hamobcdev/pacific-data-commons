@@ -53,5 +53,22 @@ Algorand x402 Global Challenge — tag: x402-global-challenge
 Leaderboard: https://facilitator.goplausible.xyz/dashboard/leaderboards
 Bazaar: cataloged at pdcpilot-endpoint-production.up.railway.app
 
+## Pacific Service Registry (PSR)
+
+The Pacific Data Commons implements the Pacific Service Registry (PSR) v1.0 —
+a machine-readable specification for discoverable, x402-payable Pacific data
+service endpoints.
+
+PSR Specification: https://pdcweb-production.up.railway.app/psr/v1/spec.json
+PSR Endpoint Schema: https://pdcweb-production.up.railway.app/psr/v1/endpoint-schema.json
+Discovery file: https://pdcdirectory-api-production.up.railway.app/.well-known/x402-directory.json
+
+Any AI agent or service that implements PSR-compatible endpoint registration
+can be discovered and paid through the Pacific Data Commons x402 payment rail.
+
+Pacific institutions (universities, government ministries, research bodies)
+wishing to register a PSR-compatible endpoint should read the endpoint schema
+and contact anthony@synergybcpacific.com for onboarding.
+
 ## Contact
 anthony@synergybcpacific.com | synergybcpacific.com | Apia, Samoa

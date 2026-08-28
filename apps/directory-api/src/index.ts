@@ -16,6 +16,7 @@ import { providerRoute } from "./routes/provider.js";
 import { endpointRoute } from "./routes/endpoint.js";
 import { verifyRoute } from "./routes/verify.js";
 import { discoveryRoute } from "./routes/discovery.js";
+import { psrRoute } from "./routes/psr.js";
 import { attributionRoute } from "./routes/attribution.js";
 import { internalRoute } from "./routes/internal.js";
 import { updatesRoute } from "./routes/updates.js";
@@ -399,6 +400,7 @@ function main(): void {
 
   app.route("/", healthRoute);
   app.route("/", discoveryRoute);
+  app.route("/", psrRoute);
   app.route("/", categoriesRoute);
   app.route("/", countriesRoute);
   app.route("/", searchRoute);
