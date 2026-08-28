@@ -11,10 +11,11 @@ export interface GeneratePackageResult {
   error?: string;
   /** Base64-encoded ZIP bytes. Server actions cannot stream a
    * Content-Disposition download directly (that's a Route Handler
-   * concept) — the caller (SelfHostedPath.tsx) decodes this into a Blob
-   * client-side and triggers the browser download from there. Documented
-   * as a deliberate divergence from the prompt's literal HTTP-header
-   * framing in the Session 6 report. */
+   * concept) — the caller (SelfServiceCard.tsx, Session 37B — moved here
+   * when Step 6 was restructured into three cards; same logic, formerly in
+   * SelfHostedPath.tsx) decodes this into a Blob client-side and triggers
+   * the browser download from there. Documented as a deliberate divergence
+   * from the prompt's literal HTTP-header framing in the Session 6 report. */
   filename?: string;
   base64Zip?: string;
 }

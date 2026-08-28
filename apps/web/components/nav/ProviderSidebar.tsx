@@ -18,12 +18,26 @@ import { Link, usePathname } from "@/i18n/navigation";
 const ITEMS = [
   { key: "dashboard", href: "/dashboard", icon: "📊" },
   { key: "addDataset", href: "/onboarding/new-dataset", icon: "➕" },
+  // Session 37B pre-merge fix: placed after "Add Dataset" rather than
+  // between it and "Dashboard" — groups naturally with the
+  // add-a-dataset/deploy-it lifecycle rather than breaking the
+  // primary-landing-page adjacency at the top. Not in the translated Nav
+  // namespace — `label` overrides `t(key)` below, hardcoded like the
+  // Deploy step's own Session 37B copy. Unconditional (unlike this
+  // component's brief Session 37B iteration, which gated it on the
+  // provider having at least one invoice) — every authenticated provider
+  // sees it, same as every other item here.
+  { key: "deploymentInvoices", href: "/dashboard/invoices", icon: "🧾", label: "Deployment Invoices" },
   { key: "browseData", href: "/data", icon: "🔗" },
   { key: "agents", href: "/agents", icon: "🤖" },
   { key: "walletSettings", href: "/onboarding/wallet", icon: "💰" },
   { key: "faq", href: "/faq", icon: "❓" },
 ] as const;
 
+/**
+ * Session 20 (see file header) — persistent left nav for authenticated
+ * provider pages.
+ */
 export function ProviderSidebar() {
   const t = useTranslations("Nav");
   const pathname = usePathname();
@@ -36,6 +50,7 @@ export function ProviderSidebar() {
       <ul className="space-y-1">
         {ITEMS.map((item) => {
           const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
+          const label = "label" in item ? item.label : t(item.key);
           return (
             <li key={item.key}>
               <Link
@@ -45,7 +60,7 @@ export function ProviderSidebar() {
                 }`}
               >
                 <span aria-hidden="true">{item.icon}</span>
-                <span className="hidden sm:inline">{t(item.key)}</span>
+                <span className="hidden sm:inline">{label}</span>
               </Link>
             </li>
           );

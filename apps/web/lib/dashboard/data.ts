@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import type { Endpoint, Provider, TransactionLogEntry } from "@pdc/shared-types";
+import type { DeploymentInvoice, Endpoint, Provider, TransactionLogEntry } from "@pdc/shared-types";
 
 export interface DashboardData {
   provider: Provider;
@@ -93,4 +93,19 @@ export async function getAllTransactions(providerId: string): Promise<Transactio
     .order("queried_at", { ascending: false })
     .limit(500);
   return (data ?? []) as TransactionLogEntry[];
+}
+
+/**
+ * Session 37B, Deliverable 5 — this provider's deployment_invoices rows for
+ * /dashboard/invoices. Same service-role-after-getResumedProvider posture
+ * as getAllTransactions above.
+ */
+export async function getProviderDeploymentInvoices(providerId: string): Promise<DeploymentInvoice[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("deployment_invoices")
+    .select("*")
+    .eq("provider_id", providerId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as DeploymentInvoice[];
 }
