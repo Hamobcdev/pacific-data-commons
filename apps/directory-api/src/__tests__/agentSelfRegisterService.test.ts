@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { selfRegisterAgent } from "../services/agentSelfRegisterService.js";
 import { AppError, ValidationError } from "../lib/errors.js";
-import { createFakeSupabase, getFakeInserts } from "./testUtils.js";
+import { createFakeSupabase, getFakeInserts, getFakeEqCalls } from "./testUtils.js";
 
 const VALID_WALLET = "Q5XTALN45D32I572OZAVZ4FW6UYSW6A4FFAX4YOY6PP3YCD4JJJ3JQRYKI";
 
@@ -32,7 +32,7 @@ describe("selfRegisterAgent", () => {
     });
   });
 
-  it("returns the existing agent id without inserting when the wallet is already registered", async () => {
+  it("returns the existing agent id without inserting when the name is already registered", async () => {
     const supabase = createFakeSupabase({
       agents: { data: [{ id: "agent-existing" }] },
     });
@@ -41,6 +41,22 @@ describe("selfRegisterAgent", () => {
 
     expect(result).toEqual({ agent_id: "agent-existing" });
     expect(getFakeInserts(supabase)).toHaveLength(0);
+  });
+
+  it("looks up by agent_name, not operational_wallet or agent_type — regression test for the multi-row self-register bug", async () => {
+    // Both orchestrators pass agent_type: "fisheries_status" (colliding with
+    // each other and with the seeded "Pacific Fisheries Status" row) and
+    // every SBP-operated caller shares one operational_wallet — agent_name
+    // is the only field distinct per caller. See agentSelfRegisterService.ts's
+    // doc comment.
+    const supabase = createFakeSupabase({
+      agents: { data: [{ id: "agent-existing" }] },
+    });
+
+    await selfRegisterAgent(supabase, validBody);
+
+    const eqCalls = getFakeEqCalls(supabase).filter((call) => call.table === "agents");
+    expect(eqCalls).toEqual([{ table: "agents", column: "agent_name", value: validBody.agent_name }]);
   });
 
   it("rejects an invalid Algorand address", async () => {

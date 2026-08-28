@@ -32,22 +32,38 @@ function formatZodIssues(error: z.ZodError): string {
 
 /**
  * POST /internal/agents/self-register (Session 19). Lets a first-party
- * SBP-operated agent (currently: apps/sbp-agent) provision its own `agents`
- * row at boot rather than requiring a human to hand-insert one — the row is
- * a prerequisite for that agent submitting Decision 37 attribution records,
- * and sbp-agent's operational wallet is only known at runtime (resolved
- * from AGENT_WALLET_KEY / AWS Secrets Manager, never committed to a
- * migration — see apps/sbp-agent/src/lib/self-register.ts).
+ * SBP-operated agent (currently: apps/sbp-agent, plus the two orchestrators
+ * in this same service — pacificIntelligenceService.ts,
+ * pacificTourismService.ts) provision its own `agents` row at boot/per-run
+ * rather than requiring a human to hand-insert one — the row is a
+ * prerequisite for submitting Decision 37 attribution records.
  *
- * Deliberately NOT an upsert against a unique constraint on
- * operational_wallet: the live `agents` table already has 6 rows (the
- * Phase 2 first-party marketplace agent placeholders) that all share one
- * identical dummy operational_wallet — see
- * supabase/migrations/session19_transaction_logging.sql's note on why that
- * constraint isn't safe to add yet. A plain select-then-insert is
- * sufficient here: this route is only ever called by a small number of
- * SBP-operated singleton agents at their own boot time, not a
- * high-concurrency public registration path.
+ * Hotfix (post-Session 34): the lookup used to be by operational_wallet,
+ * which broke as soon as more than one caller shared a wallet — confirmed
+ * live, the `agents` table has 6 rows (the Phase 2 first-party marketplace
+ * agent placeholders) that all share one identical dummy operational_wallet
+ * (see supabase/migrations/session19_transaction_logging.sql's note), and
+ * both orchestrators reuse that same wallet too (apps/sbp-agent's real
+ * AGENT_WALLET_ADDRESS, per env.ts's AGENT_WALLET_KEY comment). A
+ * .maybeSingle() lookup against a column 6+ rows share throws PostgREST's
+ * "multiple rows returned" error on every call — the
+ * orchestrator_self_register_failed / tourism_orchestrator_self_register_failed
+ * warnings in the Railway logs.
+ *
+ * Looking up by agent_name instead — NOT agent_type — because agent_type is
+ * not actually unique per caller: both orchestrators pass
+ * agent_type: "fisheries_status" (there's no "orchestrator" value in
+ * AgentType, so each reuses the closest existing category — see their own
+ * call sites' comments), which collides with each other AND with the
+ * seeded "Pacific Fisheries Status" marketplace agent's row. agent_name is
+ * the one field distinct across every real caller ("SBP Pilot Agent",
+ * "Pacific Intelligence Orchestrator", "Pacific Tourism Orchestrator", and
+ * the 6 seeded marketplace agent names) — confirmed live, zero collisions.
+ *
+ * Still a plain select-then-insert, not an upsert against a DB constraint:
+ * this route is only ever called by a small number of SBP-operated
+ * singleton agents at their own boot/per-run time, not a high-concurrency
+ * public registration path.
  */
 export async function selfRegisterAgent(supabase: SupabaseClient, rawBody: unknown): Promise<SelfRegisterResult> {
   const parsed = selfRegisterSchema.safeParse(rawBody);
@@ -59,7 +75,7 @@ export async function selfRegisterAgent(supabase: SupabaseClient, rawBody: unkno
   const { data: existing, error: lookupError } = await supabase
     .from("agents")
     .select("id")
-    .eq("operational_wallet", req.operational_wallet)
+    .eq("agent_name", req.agent_name)
     .maybeSingle();
 
   if (lookupError) {
