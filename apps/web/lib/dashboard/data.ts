@@ -109,17 +109,3 @@ export async function getProviderDeploymentInvoices(providerId: string): Promise
     .order("created_at", { ascending: false });
   return (data ?? []) as DeploymentInvoice[];
 }
-
-/**
- * Lightweight existence check for ProviderSidebar's conditional
- * "Deployment Invoices" link — head-only count query, cheaper than
- * fetching full rows just to check length in the layout.
- */
-export async function providerHasDeploymentInvoices(providerId: string): Promise<boolean> {
-  const supabase = createServiceClient();
-  const { count } = await supabase
-    .from("deployment_invoices")
-    .select("id", { count: "exact", head: true })
-    .eq("provider_id", providerId);
-  return (count ?? 0) > 0;
-}

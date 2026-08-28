@@ -13,7 +13,7 @@
       "sectionLabel": "Provider Onboarding",
       "resuming": "Checking for a saved registration...",
       "sessionExpired": "Your session expired after 72 hours. We've kept your place — enter your email below to continue where you left off.",
-      "footerNotice": "Pacific Data Commons is a pre-commercial pilot by Synergy Blockchain Pacific. Your data stays on your servers. Questions? Contact SBP."
+      "footerNotice": "Pacific Data Commons — sovereign data infrastructure for the Pacific. Data stays on your servers. SBP routes payments — it never touches, copies, or hosts your data."
     },
     "error": {
       "title": "Something went wrong loading this step.",

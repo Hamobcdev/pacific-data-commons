@@ -18,28 +18,29 @@ import { Link, usePathname } from "@/i18n/navigation";
 const ITEMS = [
   { key: "dashboard", href: "/dashboard", icon: "📊" },
   { key: "addDataset", href: "/onboarding/new-dataset", icon: "➕" },
+  // Session 37B pre-merge fix: placed after "Add Dataset" rather than
+  // between it and "Dashboard" — groups naturally with the
+  // add-a-dataset/deploy-it lifecycle rather than breaking the
+  // primary-landing-page adjacency at the top. Not in the translated Nav
+  // namespace — `label` overrides `t(key)` below, hardcoded like the
+  // Deploy step's own Session 37B copy. Unconditional (unlike this
+  // component's brief Session 37B iteration, which gated it on the
+  // provider having at least one invoice) — every authenticated provider
+  // sees it, same as every other item here.
+  { key: "deploymentInvoices", href: "/dashboard/invoices", icon: "🧾", label: "Deployment Invoices" },
   { key: "browseData", href: "/data", icon: "🔗" },
   { key: "agents", href: "/agents", icon: "🤖" },
   { key: "walletSettings", href: "/onboarding/wallet", icon: "💰" },
   { key: "faq", href: "/faq", icon: "❓" },
 ] as const;
 
-/** Session 37B — "Deployment Invoices" isn't in the translated Nav
- * namespace (hardcoded label, matching the Deploy step's own new copy) and
- * is conditionally rendered rather than a static ITEMS entry: unlike every
- * other destination here, a provider with zero deployment_invoices rows
- * would only ever see an empty table, so it's hidden until they have at
- * least one (see dashboard/layout.tsx's providerHasDeploymentInvoices
- * check). */
-export interface ProviderSidebarProps {
-  hasInvoices?: boolean;
-}
-
-export function ProviderSidebar({ hasInvoices = false }: ProviderSidebarProps) {
+/**
+ * Session 20 (see file header) — persistent left nav for authenticated
+ * provider pages.
+ */
+export function ProviderSidebar() {
   const t = useTranslations("Nav");
   const pathname = usePathname();
-
-  const invoicesActive = pathname.startsWith("/dashboard/invoices");
 
   return (
     <nav
@@ -49,6 +50,7 @@ export function ProviderSidebar({ hasInvoices = false }: ProviderSidebarProps) {
       <ul className="space-y-1">
         {ITEMS.map((item) => {
           const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
+          const label = "label" in item ? item.label : t(item.key);
           return (
             <li key={item.key}>
               <Link
@@ -58,24 +60,11 @@ export function ProviderSidebar({ hasInvoices = false }: ProviderSidebarProps) {
                 }`}
               >
                 <span aria-hidden="true">{item.icon}</span>
-                <span className="hidden sm:inline">{t(item.key)}</span>
+                <span className="hidden sm:inline">{label}</span>
               </Link>
             </li>
           );
         })}
-        {hasInvoices && (
-          <li>
-            <Link
-              href="/dashboard/invoices"
-              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm min-h-[44px] sm:min-h-0 transition-colors ${
-                invoicesActive ? "bg-ocean/10 text-ocean font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-navy"
-              }`}
-            >
-              <span aria-hidden="true">🧾</span>
-              <span className="hidden sm:inline">Deployment Invoices</span>
-            </Link>
-          </li>
-        )}
       </ul>
     </nav>
   );
