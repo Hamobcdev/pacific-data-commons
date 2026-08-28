@@ -32,6 +32,28 @@ const config = {
     }
     return webpackConfig;
   },
+  // Session 37A — provider UX restructure.
+  async redirects() {
+    return [
+      // Checklist page deprecated — content moved into the wallet step
+      // (components/wallet/ReadinessChecklist.tsx).
+      {
+        source: "/:locale/onboarding/checklist",
+        destination: "/:locale/for-providers",
+        permanent: true,
+      },
+      // /for-providers alias — the /welcome page's content was replaced by
+      // Session 37A's for-providers copy, but the file stays at its
+      // existing app/[locale]/(public)/welcome path (no directory rename),
+      // so /for-providers is a clean external-facing slug that redirects to
+      // where that content actually lives.
+      {
+        source: "/:locale/for-providers",
+        destination: "/:locale/welcome",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(config);

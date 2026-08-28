@@ -12,6 +12,7 @@ import { WalletGuide } from "./WalletGuide";
 import { WalletInput } from "./WalletInput";
 import { UsdcOptInGuide } from "./UsdcOptInGuide";
 import { UsdcExplainer } from "./UsdcExplainer";
+import { ReadinessChecklist } from "./ReadinessChecklist";
 import { Alert } from "@/components/ui/alert";
 import { StepNav } from "@/components/onboarding/StepNav";
 
@@ -76,13 +77,13 @@ export function WalletForm() {
       if (result.success) {
         persist({ ...form, walletVerified: true, usdcOptedIn: result.usdcOptedIn });
         const state = loadLocalState() ?? defaultState();
-        // currentStep stays "upload" — checklist (Session 19) is a UI
-        // waypoint between wallet and upload, not a tracked onboarding
-        // step: it's client-side orientation only (no backend validation,
-        // no persisted state of its own), so a returning provider who
-        // already passed it resumes straight at "upload" as before.
+        // Session 37A: the checklist page is deprecated (its content is now
+        // the collapsible readiness section on this step — see
+        // ReadinessChecklist below) and its route 301s to /for-providers, so
+        // it's no longer a step to route through. currentStep goes straight
+        // to "upload", same value this always saved, just reached directly now.
         saveLocalState({ ...state, currentStep: "upload" });
-        router.push("/onboarding/checklist");
+        router.push("/onboarding/upload");
       } else if (result.error === SESSION_EXPIRED_ERROR) {
         flagSessionExpired(tShell("sessionExpired"));
         router.push("/onboarding");
@@ -102,6 +103,20 @@ export function WalletForm() {
 
   return (
     <div className="mt-6 space-y-6">
+      <Alert variant="info">
+        New to Algorand wallets? Read the{" "}
+        <a
+          href="/guides/wallet-setup"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium underline hover:no-underline"
+        >
+          Wallet Setup Guide →
+        </a>{" "}
+        before continuing. It covers Pera setup, hardware wallets for institutions, acquiring USDC, and financial
+        controls for institutional wallet management. Opens in a new tab.
+      </Alert>
+
       <UsdcExplainer />
       <WalletGuide onAllConfirmed={setGuideConfirmed} />
 
@@ -123,6 +138,14 @@ export function WalletForm() {
             <p className="mt-1.5 text-xs text-gray-500">{t("address.hint")}</p>
             <p className="mt-1 text-xs text-gray-400">{t("address.publicNote")}</p>
           </div>
+
+          <p className="text-xs text-gray-500">
+            The wallet address you register must be an institutional wallet controlled by an authorised financial
+            officer — not a personal wallet. All query payments on your institution&apos;s endpoints will go to this
+            address.
+          </p>
+
+          <ReadinessChecklist />
 
           {addressFormatValid && form.usdcOptedIn === false && <UsdcOptInGuide />}
 

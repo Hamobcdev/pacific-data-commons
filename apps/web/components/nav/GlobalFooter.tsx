@@ -37,6 +37,12 @@ export async function GlobalFooter() {
             <Link href="/downloads/finance-office-brief" className="hover:text-white/80 transition-colors">
               {t("walletGuide")}
             </Link>
+            <Link href="/guides/wallet-setup" className="hover:text-white/80 transition-colors">
+              Wallet Setup Guide
+            </Link>
+            <Link href="/developers/psr" className="hover:text-white/80 transition-colors">
+              Pacific Service Registry
+            </Link>
             <Link href="/faq" className="hover:text-white/80 transition-colors">
               {t("faq")}
             </Link>
