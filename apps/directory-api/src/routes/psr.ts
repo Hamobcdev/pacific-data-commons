@@ -43,3 +43,27 @@ psrRoute.get("/psr/v1/schema", (c) => {
   c.header("Cache-Control", "public, max-age=3600");
   return c.json(PSR_ENDPOINT_SCHEMA);
 });
+
+/**
+ * Session 38 — PSR multi-node registry extension. Returns the full
+ * platform_nodes array from PSR_SPEC (also embedded inline in the
+ * /psr/v1/spec response's ecosystem_summary/platform_nodes fields) as its
+ * own route for consumers that only want the node list without the rest of
+ * the PSR specification. Same public/no-auth/no-x402/cache posture as
+ * /psr/v1/spec and /psr/v1/schema above.
+ */
+psrRoute.get("/psr/v1/nodes", (c) => {
+  logger.info("psr_nodes_requested", { path: c.req.path });
+
+  if (!PSR_SPEC.platform_nodes) {
+    logger.error("psr_nodes_missing");
+    return c.json({ error: "psr_nodes_unavailable", message: "PSR node registry is temporarily unavailable." }, 503);
+  }
+
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json({
+    registry_version: PSR_SPEC.ecosystem_summary.registry_version,
+    ecosystem_summary: PSR_SPEC.ecosystem_summary,
+    platform_nodes: PSR_SPEC.platform_nodes,
+  });
+});

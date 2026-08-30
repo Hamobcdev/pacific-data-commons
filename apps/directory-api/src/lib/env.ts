@@ -39,6 +39,15 @@ const envSchema = z.object({
   // fails fast at boot instead of leaving that ambiguous.
   INTERNAL_API_KEY: z.string().min(1, "INTERNAL_API_KEY is required — gates the /internal/* service-to-service routes"),
 
+  // Session 38 — shared secret gating the /compliance/* AML/KYC stub routes
+  // (service-to-service only, same posture as INTERNAL_API_KEY above: an
+  // unset key must fail fast at boot per P4 rather than silently comparing
+  // against undefined). Sent as `Authorization: Bearer <key>` rather than
+  // X-Internal-Api-Key — the CBS escrow/compliance surface is a distinct
+  // trust boundary from the existing agent/cron service-to-service callers
+  // of /internal/*, so it gets its own secret rather than reusing theirs.
+  COMPLIANCE_API_KEY: z.string().min(1, "COMPLIANCE_API_KEY is required — gates the /compliance/* AML/KYC stub routes"),
+
   // Resend — Session 17 is this repo's first real integration (see
   // CLAUDE.md Section 26.4: no SMTP/Resend provider has been configured
   // anywhere before now). Optional: a provider-notification email failing
