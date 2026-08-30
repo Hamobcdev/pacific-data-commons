@@ -18,6 +18,7 @@ import { verifyRoute } from "./routes/verify.js";
 import { discoveryRoute } from "./routes/discovery.js";
 import { psrRoute } from "./routes/psr.js";
 import { attributionRoute } from "./routes/attribution.js";
+import { complianceRoute } from "./routes/compliance.js";
 import { internalRoute } from "./routes/internal.js";
 import { updatesRoute } from "./routes/updates.js";
 import { externalSourcesRoute } from "./routes/externalSources.js";
@@ -408,6 +409,7 @@ function main(): void {
   app.route("/", endpointRoute);
   app.route("/", verifyRoute);
   app.route("/", attributionRoute);
+  app.route("/", complianceRoute);
   app.route("/", internalRoute);
   app.route("/", updatesRoute);
   app.route("/", externalSourcesRoute);
