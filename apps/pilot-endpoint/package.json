@@ -9,7 +9,10 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy:cf": "wrangler deploy --config wrangler.toml",
+    "dev:cf": "wrangler dev --config wrangler.toml",
+    "build:cf": "tsc --noEmit -p tsconfig.typecheck.json && echo 'Types OK'"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
@@ -21,6 +24,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260904.1",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

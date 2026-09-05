@@ -1,0 +1,20 @@
+name = "pdc-financial-rails"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+account_id = "e94739e74a35d0d91a23961063a74904"
+
+# No public domain — internal service only
+# Access via Cloudflare service bindings or internal URL:
+# pdc-financial-rails.synergyblockchaintf.workers.dev
+
+[vars]
+NODE_ENV = "production"
+
+# Secret environment variables are set via Cloudflare dashboard
+# Workers & Pages > pdc-financial-rails > Settings > Variables
+# DO NOT put actual secret values in this file
+# Variables to set in dashboard (names only — values from secrets folder):
+# SUPABASE_URL
+# SUPABASE_SERVICE_KEY
+# FINANCIAL_RAILS_KEY

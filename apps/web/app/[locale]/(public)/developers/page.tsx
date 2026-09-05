@@ -5,7 +5,12 @@ import { GlobalNav } from "@/components/nav/GlobalNav";
 import { GlobalFooter } from "@/components/nav/GlobalFooter";
 import { Link } from "@/i18n/navigation";
 
-const DIRECTORY_API_URL = "https://pdcdirectory-api-production.up.railway.app";
+// Session 40 — directory-api migrated Railway -> Cloudflare Workers, same
+// public domain as before.
+const DIRECTORY_API_URL = "https://api.synergybcpacific.com";
+// TODO(session40): apps/agents migrated Railway -> Render; its Render URL
+// is assigned at first deploy and isn't knowable at migration-authoring
+// time (see apps/agents/render.yaml and MIGRATION.md) — update once known.
 const AGENTS_API_URL = "https://pdcagents-production.up.railway.app";
 
 /**
