@@ -8,6 +8,15 @@ account_id = "e94739e74a35d0d91a23961063a74904"
 # Access via Cloudflare service bindings or internal URL:
 # pdc-financial-rails.synergyblockchaintf.workers.dev
 
+# Checked against the same variable-wipe pattern fixed in directory-api
+# (2026-09-05) — this worker has never been deployed before (confirmed via
+# `wrangler deployments list` — "This Worker does not exist on your
+# account"), so there's no existing dashboard config at risk. Unlike
+# directory-api/pilot-endpoint, this service's entire env schema beyond
+# NODE_ENV is genuinely secret material (DB credentials + the shared
+# service-to-service auth key) — there is no non-secret config value to
+# promote into [vars] here. NODE_ENV alone in [vars] is the correct end
+# state for this service, not a leftover gap.
 [vars]
 NODE_ENV = "production"
 

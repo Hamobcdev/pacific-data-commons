@@ -4,17 +4,38 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 account_id = "e94739e74a35d0d91a23961063a74904"
 
+# Same wrangler.toml pattern fix applied to directory-api after its
+# variable-wipe incident (2026-09-05): non-secret config declared here as
+# versioned [vars] instead of dashboard-only click-ops, so a future
+# `wrangler deploy` can't silently drop it. Unlike directory-api, this
+# worker has never been deployed before (confirmed via
+# `wrangler deployments list` — "This Worker does not exist on your
+# account"), so there was no existing dashboard config at risk here; this
+# is a preventative fix, not an incident recovery.
+#
+# No public custom domain for this service (unchanged from the original
+# migration plan) — reachable only at its workers.dev URL below.
 [vars]
 NODE_ENV = "production"
+ALGORAND_NETWORK = "mainnet"
+FACILITATOR_URL = "https://facilitator.goplausible.xyz"
+PUBLIC_URL = "https://pdc-pilot-endpoint.synergyblockchaintf.workers.dev"
+LOG_LEVEL = "info"
 
+# AVM_ADDRESS (payTo wallet for all 5 pricing tiers) is NOT set here even
+# though it's public wallet info (same category as directory-api's
+# AVM_ADDRESS/AGENT_WALLET_ADDRESS, now in that service's [vars]) — its
+# real value isn't known in this session (directory-api's was only
+# recoverable because wrangler's remote-diff warning surfaced the existing
+# dashboard value during that incident's redeploy; no equivalent existed
+# here to read). Guessing a payTo address is not a safe default — set it
+# once via the dashboard, then move it into [vars] here following the same
+# pattern as directory-api, so it's versioned rather than click-ops-only.
+#
 # Secret environment variables are set via Cloudflare dashboard
 # Workers & Pages > pdc-pilot-endpoint > Settings > Variables
 # DO NOT put actual secret values in this file
 # Variables to set in dashboard (names only — values from secrets folder):
-# ALGORAND_NETWORK
 # AVM_ADDRESS
-# FACILITATOR_URL
-# PUBLIC_URL
-# LOG_LEVEL
 # SUPABASE_URL
 # SUPABASE_SERVICE_KEY
