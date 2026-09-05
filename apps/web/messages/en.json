@@ -4,7 +4,7 @@
     "subtitle": "A sovereign data exchange for Pacific institutions — your data stays on your servers, buyers pay you directly.",
     "cta": "Register Your Institution",
     "tagline": "Sovereign Data. Direct Payments. Pacific.",
-    "pilotNote": "Pre-commercial pilot",
+    "pilotNote": "Directory and payment infrastructure",
     "contactNote": "Contact SBP"
   },
   "Onboarding": {
@@ -781,7 +781,7 @@
     "brand": "Pacific Data Commons",
     "company": "Synergy Blockchain Pacific Limited",
     "location": "Apia, Samoa",
-    "pilot": "Pre-commercial pilot",
+    "pilot": "Directory and payment infrastructure",
     "dataNote": "Data stays on your servers",
     "feeNote": "SBP earns 3% infrastructure fee",
     "agentMarketplace": "Agent Marketplace",
