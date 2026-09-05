@@ -1,0 +1,79 @@
+# Pacific Data Commons — Agent Marketplace Service — Render deployment.
+#
+# Session 40 correction: this service is TypeScript/Node (Hono +
+# @hono/node-server, tsx/tsc build), not Python — confirmed by direct
+# search of apps/agents for any *.py or requirements*.txt (none exist).
+# `env: node`, not Python's pip/uvicorn pattern.
+#
+# `type: web`: this process binds an HTTP server and serves the six
+# marketplace agents' quote/execute routes plus /health, matching the
+# existing Railway healthcheckPath (see the old apps/agents/railway.json).
+#
+# rootDir is the repo root, not apps/agents: pnpm workspace package
+# depending on @pdc/shared-types and @pdc/x402-adapter (workspace:*), same
+# reasoning as apps/sbp-agent/render.yaml — mirrors the old railway.json's
+# root-relative buildCommand ("pnpm run build:agents") and startCommand
+# ("node apps/agents/dist/index.js").
+#
+# PORT/PUBLIC_URL are Render-service-specific and not knowable at Blueprint
+# authoring time (Render assigns its own PORT for `type: web`; PUBLIC_URL —
+# used only for this service's own discovery/merchant-identity metadata —
+# should be set to this service's Render URL after first deploy). Both left
+# out of envVars for the operator to confirm in the dashboard once the
+# Render URL is known, rather than guessing here.
+services:
+  - type: web
+    name: pdc-agents
+    env: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: corepack enable && corepack prepare pnpm@10.33.0 --activate && pnpm install --frozen-lockfile && pnpm run build:agents
+    startCommand: node apps/agents/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: AGENT_WALLET_KEY
+        sync: false
+      - key: ALGORAND_NETWORK
+        value: mainnet
+      - key: ALGORAND_NODE_URL
+        value: https://mainnet-api.algonode.cloud
+      - key: ALGORAND_INDEXER_URL
+        value: https://mainnet-idx.algonode.cloud
+      # Session 40 — directory-api migrated Railway -> Cloudflare Workers,
+      # same public domain as before.
+      - key: DIRECTORY_API_URL
+        value: https://api.synergybcpacific.com
+      # Session 40 — pilot-endpoint migrated Railway -> Cloudflare Workers.
+      - key: PILOT_ENDPOINT_URL
+        value: https://pdc-pilot-endpoint.synergyblockchaintf.workers.dev
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: MAX_REQUESTS_PER_MINUTE
+        value: "10"
+      - key: MAX_QUOTES_PER_HOUR
+        value: "20"
+      - key: MAX_EXECUTIONS_PER_HOUR
+        value: "10"
+      - key: TRADE_AGENT_ID
+        sync: false
+      - key: CLIMATE_AGENT_ID
+        sync: false
+      - key: FISHERIES_AGENT_ID
+        sync: false
+      - key: AGRICULTURAL_AGENT_ID
+        sync: false
+      - key: REMITTANCE_AGENT_ID
+        sync: false
+      - key: GRANTS_AGENT_ID
+        sync: false

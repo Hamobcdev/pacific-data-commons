@@ -1,0 +1,62 @@
+# Pacific Data Commons — SBP Scheduled Query Agent — Render deployment.
+#
+# Session 40 correction: this service is TypeScript/Node (Hono +
+# @hono/node-server, tsx/tsc build), not Python — confirmed by direct
+# search of apps/sbp-agent for any *.py or requirements*.txt (none exist).
+# `env: node`, not Python's pip/uvicorn pattern.
+#
+# `type: web` (not `worker`): this process binds an HTTP server
+# (@hono/node-server) and serves /health, matching the existing Railway
+# healthcheckPath (see the old apps/sbp-agent/railway.json) — Render's
+# "worker" service type never binds a port or accepts a health check.
+#
+# rootDir is the repo root, not apps/sbp-agent: this is a pnpm workspace
+# package depending on @pdc/shared-types and @pdc/x402-adapter
+# (workspace:*), so `pnpm install` and the build must run where the
+# workspace root and lockfile live. This mirrors exactly how Railway
+# already deploys it — see the old railway.json's buildCommand
+# ("pnpm run build:sbp-agent", a root-level script) and startCommand
+# ("node apps/sbp-agent/dist/index.js", a root-relative path).
+#
+# PORT is deliberately omitted from envVars — Render assigns and injects
+# its own PORT for `type: web` services; this app's zod env schema already
+# coerces whatever value is present with no hardcoded assumption.
+services:
+  - type: web
+    name: pdc-sbp-agent
+    env: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: corepack enable && corepack prepare pnpm@10.33.0 --activate && pnpm install --frozen-lockfile && pnpm run build:sbp-agent
+    startCommand: node apps/sbp-agent/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # Session 40 — directory-api migrated Railway -> Cloudflare Workers,
+      # same public domain as before.
+      - key: DIRECTORY_URL
+        value: https://api.synergybcpacific.com
+      - key: ALGORAND_NETWORK
+        value: mainnet
+      - key: ALGORAND_NODE_URL
+        value: https://mainnet-api.algonode.cloud
+      - key: AGENT_WALLET_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_SECRET_NAME
+        value: pdc/agent-wallet-key
+      - key: AWS_REGION
+        value: ap-southeast-1
+      - key: QUERY_INTERVAL_MINUTES
+        value: "60"
+      - key: SEARCH_CATEGORY
+        value: fisheries
+      - key: INTERNAL_API_KEY
+        sync: false

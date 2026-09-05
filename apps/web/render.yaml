@@ -1,0 +1,99 @@
+# Pacific Data Commons — web (Next.js 14 App Router) — Render deployment.
+#
+# Session 40 course correction: the brief specified Cloudflare Pages, but
+# neither Cloudflare Next.js adapter fits this app as it stands —
+# @opennextjs/cloudflare requires Next.js >=15.5.24 (this app is pinned to
+# 14.2.35, confirmed via a failed peer-dependency check when the adapter
+# was installed), and the older @cloudflare/next-on-pages requires every
+# route on the Edge runtime, which this app's Node-only SDKs (Stripe,
+# Resend, tus-js-client, jszip) and 31 server-action files aren't set up
+# for. User-confirmed decision: deploy to Render instead, same as
+# apps/sbp-agent and apps/agents this session — Render runs Next.js 14 on
+# real Node with zero code changes. Cloudflare Pages/Workers for web is a
+# separate future effort once/if Next.js is upgraded to 15+.
+#
+# rootDir is the repo root, not apps/web: pnpm workspace package depending
+# on @pdc/shared-types (workspace:*) — mirrors root package.json's own
+# "build:web" script (pnpm --filter @pdc/shared-types build && pnpm
+# --filter @pdc/web build).
+#
+# PORT is deliberately omitted from envVars — Render assigns and injects
+# its own PORT for `type: web` services; startCommand passes it through to
+# `next start` explicitly since Next's CLI does not read process.env.PORT
+# on its own.
+services:
+  - type: web
+    name: pdc-web
+    env: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: corepack enable && corepack prepare pnpm@10.33.0 --activate && pnpm install --frozen-lockfile && pnpm run build:web
+    startCommand: pnpm --filter @pdc/web exec next start -p $PORT
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_EMAIL
+        sync: false
+      # Session 40 — apps/agents migrated Railway -> Render; set to this
+      # service's actual Render URL once apps/agents is deployed and its
+      # URL is known (not guessable at Blueprint authoring time).
+      - key: AGENTS_SERVICE_URL
+        sync: false
+      - key: ALGORAND_NODE_URL
+        value: https://mainnet-api.algonode.cloud
+      - key: DEMO_MODE
+        value: "false"
+      # Session 40 — apps/financial-rails migrated Railway -> Cloudflare
+      # Workers (internal only, no public domain). Set to
+      # https://pdc-financial-rails.synergyblockchaintf.workers.dev once
+      # confirmed reachable from Render's network, or to a Cloudflare
+      # Access/service-token protected URL per CBS Financial Rails'
+      # internal-only posture (CLAUDE.md Section 4 P4).
+      - key: FINANCIAL_RAILS_INTERNAL_URL
+        sync: false
+      - key: FINANCIAL_RAILS_KEY
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_ALGORAND_NETWORK
+        value: mainnet
+      # Set to this Render service's own public URL once known (Render
+      # assigns it at first deploy) — not guessable at Blueprint authoring
+      # time.
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: NEXT_PUBLIC_DEMO_MODE
+        value: "false"
+      # Session 40 — directory-api migrated Railway -> Cloudflare Workers,
+      # same public domain as before.
+      - key: NEXT_PUBLIC_DIRECTORY_API_URL
+        value: https://api.synergybcpacific.com
+      - key: NEXT_PUBLIC_SBP_PAYTO_ADDRESS
+        sync: false
+      - key: NEXT_PUBLIC_SBP_UPLOAD_FEE_WALLET
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: noreply@pacificdatacommons.org
+      - key: STRIPE_PRICE_DEPLOYMENT_COMPLEX
+        sync: false
+      - key: STRIPE_PRICE_DEPLOYMENT_STANDARD
+        sync: false
+      - key: STRIPE_PRICE_SCANNED_PDF_SURCHARGE
+        sync: false
+      - key: STRIPE_PRICE_UPLOAD_FEE
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

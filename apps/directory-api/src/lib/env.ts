@@ -95,7 +95,8 @@ const envSchema = z.object({
   // provider endpoint the orchestrator queries for fisheries data. Not a
   // secret (a public URL) — a real default rather than required, same
   // posture as ALGORAND_NODE_URL above.
-  PILOT_ENDPOINT_URL: z.string().url().default("https://pdcpilot-endpoint-production.up.railway.app"),
+  // Session 40 — pilot-endpoint migrated Railway -> Cloudflare Workers.
+  PILOT_ENDPOINT_URL: z.string().url().default("https://pdc-pilot-endpoint.synergyblockchaintf.workers.dev"),
 
   // Session 31 — Pacific Intelligence Orchestrator synthesis (Claude via
   // @anthropic-ai/sdk). Optional, same posture as AGENT_WALLET_KEY above:

@@ -29,8 +29,15 @@ export const PSR_SPEC = {
   network: "algorand-mainnet",
   payment_protocol: "x402",
   settlement_currency: "USDC",
-  directory_endpoint: "https://pdcdirectory-api-production.up.railway.app/search",
-  discovery_file: "https://pdcdirectory-api-production.up.railway.app/.well-known/x402-directory.json",
+  // Session 40 — directory-api migrated Railway -> Cloudflare Workers, but
+  // api.synergybcpacific.com is the same public domain as before (DNS
+  // repointed at the CF Worker post-merge, see MIGRATION.md).
+  directory_endpoint: "https://api.synergybcpacific.com/search",
+  discovery_file: "https://api.synergybcpacific.com/.well-known/x402-directory.json",
+  // TODO(session40): apps/web is migrating Railway -> Cloudflare Pages.
+  // Its production custom domain is not yet confirmed (see MIGRATION.md) —
+  // update these two once Pages is live and DNS is assigned. Left as the
+  // stale Railway URL rather than a guessed domain in the meantime.
   specification_url: "https://pdcweb-production.up.railway.app/psr/v1/spec.json",
   developer_docs: "https://pdcweb-production.up.railway.app/en/developers",
   endpoint_schema_version: "1.0.0",
@@ -201,6 +208,7 @@ export const PSR_SPEC = {
 
 export const PSR_ENDPOINT_SCHEMA = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
+  // TODO(session40): same pdcweb domain-TBD note as specification_url above.
   $id: "https://pdcweb-production.up.railway.app/psr/v1/endpoint-schema.json",
   title: "Pacific Service Registry — Endpoint Registration Schema",
   description:
