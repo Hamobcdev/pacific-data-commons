@@ -50,7 +50,14 @@ discoveryRoute.get("/.well-known/x402-directory.json", async (c) => {
     console.error("discovery_stats_query_failed", err);
   }
 
-  const directoryApiUrl = process.env.DIRECTORY_API_URL ?? `http://localhost:${env.PORT}`;
+  // Session 40 hotfix — was `process.env.DIRECTORY_API_URL ?? \`http://localhost:${env.PORT}\``,
+  // a raw process.env read outside this service's validated env schema and
+  // outside the Workers-safe `env` context variable worker.ts passes
+  // through (see that file's doc comment) — it always fell through to the
+  // localhost fallback in production on Cloudflare Workers. PUBLIC_URL is
+  // the field already used for this exact purpose everywhere else in this
+  // app (see app.ts's `resource: \`${env.PUBLIC_URL}${route.path}\``).
+  const directoryApiUrl = env.PUBLIC_URL;
 
   return c.json({
     name: "Pacific Data Commons",
