@@ -4,26 +4,54 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 account_id = "e94739e74a35d0d91a23961063a74904"
 
+# Incident fix (Session 40 hotfix follow-up, 2026-09-05): `wrangler deploy`
+# treats local config as authoritative and overwrites the dashboard's routes
+# and vars with whatever this file declares. Before this file declared
+# `routes`, the very first post-migration deploy silently deleted the
+# api.synergybcpacific.com custom-domain route the dashboard had configured
+# — declaring it here is what keeps a future plain `wrangler deploy` from
+# doing that again.
+routes = [
+  { pattern = "api.synergybcpacific.com", custom_domain = true }
+]
+# Wrangler disables the workers.dev URL by default once `routes` is set
+# explicitly — re-enabled to match the dashboard's prior default (both the
+# custom domain and the workers.dev URL were reachable before this file
+# declared routes at all).
+workers_dev = true
+
+# Same incident: these vars were configured only via the dashboard, so the
+# first deploy from this wrangler.toml (which only declared NODE_ENV) wiped
+# all of them. Restored here as [vars] (not secrets — every value below is
+# a public wallet address or public URL, never sensitive material per
+# CLAUDE.md P4) so they're versioned and can't be silently dropped by a
+# future deploy again. PORT is deliberately NOT restored: Workers doesn't
+# bind a TCP port, and the stale dashboard value of 8080 (a Railway-era
+# leftover) is exactly what caused discovery.ts's old localhost fallback to
+# render "http://localhost:8080" in production — letting env.PORT fall back
+# to its schema default (8787) is harmless since nothing here uses it.
 [vars]
 NODE_ENV = "production"
+PUBLIC_URL = "https://api.synergybcpacific.com"
+ALGORAND_NETWORK = "mainnet"
+AVM_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY"
+AGENT_WALLET_ADDRESS = "Q5XTALN45D32I572OZAVZ4FW6UYSW6A4FFAX4YOY6PP3YCD4JJJ3JQRYKI"
+FACILITATOR_URL = "https://facilitator.goplausible.xyz"
+ALGORAND_NODE_URL = "https://mainnet-api.algonode.cloud"
+WEB_APP_URL = "https://synergybcpacific.com"
+LOG_LEVEL = "info"
 
-# Secret environment variables are set via Cloudflare dashboard
-# Workers & Pages > pdc-directory-api > Settings > Variables
-# DO NOT put actual secret values in this file
-# Variables to set in dashboard (names only — values from secrets folder):
-# PUBLIC_URL
-# ALGORAND_NETWORK
-# AVM_ADDRESS
-# FACILITATOR_URL
-# AGENT_WALLET_ADDRESS
-# WEB_APP_URL
+# Secret environment variables remain set via Cloudflare dashboard
+# (Workers & Pages > pdc-directory-api > Settings > Variables and Secrets)
+# — confirmed untouched by the incident deploy, since wrangler never
+# overwrites encrypted Secrets from a [vars] block. DO NOT put actual
+# secret values in this file. Secrets to confirm are still set (names only):
 # SUPABASE_URL
 # SUPABASE_SERVICE_KEY
 # INTERNAL_API_KEY
 # COMPLIANCE_API_KEY
 # RESEND_API_KEY
 # EMAIL_FROM
-# ALGORAND_NODE_URL
 # NODELY_API_TOKEN
 # AGENT_WALLET_KEY
 # PILOT_ENDPOINT_URL
