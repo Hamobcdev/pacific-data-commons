@@ -96,8 +96,8 @@ export default function FinanceOfficeBriefPage() {
               </p>
               <p className="mt-1">Web: synergybcpacific.com</p>
               <p className="mt-1">
-                Pacific Data Commons is a pre-commercial pilot operated by Synergy Blockchain Pacific Limited, Apia,
-                Samoa.
+                Pacific Data Commons is directory and payment infrastructure operated by Synergy Blockchain Pacific
+                Limited, Apia, Samoa. SBP does not assess data quality or arbitrate disputes.
               </p>
             </section>
           </div>

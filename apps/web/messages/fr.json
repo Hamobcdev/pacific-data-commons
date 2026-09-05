@@ -4,7 +4,7 @@
     "subtitle": "A sovereign data exchange for Pacific institutions — your data stays on your servers, buyers pay you directly.",
     "cta": "Register Your Institution",
     "tagline": "Sovereign Data. Direct Payments. Pacific.",
-    "pilotNote": "Pre-commercial pilot",
+    "pilotNote": "Directory and payment infrastructure",
     "contactNote": "Contact SBP"
   },
   "Onboarding": {
@@ -67,8 +67,8 @@
     "Register": {
       "title": "Register Your Institution",
       "subtitle": "Tell us about your organisation. All fields are saved automatically.",
-      "pilot_notice": "Pacific Data Commons is in pilot mode. By registering you acknowledge SBP is a directory and payment infrastructure operator only — not a quality assessor or dispute arbitrator. Full terms of service are being finalised.",
-      "pilot_terms": "This is a pre-commercial pilot. Your data stays on your servers. Disputes are between you and data buyers directly. SBP earns 3% of transactions as an infrastructure fee.",
+      "pilot_notice": "By registering you acknowledge SBP is a directory and payment infrastructure operator only — not a quality assessor or dispute arbitrator. Full terms of service are being finalised.",
+      "pilot_terms": "Your data stays on your servers. Disputes are between you and data buyers directly. SBP earns 3% of transactions as an infrastructure fee.",
       "continue": "Continue to Wallet Setup",
       "submitting": "Saving...",
       "genericError": "Registration failed. Please try again or contact SBP if this persists.",
@@ -670,7 +670,7 @@
     "brand": "Pacific Data Commons",
     "company": "Synergy Blockchain Pacific Limited",
     "location": "Apia, Samoa",
-    "pilot": "Pre-commercial pilot",
+    "pilot": "Directory and payment infrastructure",
     "dataNote": "Data stays on your servers",
     "feeNote": "SBP earns 3% infrastructure fee",
     "agentMarketplace": "Agent Marketplace",
