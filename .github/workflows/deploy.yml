@@ -7,12 +7,56 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: directory-api
+            path: apps/directory-api
+            build_shared: true
+          - name: financial-rails
+            path: apps/financial-rails
+            build_shared: false
+          - name: pilot-endpoint
+            path: apps/pilot-endpoint
+            build_shared: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+
+      # Reads the pnpm version to install from root package.json's
+      # "packageManager" field (pnpm@10.33.0) — do not hardcode a version
+      # here, it would drift from that field silently.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
-      - run: npm install
-      - run: npx wrangler deploy
+          node-version: 22
+          cache: pnpm
+
+      # Repo is a pnpm workspace (pnpm-workspace.yaml) — apps/* packages
+      # depend on packages/shared-types and packages/pdc-x402-adapter via
+      # "workspace:*". `npm install` at root does not understand that
+      # protocol and silently installs nothing for the workspace packages
+      # (this was the previous workflow's bug, compounded by wrangler being
+      # invoked from the repo root instead of a specific app directory).
+      - run: pnpm install --frozen-lockfile
+
+      # directory-api and pilot-endpoint import @pdc/shared-types and
+      # @pdc/x402-adapter by their built dist/ output (see each package's
+      # "main"/"exports" fields) — wrangler's bundler resolves those imports
+      # at deploy time and needs dist/ to already exist. financial-rails has
+      # no workspace dependencies, so it skips this step.
+      - if: matrix.service.build_shared
+        run: |
+          pnpm --filter @pdc/shared-types build
+          pnpm --filter @pdc/x402-adapter build
+
+      # Must run from the service's own directory, not the workspace root —
+      # `wrangler deploy` at the repo root fails with "application detection
+      # logic has been run in the root of a workspace" since there's no
+      # wrangler.toml there. Each service has its own wrangler.toml.
+      - name: Deploy ${{ matrix.service.name }}
+        working-directory: ${{ matrix.service.path }}
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
