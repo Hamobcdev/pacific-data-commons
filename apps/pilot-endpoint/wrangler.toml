@@ -21,21 +21,35 @@ ALGORAND_NETWORK = "mainnet"
 FACILITATOR_URL = "https://facilitator.goplausible.xyz"
 PUBLIC_URL = "https://pdc-pilot-endpoint.synergyblockchaintf.workers.dev"
 LOG_LEVEL = "info"
+# SBP's payTo wallet — same address as directory-api's AVM_ADDRESS (that
+# service's [vars], confirmed identical). Public wallet info, not a secret
+# (see the incident note below this block for why it belongs here as a
+# versioned var rather than a dashboard-only click-op).
+AVM_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY"
 
-# AVM_ADDRESS (payTo wallet for all 5 pricing tiers) is NOT set here even
-# though it's public wallet info (same category as directory-api's
-# AVM_ADDRESS/AGENT_WALLET_ADDRESS, now in that service's [vars]) — its
-# real value isn't known in this session (directory-api's was only
-# recoverable because wrangler's remote-diff warning surfaced the existing
-# dashboard value during that incident's redeploy; no equivalent existed
-# here to read). Guessing a payTo address is not a safe default — set it
-# once via the dashboard, then move it into [vars] here following the same
-# pattern as directory-api, so it's versioned rather than click-ops-only.
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+persist = true
+
+
+# 2026-09-22 outage: this worker was serving 500 on every route (including
+# /health) because AVM_ADDRESS and SUPABASE_URL were never actually set —
+# neither was in [vars] (AVM_ADDRESS, now fixed above) nor present as a
+# Cloudflare secret (`wrangler secret list` showed only
+# SUPABASE_SERVICE_KEY). See apps/pilot-endpoint/DEPLOY.md for the full
+# required-secrets list and how this class of outage is meant to be
+# prevented going forward.
 #
-# Secret environment variables are set via Cloudflare dashboard
-# Workers & Pages > pdc-pilot-endpoint > Settings > Variables
-# DO NOT put actual secret values in this file
-# Variables to set in dashboard (names only — values from secrets folder):
-# AVM_ADDRESS
+# Secret environment variables (true secrets, not public config) are set via
+# `wrangler secret put <NAME> --name pdc-pilot-endpoint` or the Cloudflare
+# dashboard (Workers & Pages > pdc-pilot-endpoint > Settings > Variables).
+# DO NOT put actual secret values in this file.
 # SUPABASE_URL
 # SUPABASE_SERVICE_KEY
