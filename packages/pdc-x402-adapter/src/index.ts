@@ -10,6 +10,7 @@
  * Pinned to @x402/* 2.19.x — bump the pin here, once, when upgrading.
  */
 import { paymentMiddleware } from "@x402/hono";
+export { installBazaarAjvWorkersLogFilter, type BazaarAjvWorkersLogFilterOptions } from "./bazaarAjvWorkersLogFilter.js";
 import {
   x402ResourceServer,
   HTTPFacilitatorClient,

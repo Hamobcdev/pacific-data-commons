@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { declareDiscoveryExtension } from "@x402-avm/extensions";
-import { PdcPaymentGate, checkFacilitatorHealth } from "@pdc/x402-adapter";
+import { PdcPaymentGate, checkFacilitatorHealth, installBazaarAjvWorkersLogFilter } from "@pdc/x402-adapter";
+import { paidRoutes } from "./routeSchemas.js";
 import type { Env } from "./types/env.js";
 import { logger } from "./lib/logger.js";
 import { computeCanonicalHash } from "./lib/hash.js";
@@ -38,6 +38,24 @@ import type { AppBindings } from "./types.js";
  * env is passed in by whichever entry point loaded it.
  */
 export async function createApp(env: Env): Promise<Hono<AppBindings>> {
+  // Must be installed before the x402 payment gate's middleware is
+  // constructed below (it kicks off @x402/hono's dynamic bazaar-validation
+  // import as soon as middleware() runs) — see bazaarAjvWorkersLogFilter.ts
+  // for the full root-cause writeup of the known, non-fatal Cloudflare
+  // Workers + Ajv incompatibility this narrowly reclassifies.
+  installBazaarAjvWorkersLogFilter({
+    onKnownIssue: ({ route, rawWarnMessage }) =>
+      logger.info("x402_bazaar_ajv_workers_codegen_restriction", {
+        route,
+        detail: rawWarnMessage,
+        explanation:
+          "Cloudflare Workers disallows the runtime new Function() call @x402/extensions' bazaar " +
+          "discovery-schema self-check needs (via Ajv). Non-fatal — this route's own payment " +
+          "response is unaffected; this is @x402/hono's internal spec-conformance check, not a " +
+          "defect in this route's schema. Filed upstream: https://github.com/x402-foundation/x402/issues/3556",
+      }),
+  });
+
   // ── R7: canonical hash computed once at startup, cached for every request ──
   const datasetHash = computeCanonicalHash(FISHERIES_RECORDS);
   const hashComputedAt = new Date().toISOString();
@@ -135,207 +153,24 @@ export async function createApp(env: Env): Promise<Hono<AppBindings>> {
     await logSettledEndpointPayment(supabase, payment, context);
   });
 
-  // Bazaar discovery metadata (Session 8.1) — built with @x402-avm/extensions'
-  // declareDiscoveryExtension, a pure data-shape builder with no coupling to
-  // any particular x402 core implementation. Deliberately NOT using that
-  // package's bazaarResourceServerExtension: it's typed against
-  // @x402-avm/core's x402ResourceServer, a different class from the
-  // @x402/core one PdcPaymentGate actually wraps (R1 — @pdc/x402-adapter is
-  // the only module that touches @x402/* directly). @x402/core has its own
-  // native support for the same "extensions.bazaar" wire field
-  // (checkIfBazaarNeeded / enrichExtensions in @x402/core/server), so the
-  // discovery object just needs to be attached at RouteConfig.extensions.bazaar
-  // via PdcPaidRouteSpec.extensions — see packages/pdc-x402-adapter.
+  // Bazaar discovery metadata (Session 8.1) — extension objects built with
+  // @x402-avm/extensions' declareDiscoveryExtension, a pure data-shape
+  // builder with no coupling to any particular x402 core implementation.
+  // @x402/core has its own native support for the "extensions.bazaar" wire
+  // field (checkIfBazaarNeeded / enrichExtensions in @x402/core/server), so
+  // the discovery object just needs to be attached at
+  // RouteConfig.extensions.bazaar via PdcPaidRouteSpec.extensions — see
+  // packages/pdc-x402-adapter.
   //
-  // declareDiscoveryExtension() already returns { bazaar: DiscoveryExtension }
-  // (see @x402-avm/extensions/dist/*/bazaar/resourceService.js) — discoveryFor()
-  // below unwraps that so call sites can do `extensions: { bazaar: ... }`
-  // themselves, matching the RouteConfig field name explicitly.
-  //
-  // Its published input type omits `method`, because it's normally filled in
-  // later by bazaarResourceServerExtension.enrichDeclaration from the live
-  // request's transport context — a hook we don't register (see above). We
-  // supply `method` up front instead; the bundled implementation reads and
-  // emits it unconditionally when present, so this is a type-level gap only,
-  // not a runtime one. Building each config as a variable of this widened
-  // type (rather than passing an inline object literal) is what lets TS
-  // accept the extra field without fighting the public type's excess-property
-  // check.
-  type DiscoveryConfig = Parameters<typeof declareDiscoveryExtension>[0] & { method: "GET" | "POST" | "HEAD" | "DELETE" | "PUT" | "PATCH" };
-  function discoveryFor(config: DiscoveryConfig) {
-    return declareDiscoveryExtension(config).bazaar;
-  }
-
-  const paidRoutes: Array<{
-    method: "GET" | "POST";
-    path: string;
-    tier: keyof typeof TIER_PRICING;
-    description: string;
-    discovery: ReturnType<typeof discoveryFor>;
-    /** Only set where it differs from DATASET_METADATA.category (the 3
-     * Session 21 routes below) — the x402 route metadata's own category tag
-     * must match the actual dataset a route serves, same reasoning as
-     * ROUTE_DATASET above for transactions_log attribution. */
-    category?: string;
-  }> = [
-    {
-      method: "GET",
-      path: "/summary",
-      tier: "summary",
-      description: `Key findings summary for ${DATASET_METADATA.title}. Returns stock status by species, coverage statistics, and 3 key findings. SYNTHETIC DEMO DATA.`,
-      discovery: discoveryFor({
-        method: "GET",
-        output: {
-          example: {
-            schema_version: "pdp-1.0",
-            paid_tier: "summary",
-            data: {
-              total_records: FISHERIES_RECORDS.length,
-              species_covered: ["skipjack", "yellowfin", "bigeye"],
-              zones_covered: ["samoa_eez", "tonga_eez"],
-              stock_status: [{ species: "skipjack", latest_year: 2023, stock_index: 0.92, status: "healthy" }],
-              key_findings: ["Skipjack remains the dominant species with stock index 0.92 in 2023"],
-            },
-          },
-        },
-      }),
-    },
-    {
-      method: "GET",
-      path: "/slice",
-      tier: "slice",
-      description:
-        "Filtered tuna data slice. Query params: species (skipjack|yellowfin|bigeye), year_start, year_end, zone (samoa_eez|tonga_eez). SYNTHETIC DEMO DATA.",
-      discovery: discoveryFor({
-        method: "GET",
-        input: { species: "skipjack", year_start: 2020, year_end: 2023, zone: "samoa_eez" },
-        inputSchema: {
-          properties: {
-            species: { type: "string", enum: ["skipjack", "yellowfin", "bigeye"] },
-            year_start: { type: "integer", description: `>= ${DATASET_METADATA.time_period_start}` },
-            year_end: { type: "integer", description: `<= ${DATASET_METADATA.time_period_end}` },
-            zone: { type: "string", enum: ["samoa_eez", "tonga_eez"] },
-          },
-          required: [],
-        },
-        output: {
-          example: {
-            schema_version: "pdp-1.0",
-            paid_tier: "slice",
-            data: [{ species: "skipjack", zone: "samoa_eez", year: 2023, stock_index: 0.92 }],
-          },
-        },
-      }),
-    },
-    {
-      method: "GET",
-      path: "/full",
-      tier: "full",
-      description: "Complete synthetic tuna dataset — all 18 records, all species, all years, both zones. SYNTHETIC DEMO DATA.",
-      discovery: discoveryFor({
-        method: "GET",
-        output: {
-          example: { schema_version: "pdp-1.0", paid_tier: "full", data: [{ species: "skipjack", zone: "samoa_eez", year: 2023, stock_index: 0.92 }] },
-        },
-      }),
-    },
-    {
-      method: "GET",
-      path: "/expert",
-      tier: "expert",
-      description: "Full dataset plus methodology notes, stock assessment interpretation, and citation-ready format. SYNTHETIC DEMO DATA.",
-      discovery: discoveryFor({
-        method: "GET",
-        output: {
-          example: {
-            schema_version: "pdp-1.0",
-            paid_tier: "expert",
-            data: [{ species: "skipjack", zone: "samoa_eez", year: 2023, stock_index: 0.92 }],
-            expert_annotations: { stock_assessment_method: "Virtual Population Analysis (VPA) — synthetic demonstration" },
-          },
-        },
-      }),
-    },
-    {
-      method: "POST",
-      path: "/commission",
-      tier: "commission",
-      description: "Custom commissioned query. POC: payment confirms your commission request. SBP will contact you within 48 hours to discuss scope.",
-      discovery: discoveryFor({
-        method: "POST",
-        bodyType: "json",
-        input: { analysis_request: "Describe the custom Pacific fisheries analysis you need" },
-        inputSchema: {
-          properties: {
-            analysis_request: {
-              type: "string",
-              description:
-                "Free-text description of the analysis you're commissioning. POC: not parsed by the handler — recorded via your payment, SBP follows up by email.",
-            },
-          },
-          required: [],
-        },
-        output: {
-          example: {
-            commission_confirmed: true,
-            message: "Your commission payment has been received. SBP will contact you within 48 hours.",
-            contact: "contact@synergybp.com",
-          },
-        },
-      }),
-    },
-    // Session 21 (Deliverable 1) — PDC-POL-2026-001 Decision 42: research
-    // endpoints price at Tier 1 (summary) maximum; the underlying working
-    // paper stays openly accessible on request.
-    {
-      method: "GET",
-      path: "/research/law-before-code",
-      tier: "summary",
-      category: "governance",
-      description: `Structured metadata for "${LAW_BEFORE_CODE.title}" — abstract, policy gaps identified, governance frameworks referenced, citation.`,
-      discovery: discoveryFor({
-        method: "GET",
-        output: { example: { title: LAW_BEFORE_CODE.title, version: LAW_BEFORE_CODE.version, abstract: LAW_BEFORE_CODE.abstract } },
-      }),
-    },
-    {
-      method: "GET",
-      path: "/research/cryptographic-continuity",
-      tier: "summary",
-      category: "governance",
-      description: `Structured metadata for "${CRYPTOGRAPHIC_CONTINUITY.title}" — abstract, incidents analysed, mandate components, citation.`,
-      discovery: discoveryFor({
-        method: "GET",
-        output: { example: { title: CRYPTOGRAPHIC_CONTINUITY.title, version: CRYPTOGRAPHIC_CONTINUITY.version, abstract: CRYPTOGRAPHIC_CONTINUITY.abstract } },
-      }),
-    },
-    // Session 23 — third working paper (Decision 42, same Tier 1 cap).
-    // ?tier=summary|slice|full supported on all three research routes; see
-    // resolveResearchTier's doc comment for why depth doesn't change price.
-    {
-      method: "GET",
-      path: "/research/invisible-infrastructure",
-      tier: "summary",
-      category: "governance",
-      description: `Structured metadata for "${INVISIBLE_INFRASTRUCTURE.title}" — key arguments, fraudulent schemes documented, standards built on DLT, policy gaps, recommendations, citation. Supports ?tier=summary|slice|full.`,
-      discovery: discoveryFor({
-        method: "GET",
-        output: { example: { title: INVISIBLE_INFRASTRUCTURE.title, version: INVISIBLE_INFRASTRUCTURE.version, abstract: INVISIBLE_INFRASTRUCTURE.abstract } },
-      }),
-    },
-    // Session 21 (Deliverable 2)
-    {
-      method: "GET",
-      path: "/pacific/blockchain-adoption",
-      tier: "summary",
-      category: "governance",
-      description: `${PACIFIC_ADOPTION_METADATA.dataset} — ${PACIFIC_ADOPTION_METADATA.coverage}, structured and queryable.`,
-      discovery: discoveryFor({
-        method: "GET",
-        output: { example: { dataset: PACIFIC_ADOPTION_METADATA.dataset, version: PACIFIC_ADOPTION_METADATA.version, nations: [{ country: "Samoa", iso: "WS", regulatory_sandbox: true }] } },
-      }),
-    },
-  ];
+  // `paidRoutes` (imported above) lives in ./routeSchemas.ts, not inline
+  // here, specifically so routeSchemas.test.ts can call ajv.compile() on
+  // every route's discovery.schema directly in Node at test time — see that
+  // test for what it's guarding against. See
+  // packages/pdc-x402-adapter/src/bazaarAjvWorkersLogFilter.ts for why that
+  // Node-time compile always succeeds even though the identical compile
+  // fails at request time in the deployed Cloudflare Worker (a platform
+  // restriction on @x402/hono's own internal bazaar self-check, not a
+  // schema defect — Node has no such restriction).
 
   for (const route of paidRoutes) {
     paymentGate.addRoute({
