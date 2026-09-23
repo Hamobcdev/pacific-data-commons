@@ -58,6 +58,12 @@ const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 // it actually applies to.
 const SAMOA_CPI_PRICE_USDC = 0.01;
 
+// Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
+// 1 capped, first-party wrapper over a genuinely open (no-auth) external
+// source (see pacificOceanClimateService.ts's doc comment for the live
+// confirmation that Open-Meteo Marine needs no key for non-commercial use).
+const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.01;
+
 // Dedicated pilot-earnings wallet (user-provided, confirmed USDC-opted-in
 // via the indexer before this was wired up) — payTo for this endpoint,
 // not the main SBP directory wallet every other route above uses.
@@ -221,6 +227,46 @@ export const paidRoutes: Array<{
           attribution: {
             source: "World Bank Open Data",
             original_source: "Samoa Bureau of Statistics (as attributed by World Bank's own indicator metadata)",
+            data_quality: "third_party_aggregated",
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/climate/ocean-temperature",
+    description:
+      "Pacific sea surface temperature and wave/swell conditions, sourced from Open-Meteo's Marine Weather API — not a national meteorology-, SPC-, or fisheries-authority-certified feed, see the response's own attribution field. Requires ?country=, one of WS, FJ, TO, PG, SB, VU, CK. Returns current sea surface temperature, wave height/period/direction, ocean current velocity, and a 7-day wave forecast. 3-hour cache.",
+    priceUsdc: CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC,
+    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { country: "WS" },
+      inputSchema: {
+        properties: {
+          country: { type: "string", enum: ["WS", "FJ", "TO", "PG", "SB", "VU", "CK"], description: "Pacific ISO country code — required" },
+        },
+        required: ["country"],
+      },
+      output: {
+        example: {
+          country_code: "WS",
+          country_name: "Samoa",
+          current: {
+            sea_surface_temperature_c: 28.4,
+            wave_height_m: 1.2,
+            wave_period_s: 7.5,
+            wave_direction_deg: 145,
+            ocean_current_velocity_kmh: 0.8,
+          },
+          forecast_7_day: [{ date: "2026-09-24", wave_height_max_m: 1.4, wave_period_max_s: 8.1 }],
+          week_summary: "Sea surface 28.4°C, average forecast wave height 1.3m over the next 7 days",
+          queried_at: "2026-09-24T00:00:00.000Z",
+          source: "open-meteo-marine",
+          attribution: {
+            source: "Open-Meteo Marine Weather API",
+            original_source: "Open-Meteo's own blended marine forecast models (NOAA WaveWatch III / DWD ICON wave and ocean models, per Open-Meteo's published model sourcing) — not a single national meteorological, oceanographic, or fisheries authority",
             data_quality: "third_party_aggregated",
           },
         },
