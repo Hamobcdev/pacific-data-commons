@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { rateLimit } from "./middleware/rateLimit.js";
 import { logSettledDirectoryQuery } from "./services/directoryPaymentLogger.js";
 import { healthRoute } from "./routes/health.js";
+import { brandingRoute } from "./routes/branding.js";
 import { categoriesRoute } from "./routes/categories.js";
 import { countriesRoute } from "./routes/countries.js";
 import { searchRoute } from "./routes/search.js";
@@ -114,6 +115,7 @@ export function createApp(env: Env) {
   app.use("*", paymentGate.middleware());
 
   app.route("/", healthRoute);
+  app.route("/", brandingRoute);
   app.route("/", discoveryRoute);
   app.route("/", psrRoute);
   app.route("/", categoriesRoute);

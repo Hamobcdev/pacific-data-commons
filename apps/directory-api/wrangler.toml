@@ -20,6 +20,14 @@ routes = [
 # declared routes at all).
 workers_dev = true
 
+# Static assets (currently just the SBP logo, served for og:image on the
+# branded GET / HTML response — see routes/branding.ts). Cloudflare serves
+# any request matching a file under ./public directly, without invoking the
+# Worker script at all, before falling through to `main` for everything
+# else — so this needs no route/handler of its own.
+[assets]
+directory = "./public"
+
 # Same incident: these vars were configured only via the dashboard, so the
 # first deploy from this wrangler.toml (which only declared NODE_ENV) wiped
 # all of them. Restored here as [vars] (not secrets — every value below is
