@@ -1,0 +1,42 @@
+name: Samoa CPI Payment Test (Manual, One-Off)
+
+# workflow_dispatch only — never on push. This signs and submits a real
+# $0.01 USDC Mainnet payment against the live GET /finance/samoa-cpi
+# endpoint via test/payment-client.ts --confirm, using the
+# TEST_WALLET_MNEMONIC repo secret. One-off verification run for PR #65 —
+# after it succeeds, delete the TEST_WALLET_MNEMONIC secret (Settings >
+# Secrets and variables > Actions) so it doesn't sit in the repo
+# indefinitely; this workflow file can also be deleted once no longer
+# needed, since it has no purpose once the mnemonic is gone.
+on:
+  workflow_dispatch:
+
+jobs:
+  pay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # test/payment-client.ts imports @pdc/shared-types and
+      # @pdc/x402-adapter by their built dist/ output (see each package's
+      # "main"/"exports" fields) — same requirement as deploy.yml's
+      # build_shared step, needed here even though tsx runs the script's
+      # own TypeScript directly.
+      - run: |
+          pnpm --filter @pdc/shared-types build
+          pnpm --filter @pdc/x402-adapter build
+
+      - name: Run payment test
+        working-directory: apps/directory-api
+        run: npx tsx test/payment-client.ts --confirm
+        env:
+          TEST_WALLET_MNEMONIC: ${{ secrets.TEST_WALLET_MNEMONIC }}
