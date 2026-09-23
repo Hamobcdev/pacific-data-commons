@@ -91,6 +91,15 @@ export interface PdcPaidRouteSpec {
   description: string;
   resource: string;
   /**
+   * Overrides the gate's default payToAddress for this route only. Use for
+   * an endpoint whose earnings should be tracked separately from the
+   * gate's main payTo wallet (e.g. an institutional-earnings pilot routed
+   * to a dedicated wallet rather than SBP's main directory wallet).
+   * Defaults to the gate's payToAddress when omitted — existing callers
+   * are unaffected.
+   */
+  payToAddress?: string;
+  /**
    * Route-specific metadata merged into accepts[].extra alongside the
    * mandatory competition tag (e.g. { service, category, tier } for a
    * provider endpoint). Do not pass `tag` here — it's set automatically.
@@ -215,7 +224,7 @@ export class PdcPaymentGate {
     this.routesConfig[key] = {
       accepts: {
         scheme: "exact",
-        payTo: this.payToAddress,
+        payTo: spec.payToAddress ?? this.payToAddress,
         // Decimal USDC amount — ExactAvmScheme.parsePrice converts this to the
         // network's default asset (USDC) atomic amount for us.
         price: spec.priceUsdc,

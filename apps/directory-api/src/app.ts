@@ -24,6 +24,7 @@ import { updatesRoute } from "./routes/updates.js";
 import { externalSourcesRoute } from "./routes/externalSources.js";
 import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
 import { fxRoute } from "./routes/finance/fx.js";
+import { samoaCpiRoute } from "./routes/finance/samoa-cpi.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
@@ -91,6 +92,7 @@ export function createApp(env: Env) {
       // file's matching comment for how this was confirmed live against
       // the facilitator.
       resource: `${env.PUBLIC_URL}${route.path}`,
+      ...(route.payToAddress ? { payToAddress: route.payToAddress } : {}),
       ...(route.discovery ? { extensions: { bazaar: route.discovery } } : {}),
     });
   }
@@ -131,6 +133,7 @@ export function createApp(env: Env) {
   app.route("/", externalSourcesRoute);
   app.route("/", walletBalanceRoute);
   app.route("/", fxRoute);
+  app.route("/", samoaCpiRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);
