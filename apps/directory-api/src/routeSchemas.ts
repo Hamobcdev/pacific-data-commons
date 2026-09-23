@@ -49,6 +49,27 @@ const WEATHER_PRICE_USDC = 0.002;
 // as PACIFIC_BRIEF_PRICE_USDC above.
 const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 
+// Decision 60 — first-party open-data utility endpoints (Decision 59's
+// class) are Tier 1 capped, same reasoning Decision 42 uses for research/
+// governance endpoints (open underlying source -> cap price low) but its
+// own decision rather than stretching 42's literal scope indefinitely.
+// Same numeric value as DIRECTORY_QUERY_PRICE_USDC (app.ts) but declared
+// explicitly here so the Decision 60 reasoning is documented at the route
+// it actually applies to.
+const SAMOA_CPI_PRICE_USDC = 0.01;
+
+// Dedicated pilot-earnings wallet (user-provided, confirmed USDC-opted-in
+// via the indexer before this was wired up) — payTo for this endpoint,
+// not the main SBP directory wallet every other route above uses.
+// User-confirmed decision: reject reusing the institutional-onboarding
+// wallet (otherwise outbound-only ALGO grants to institutions onboarding)
+// to avoid commingling grant reserves with pilot revenue — this wallet
+// touches nothing else, purpose is exactly and only "pilot/MVP earnings
+// from first-party open-data endpoints" (Decision 59/60's endpoint class).
+// Canary/test traffic and the 3% platform fee still flow to the main
+// directory wallet as before; only this endpoint's real earnings land here.
+const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM5LKPYKOAJZ2MVAKO6KFM";
+
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
 // rather than @x402-avm/extensions' bazaarResourceServerExtension, and why
@@ -61,7 +82,15 @@ export function discoveryFor(config: DiscoveryConfig) {
   return declareDiscoveryExtension(config).bazaar;
 }
 
-export const paidRoutes: Array<{ method: "GET"; path: string; description: string; discovery?: ReturnType<typeof discoveryFor>; priceUsdc?: number }> = [
+export const paidRoutes: Array<{
+  method: "GET";
+  path: string;
+  description: string;
+  discovery?: ReturnType<typeof discoveryFor>;
+  priceUsdc?: number;
+  /** Overrides the gate's default payTo wallet for this route only — see PdcPaidRouteSpec.payToAddress. */
+  payToAddress?: string;
+}> = [
   {
     method: "GET",
     path: "/search",
@@ -161,6 +190,39 @@ export const paidRoutes: Array<{ method: "GET"; path: string; description: strin
           timestamp: "2026-08-25T00:00:00.000Z",
           source: "currency-api",
           rates: { WST: 2.72, FJD: 2.19, TOP: 2.41, PGK: 4.44, SBD: 8.01, VUV: 118.36, AUD: 1.4, NZD: 1.67, EUR: 0.86, GBP: 0.73, JPY: 159.1, CNY: 6.72, ALGO: 0.092, USDC: 1.0 },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/samoa-cpi",
+    description:
+      "Samoa Consumer Price Index and annual inflation rate, sourced from World Bank Open Data (FP.CPI.TOTL / FP.CPI.TOTL.ZG) — not a Samoa Bureau of Statistics- or government-certified feed, see the response's own attribution field. Optional ?years= (default 15, max 60). 24-hour cache — annual data, updated at most yearly upstream.",
+    priceUsdc: SAMOA_CPI_PRICE_USDC,
+    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { years: 15 },
+      inputSchema: {
+        properties: {
+          years: { type: "integer", description: "How many most-recent years to return — optional, default 15, max 60" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          country: "Samoa",
+          country_iso3: "WSM",
+          indicator_base_year: 2010,
+          observations: [{ year: 2025, cpi_index: 149.24, inflation_pct: 2.21 }],
+          latest: { year: 2025, cpi_index: 149.24, inflation_pct: 2.21 },
+          world_bank_last_updated: "2026-07-13",
+          attribution: {
+            source: "World Bank Open Data",
+            original_source: "Samoa Bureau of Statistics (as attributed by World Bank's own indicator metadata)",
+            data_quality: "third_party_aggregated",
+          },
         },
       },
     }),
