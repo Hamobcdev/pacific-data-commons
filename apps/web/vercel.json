@@ -1,0 +1,3 @@
+{
+  "buildCommand": "pnpm --filter @pdc/shared-types build && pnpm --filter @pdc/web build"
+}
