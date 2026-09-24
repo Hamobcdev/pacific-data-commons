@@ -40,6 +40,11 @@ services:
       # URL is known (not guessable at Blueprint authoring time).
       - key: AGENTS_SERVICE_URL
         sync: false
+      # See apps/web/lib/agents/marketplaceStatus.ts and .env.example — set
+      # to "true" only once pdc-agents/pdc-sbp-agent are confirmed live
+      # again (currently suspended, free-tier Render usage limit).
+      - key: NEXT_PUBLIC_AGENTS_MARKETPLACE_ENABLED
+        value: "false"
       - key: ALGORAND_NODE_URL
         value: https://mainnet-api.algonode.cloud
       - key: DEMO_MODE

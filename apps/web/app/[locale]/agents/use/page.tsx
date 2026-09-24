@@ -1,6 +1,8 @@
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { AGENT_CATALOGUE } from "@/lib/agents/types";
+import { AgentMarketplaceComingSoon } from "@/components/agents/AgentMarketplaceComingSoon";
+import { isAgentMarketplaceEnabled } from "@/lib/agents/marketplaceStatus";
 
 /**
  * Quick-launch agent picker (Deliverable 7) — replaces the Session 6.1
@@ -17,6 +19,13 @@ export default async function UseAgentPage({ searchParams }: { searchParams: { w
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold text-navy">{t("title")}</h1>
+
+      {!isAgentMarketplaceEnabled() && (
+        <div className="mt-6">
+          <AgentMarketplaceComingSoon compact />
+        </div>
+      )}
+
       <ul className="mt-6 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
         {AGENT_CATALOGUE.map((agent) => (
           <li key={agent.id}>
