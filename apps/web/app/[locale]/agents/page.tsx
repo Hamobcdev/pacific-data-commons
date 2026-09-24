@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AGENT_CATALOGUE, type AgentSlug } from "@/lib/agents/types";
 import { AgentCard } from "@/components/agents/AgentCard";
+import { AgentMarketplaceComingSoon } from "@/components/agents/AgentMarketplaceComingSoon";
+import { isAgentMarketplaceEnabled } from "@/lib/agents/marketplaceStatus";
 
 type FilterValue = AgentSlug | "all";
 
@@ -39,6 +41,12 @@ export default function AgentsPage() {
       <h1 className="text-3xl font-bold text-navy">{t("title")}</h1>
       <p className="mt-4 text-gray-600">{t("subtitle")}</p>
       <p className="mt-2 text-sm text-gray-500">{t("language_note")}</p>
+
+      {!isAgentMarketplaceEnabled() && (
+        <div className="mt-6">
+          <AgentMarketplaceComingSoon compact />
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {FILTERS.map((f) => (

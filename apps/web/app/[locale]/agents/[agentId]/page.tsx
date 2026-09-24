@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { findCatalogueEntry } from "@/lib/agents/types";
 import { AgentRunForm } from "@/components/agents/AgentRunForm";
+import { AgentMarketplaceComingSoon } from "@/components/agents/AgentMarketplaceComingSoon";
+import { isAgentMarketplaceEnabled } from "@/lib/agents/marketplaceStatus";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
@@ -31,8 +33,12 @@ export default async function AgentDetailPage({
     );
   }
 
+  const marketplaceEnabled = isAgentMarketplaceEnabled();
+
+  // No point querying a provider's balance to pre-load a run form that
+  // won't render — see isAgentMarketplaceEnabled()'s doc comment.
   let walletBalance: { totalRevenueUsdc: number; agentSpendUsdc: number } | undefined;
-  if (searchParams.wallet) {
+  if (marketplaceEnabled && searchParams.wallet) {
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("providers")
@@ -57,7 +63,11 @@ export default async function AgentDetailPage({
       <p className="mt-2 text-gray-600">{entry.description}</p>
 
       <div className="mt-6">
-        <AgentRunForm agent={entry} presetWallet={searchParams.wallet} walletBalance={walletBalance} />
+        {marketplaceEnabled ? (
+          <AgentRunForm agent={entry} presetWallet={searchParams.wallet} walletBalance={walletBalance} />
+        ) : (
+          <AgentMarketplaceComingSoon />
+        )}
       </div>
     </div>
   );
