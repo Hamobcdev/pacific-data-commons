@@ -46,7 +46,7 @@ AVM_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY"
 AGENT_WALLET_ADDRESS = "Q5XTALN45D32I572OZAVZ4FW6UYSW6A4FFAX4YOY6PP3YCD4JJJ3JQRYKI"
 FACILITATOR_URL = "https://facilitator.goplausible.xyz"
 ALGORAND_NODE_URL = "https://mainnet-api.algonode.cloud"
-WEB_APP_URL = "https://synergybcpacific.com"
+WEB_APP_URL = "https://pacific-data-commons-web-olive.vercel.app"
 LOG_LEVEL = "info"
 
 # Secret environment variables remain set via Cloudflare dashboard
