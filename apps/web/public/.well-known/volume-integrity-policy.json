@@ -33,7 +33,7 @@
       "counts_toward_claimed_volume": false,
       "canary_wallet": "Q5XTALN45D32I572OZAVZ4FW6UYSW6A4FFAX4YOY6PP3YCD4JJJ3JQRYKI",
       "labelling_method": "Off-chain structured logging. The x402 client SDK (pinned version) does not expose a caller-supplied note or extra field on outgoing AVM transactions — this is a known SDK limitation documented in packages/pdc-x402-adapter/src/index.ts. Canary tx IDs are logged per cycle in sbp-agent structured logs and surfaced via the /health API for cross-reference against on-chain records.",
-      "health_endpoint": "https://pdcdirectory-api-production.up.railway.app/health",
+      "health_endpoint": "https://api.synergybcpacific.com/health",
       "on_chain_labelling_status": "Deferred post-competition pending upstream SDK support. See adapter TODO comment."
     }
   ],
