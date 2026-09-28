@@ -130,11 +130,12 @@ export async function createApp(env: Env): Promise<Hono<AppBindings>> {
     merchantIdentity: {
       serviceName: "Pacific Data Commons",
       description: "Sovereign data marketplace for Pacific Island institutions. AI agents pay Pacific institutions directly in USDC per query.",
-      // TODO(session40): apps/web is migrating Railway -> Cloudflare Pages,
-      // custom domain not yet confirmed (see MIGRATION.md) — update once
-      // known. Left as the stale Railway URL rather than a guessed domain.
-      url: "https://pdcweb-production.up.railway.app",
-      iconUrl: "https://pdcweb-production.up.railway.app/images/sbp-logo.png",
+      // apps/web now deploys to Vercel (see README.md) — updated from the
+      // stale Railway URL. iconUrl points at api.synergybcpacific.com's own
+      // logo asset (same file directory-api's branding.ts serves for
+      // og:image), confirmed live rather than guessed.
+      url: "https://pacific-data-commons-web-olive.vercel.app/en",
+      iconUrl: "https://api.synergybcpacific.com/images/sbp-logo.png",
       tags: ["data-marketplace", "pacific", "sovereign-infrastructure", "ai-agents"],
     },
   });
