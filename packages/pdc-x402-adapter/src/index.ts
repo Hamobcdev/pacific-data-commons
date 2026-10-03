@@ -14,13 +14,14 @@ export { installBazaarAjvWorkersLogFilter, type BazaarAjvWorkersLogFilterOptions
 import {
   x402ResourceServer,
   HTTPFacilitatorClient,
+  type FacilitatorClient,
   type RouteConfig,
   type RoutesConfig,
 } from "@x402/core/server";
 import { x402Client } from "@x402/core/client";
 import { decodePaymentResponseHeader } from "@x402/core/http";
 import { wrapFetchWithPayment } from "@x402/fetch";
-import type { Network } from "@x402/core/types";
+import type { Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedResponse, VerifyResponse } from "@x402/core/types";
 import {
   ALGORAND_MAINNET_CAIP2,
   ALGORAND_TESTNET_CAIP2,
@@ -171,6 +172,89 @@ function toAtomicUsdc(priceUsdc: number): string {
 }
 
 /**
+ * GoPlausible (the pinned facilitator, CLAUDE.md Section 6) is a
+ * documented SPOF. Traced live 10-25s hangs on /finance/*, /search, and
+ * /algorand/wallet-balance (production smoke test, 2026-10-03) to
+ * @x402/core's HTTPFacilitatorClient: its verify/settle/getSupported()
+ * each call a bare fetch() with no timeout or AbortController at all
+ * (confirmed by reading the vendored source in node_modules/@x402/core —
+ * third-party code, not something this repo can edit directly).
+ * x402ResourceServer.initialize() calls getSupported() once per cold
+ * Workers isolate (worker.ts caches the built app for the isolate's
+ * lifetime, so this only runs on the first paid-route request after a
+ * cold start, not every request) — when GoPlausible is slow, or 429-rate-
+ * limits that call (getSupported() itself retries with exponential
+ * backoff, uncapped by any overall deadline), that one unlucky request
+ * hangs with zero bytes sent instead of failing cleanly.
+ *
+ * FACILITATOR_TIMEOUT_MS bounds every call this adapter makes through the
+ * facilitator client it constructs (the one place in this package that
+ * does so) to a hard ceiling. This races the call rather than aborting it:
+ * HTTPFacilitatorClient's fetch() accepts no signal parameter, so there is
+ * nothing to cancel from the outside. Racing achieves the same outcome
+ * that matters — this service stops waiting and responds — even though
+ * the abandoned in-flight request isn't torn down at the network level;
+ * either the Workers isolate recycles it or it completes uselessly in the
+ * background, both harmless once we've given up on it.
+ */
+const FACILITATOR_TIMEOUT_MS = 8000;
+
+export class FacilitatorTimeoutError extends Error {
+  constructor(operation: string, timeoutMs: number) {
+    super(`Facilitator ${operation} did not respond within ${timeoutMs}ms`);
+    this.name = "FacilitatorTimeoutError";
+  }
+}
+
+function withFacilitatorTimeout<T>(operation: string, run: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new FacilitatorTimeoutError(operation, FACILITATOR_TIMEOUT_MS)), FACILITATOR_TIMEOUT_MS);
+    run().then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
+ * @x402/core's x402ResourceServer.initialize() catches whatever its
+ * facilitator client's getSupported() throws and rethrows its own generic
+ * Error with `{ cause: <original error> }` rather than propagating it
+ * directly — so a FacilitatorTimeoutError thrown during the cold-start
+ * sync path arrives here one level removed. Checks both the error itself
+ * and one level of `.cause` rather than assuming which shape a given call
+ * site produces.
+ */
+function findFacilitatorTimeoutError(error: unknown): FacilitatorTimeoutError | undefined {
+  if (error instanceof FacilitatorTimeoutError) return error;
+  if (error instanceof Error && error.cause instanceof FacilitatorTimeoutError) return error.cause;
+  return undefined;
+}
+
+/** Wraps a real FacilitatorClient so every call this adapter makes is bounded by FACILITATOR_TIMEOUT_MS. */
+class TimeoutGuardedFacilitatorClient implements FacilitatorClient {
+  constructor(private readonly inner: FacilitatorClient) {}
+
+  verify(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<VerifyResponse> {
+    return withFacilitatorTimeout("verify", () => this.inner.verify(paymentPayload, paymentRequirements));
+  }
+
+  settle(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<SettleResponse> {
+    return withFacilitatorTimeout("settle", () => this.inner.settle(paymentPayload, paymentRequirements));
+  }
+
+  getSupported(): Promise<SupportedResponse> {
+    return withFacilitatorTimeout("getSupported", () => this.inner.getSupported());
+  }
+}
+
+/**
  * A payment gate wraps one x402ResourceServer (one facilitator + one
  * registered scheme/network) and the set of paid routes protected by it.
  * One instance per app (e.g. one for the directory API) is the expected
@@ -191,7 +275,7 @@ export class PdcPaymentGate {
     this.payToAddress = config.payToAddress;
     this.merchantIdentity = config.merchantIdentity;
 
-    const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
+    const facilitator = new TimeoutGuardedFacilitatorClient(new HTTPFacilitatorClient({ url: config.facilitatorUrl }));
     this.resourceServer = new x402ResourceServer(facilitator).register(
       this.caip2Network,
       new ExactAvmScheme(),
@@ -252,7 +336,38 @@ export class PdcPaymentGate {
 
   /** Hono middleware — mount globally; only paths registered via addRoute() are gated. */
   middleware(): MiddlewareHandler {
-    return paymentMiddleware(this.routesConfig as RoutesConfig, this.resourceServer);
+    const inner = paymentMiddleware(this.routesConfig as RoutesConfig, this.resourceServer);
+    // @x402/hono's own middleware rethrows a facilitator getSupported()/
+    // verify() failure that isn't a FacilitatorResponseError (it only
+    // special-cases that one type) rather than converting it to a
+    // response itself — this catches the FacilitatorTimeoutError variant
+    // of that and turns it into a clean 503 instead of letting it reach
+    // this app's generic error handler as an unlabelled 500. A settle()
+    // timeout never reaches here: @x402/hono's own settlement try/catch
+    // already converts any thrown error there to a 402 without
+    // rethrowing — the FACILITATOR_TIMEOUT_MS bound still applies, it
+    // just surfaces through that existing path instead of this one.
+    //
+    // findFacilitatorTimeoutError also checks error.cause: the cold-start
+    // getSupported() path (x402ResourceServer.initialize(), vendored in
+    // @x402/core) catches our FacilitatorTimeoutError internally and
+    // rethrows its own generic Error with `{ cause: <our error> }` rather
+    // than propagating the original — confirmed by actually hitting this
+    // while testing this fix, not assumed.
+    return async (c, next) => {
+      try {
+        return await inner(c, next);
+      } catch (error) {
+        const timeoutError = findFacilitatorTimeoutError(error);
+        if (timeoutError) {
+          // eslint-disable-next-line no-console
+          console.error("x402_facilitator_timeout", { message: timeoutError.message, path: c.req.path, method: c.req.method });
+          c.header("Retry-After", "10");
+          return c.json({ error: "payment_facilitator_unavailable", retry_after: 10 }, 503);
+        }
+        throw error;
+      }
+    };
   }
 }
 
@@ -281,7 +396,7 @@ export const usdcAtomicUnits = {
  */
 export async function checkFacilitatorHealth(facilitatorUrl: string): Promise<boolean> {
   try {
-    const facilitator = new HTTPFacilitatorClient({ url: facilitatorUrl });
+    const facilitator = new TimeoutGuardedFacilitatorClient(new HTTPFacilitatorClient({ url: facilitatorUrl }));
     await facilitator.getSupported();
     return true;
   } catch {
