@@ -84,7 +84,11 @@ const SAMOA_GDP_PRICE_USDC = 0.01;
 // from first-party open-data endpoints" (Decision 59/60's endpoint class).
 // Canary/test traffic and the 3% platform fee still flow to the main
 // directory wallet as before; only this endpoint's real earnings land here.
-const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM5LKPYKOAJZ2MVAKO6KFM";
+// Exported so routes/wellKnownX402.ts can reuse this exact address for its
+// manifest entries rather than re-declaring the literal — single source of
+// truth stays here, same reasoning as every other "never hardcode a wallet
+// twice" instance in this repo.
+export const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM5LKPYKOAJZ2MVAKO6KFM";
 
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
