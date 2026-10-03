@@ -25,6 +25,7 @@ import { externalSourcesRoute } from "./routes/externalSources.js";
 import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
 import { fxRoute } from "./routes/finance/fx.js";
 import { samoaCpiRoute } from "./routes/finance/samoa-cpi.js";
+import { samoaGdpRoute } from "./routes/finance/samoa-gdp.js";
 import { pacificOceanTemperatureRoute } from "./routes/climate/ocean-temperature.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
@@ -135,6 +136,7 @@ export function createApp(env: Env) {
   app.route("/", walletBalanceRoute);
   app.route("/", fxRoute);
   app.route("/", samoaCpiRoute);
+  app.route("/", samoaGdpRoute);
   app.route("/", pacificOceanTemperatureRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);

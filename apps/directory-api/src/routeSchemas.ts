@@ -64,6 +64,16 @@ const SAMOA_CPI_PRICE_USDC = 0.01;
 // confirmation that Open-Meteo Marine needs no key for non-commercial use).
 const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.01;
 
+// Decision 42 — governance/research endpoint over an openly-accessible
+// government report (Samoa Bureau of Statistics' own published GDP
+// report), Tier 1 capped, underlying document never paywalled. Not
+// Decision 59/60 (that's for wrapping an already-open third-party
+// aggregator API; this is PDC transcribing a government publication
+// directly, same scenario Decision 42 describes). Same numeric value as
+// SAMOA_CPI_PRICE_USDC, declared separately so the Decision 42 reasoning
+// is documented at the route it actually applies to.
+const SAMOA_GDP_PRICE_USDC = 0.01;
+
 // Dedicated pilot-earnings wallet (user-provided, confirmed USDC-opted-in
 // via the indexer before this was wired up) — payTo for this endpoint,
 // not the main SBP directory wallet every other route above uses.
@@ -268,6 +278,39 @@ export const paidRoutes: Array<{
             source: "Open-Meteo Marine Weather API",
             original_source: "Open-Meteo's own blended marine forecast models (NOAA WaveWatch III / DWD ICON wave and ocean models, per Open-Meteo's published model sourcing) — not a single national meteorological, oceanographic, or fisheries authority",
             data_quality: "third_party_aggregated",
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/samoa-gdp",
+    description:
+      "Samoa GDP, expenditure approach, transcribed from the Samoa Bureau of Statistics' own published FY2025/26 report — not a third-party-aggregated feed, see the response's own attribution field. FY2025/26: real GDP -8.1%, nominal -4.7%. Optional ?fiscal_year=2025/26|2024/25 to filter to one year, or ?all=true for both. Default: latest year only. Updated at most yearly, no fixed schedule.",
+    priceUsdc: SAMOA_GDP_PRICE_USDC,
+    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { fiscal_year: "2025/26" },
+      inputSchema: {
+        properties: {
+          fiscal_year: { type: "string", enum: ["2025/26", "2024/25"], description: "Filter to one published fiscal year — optional" },
+          all: { type: "boolean", description: "Return every published fiscal year instead of just the latest — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          country: "Samoa",
+          country_iso3: "WSM",
+          currency: "SAT",
+          fiscal_years: [{ fiscal_year: "2025/26", gdp_nominal_sat_mil: 3619.8, gdp_real_2013_sat_mil: 2303.7, nominal_growth_pct: -4.7, real_growth_pct: -8.1 }],
+          latest: { fiscal_year: "2025/26", gdp_nominal_sat_mil: 3619.8, gdp_real_2013_sat_mil: 2303.7, nominal_growth_pct: -4.7, real_growth_pct: -8.1 },
+          attribution: {
+            source: "Samoa Bureau of Statistics",
+            source_document: "Gross Domestic Product — Expenditure Approach, FY2025/26",
+            data_quality: "government_source_transcribed",
           },
         },
       },
