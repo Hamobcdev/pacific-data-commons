@@ -52,6 +52,19 @@ const config = {
         destination: "/:locale/welcome",
         permanent: false,
       },
+      // /browse alias — the data browse page lives at app/[locale]/(public)/data,
+      // not /browse. External integrators (Walter Hawkins' agent crawlers)
+      // have been hitting /browse directly.
+      {
+        source: "/:locale/browse",
+        destination: "/:locale/data",
+        permanent: false,
+      },
+      {
+        source: "/browse",
+        destination: "/en/data",
+        permanent: false,
+      },
     ];
   },
 };
