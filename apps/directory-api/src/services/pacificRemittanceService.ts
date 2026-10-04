@@ -9,34 +9,35 @@
 //
 // IMPORTANT — World Bank's Remittance Prices Worldwide API
 // (remittanceprices.worldbank.org) is confirmed live, during this
-// session, to be ENTIRELY Cloudflare bot-challenge-gated for
+// session AND confirmed separately from this app's actual Render
+// deployment, to be ENTIRELY Cloudflare bot-challenge-gated for
 // server-side requests: the bare root domain, the bare API path with no
 // query string, and the documented ?iso3= query all return the same
 // "Just a moment..." challenge page (HTTP 403), with or without a
 // browser User-Agent. This is not a partial or corridor-specific gap —
-// every corridor's traditional_rails is null in practice this session,
-// not just corridors the source happens to lack data for.
+// the live fetch fails for every corridor.
 //
-// Given that, this service's own build brief ALREADY specifies the
-// right degradation path for a source returning no data for a corridor
-// (traditional_rails: null, with a note explaining the absence) — this
-// implementation applies that same path, just exercised for every
-// corridor rather than some, because the source is unreachable outright
-// rather than merely missing one corridor's data.
+// fetchWorldBankCorridor below still makes a real fetch attempt on every
+// cache miss (not a permanently-disabled code path) — Cloudflare's
+// challenge could in principle stop applying to this specific server
+// identity in the future, and if it ever does, live data takes priority
+// over the static fallback below (see deriveTraditionalRails). The
+// parser inside is deliberately conservative: any missing/unexpected
+// field returns null rather than guessing a cost figure from a response
+// shape this session has never actually observed (every live attempt
+// was blocked before ever seeing one) — confident-looking parsing code
+// for an unverified schema would be its own kind of fabrication.
 //
-// fetchWorldBankCorridor below still makes a real fetch attempt (not a
-// hardcoded permanent null) — Cloudflare's bot challenge is keyed to
-// this session's test environment's network identity, and a production
-// deployment (e.g. Cloudflare Workers' own edge network) could plausibly
-// have different access. If that's ever true, the parser inside
-// attempts a best-effort extraction of a FEW plausible fields based on
-// general public knowledge of this API's conventional shape — but that
-// shape has never been verified against a real response (every attempt
-// this session was blocked before ever seeing one), so the parser is
-// deliberately conservative: any missing/unexpected field returns null
-// rather than guessing a quality figure from a schema never actually
-// observed. Confident-looking parsing code for a schema this session
-// never once saw would be its own kind of fabrication.
+// STATIC_CORRIDOR_COSTS below is the fallback used when the live fetch
+// fails (i.e., always, right now): real World Bank RPW Q4-2024 published
+// figures for all 9 corridors, supplied directly for this fallback by
+// the person who requested it. This service has no way to independently
+// re-verify those specific figures against a primary source — the live
+// API that would let it cross-check is exactly the one confirmed
+// blocked above — so they're taken on the requester's word, not this
+// service's own verification, and every response using them says so
+// explicitly (data_source: "World Bank RPW Q4-2024", live_data: false,
+// static_fallback: true) rather than presenting them as freshly fetched.
 //
 // Crypto rail costs (XRP/XLM/ALGO network fees + an fx-spread estimate)
 // are static constants per this service's own build brief — explicitly
@@ -100,14 +101,41 @@ export const CRYPTO_TOKENS: readonly CryptoTokenSpec[] = [
 
 const ON_OFF_RAMP_NOTE = "Network fees only — on-ramp/off-ramp costs additional and vary by local provider";
 
+interface StaticCorridorCost {
+  average_cost_pct: number;
+  cheapest_cost_pct: number;
+  cheapest_provider: string;
+}
+
+// Real World Bank RPW Q4-2024 published figures, supplied directly for
+// this fallback (see file doc comment above for provenance — this
+// service cannot independently re-verify these against a primary
+// source, since the live API that would allow that is exactly the one
+// confirmed blocked). provider_count isn't part of this static set —
+// that figure is only ever reported when live data is actually
+// available, never backfilled with a guess.
+const STATIC_CORRIDOR_COSTS: Record<string, StaticCorridorCost> = {
+  AUS_WST: { average_cost_pct: 6.8, cheapest_cost_pct: 4.2, cheapest_provider: "Western Union" },
+  AUS_FJD: { average_cost_pct: 5.9, cheapest_cost_pct: 3.8, cheapest_provider: "Western Union" },
+  AUS_PGK: { average_cost_pct: 8.1, cheapest_cost_pct: 6.2, cheapest_provider: "ANZ" },
+  NZL_WST: { average_cost_pct: 7.2, cheapest_cost_pct: 5.1, cheapest_provider: "Western Union" },
+  NZL_FJD: { average_cost_pct: 6.4, cheapest_cost_pct: 4.6, cheapest_provider: "Western Union" },
+  NZL_TOP: { average_cost_pct: 7.8, cheapest_cost_pct: 5.4, cheapest_provider: "Western Union" },
+  USA_WST: { average_cost_pct: 5.9, cheapest_cost_pct: 3.2, cheapest_provider: "Remitly" },
+  USA_FJD: { average_cost_pct: 5.4, cheapest_cost_pct: 3.0, cheapest_provider: "Remitly" },
+  USA_PGK: { average_cost_pct: 8.6, cheapest_cost_pct: 6.8, cheapest_provider: "Western Union" },
+};
+
 export interface TraditionalRails {
   average_cost_pct: number;
   average_cost_usd: number;
   cheapest_provider: string | null;
   cheapest_cost_pct: number;
-  provider_count: number;
-  data_source: "World Bank RPW";
+  provider_count: number | null;
+  data_source: "World Bank RPW" | "World Bank RPW Q4-2024";
   data_currency: "quarterly";
+  live_data: boolean;
+  static_fallback: boolean;
 }
 
 export interface CryptoRail {
@@ -148,14 +176,21 @@ export interface RemittanceSnapshot {
   generated_at: string;
 }
 
+interface LiveCorridorCost {
+  average_cost_pct: number;
+  cheapest_cost_pct: number;
+  cheapest_provider: string | null;
+  provider_count: number;
+}
+
 /**
  * Attempts a live World Bank RPW fetch. Returns null on any failure —
- * confirmed live this session to always be the outcome (see file doc
- * comment) — or if the response doesn't match the few plausible fields
- * this parser looks for. Never guesses a cost figure from an
- * unrecognised shape.
+ * confirmed live this session (and from this app's actual deployment)
+ * to always be the outcome (see file doc comment) — or if the response
+ * doesn't match the few plausible fields this parser looks for. Never
+ * guesses a cost figure from an unrecognised shape.
  */
-async function fetchWorldBankCorridor(iso3Pair: string): Promise<TraditionalRails | null> {
+async function fetchWorldBankCorridor(iso3Pair: string): Promise<LiveCorridorCost | null> {
   try {
     const response = await fetch(`${WORLD_BANK_RPW_URL}?iso3=${iso3Pair}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!response.ok) return null;
@@ -163,7 +198,6 @@ async function fetchWorldBankCorridor(iso3Pair: string): Promise<TraditionalRail
     const data = (await response.json()) as {
       corridors?: Array<{
         cc1_average?: number;
-        cc1_average_cost_usd?: number;
         cheapest_provider_name?: string | null;
         cheapest_cost_pct?: number;
         no_institutions?: number;
@@ -176,16 +210,55 @@ async function fetchWorldBankCorridor(iso3Pair: string): Promise<TraditionalRail
 
     return {
       average_cost_pct: corridor.cc1_average,
-      average_cost_usd: corridor.cc1_average_cost_usd ?? 0,
       cheapest_provider: corridor.cheapest_provider_name ?? null,
       cheapest_cost_pct: corridor.cheapest_cost_pct ?? corridor.cc1_average,
       provider_count: corridor.no_institutions,
-      data_source: "World Bank RPW",
-      data_currency: "quarterly",
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Live World Bank data takes priority when available; otherwise falls
+ * back to STATIC_CORRIDOR_COSTS (see that constant's doc comment for
+ * provenance). Returns null only if a corridor has neither — true for
+ * none of the current 9, but kept rather than assumed, in case
+ * CORRIDORS ever grows beyond what the static table covers.
+ * average_cost_usd is always derived from average_cost_pct at this
+ * service's own BENCHMARK_SEND_AMOUNT_USD, for both paths — not trusted
+ * from a live response's own USD figure, since that field was never
+ * actually observed either (see fetchWorldBankCorridor).
+ */
+function deriveTraditionalRails(corridorId: string, live: LiveCorridorCost | null): TraditionalRails | null {
+  if (live) {
+    return {
+      average_cost_pct: live.average_cost_pct,
+      average_cost_usd: Math.round((live.average_cost_pct / 100) * BENCHMARK_SEND_AMOUNT_USD * 100) / 100,
+      cheapest_provider: live.cheapest_provider,
+      cheapest_cost_pct: live.cheapest_cost_pct,
+      provider_count: live.provider_count,
+      data_source: "World Bank RPW",
+      data_currency: "quarterly",
+      live_data: true,
+      static_fallback: false,
+    };
+  }
+
+  const fallback = STATIC_CORRIDOR_COSTS[corridorId];
+  if (!fallback) return null;
+
+  return {
+    average_cost_pct: fallback.average_cost_pct,
+    average_cost_usd: Math.round((fallback.average_cost_pct / 100) * BENCHMARK_SEND_AMOUNT_USD * 100) / 100,
+    cheapest_provider: fallback.cheapest_provider,
+    cheapest_cost_pct: fallback.cheapest_cost_pct,
+    provider_count: null,
+    data_source: "World Bank RPW Q4-2024",
+    data_currency: "quarterly",
+    live_data: false,
+    static_fallback: true,
+  };
 }
 
 function buildCryptoRails(): CryptoRail[] {
@@ -229,15 +302,20 @@ export async function getRemittanceSnapshot(): Promise<RemittanceSnapshot> {
 
   const corridors = await Promise.all(
     CORRIDORS.map(async (spec): Promise<CorridorResult> => {
-      const [fxResult, traditionalRails] = await Promise.all([getFxRates(spec.send_currency, spec.receive_currency, 1), fetchWorldBankCorridor(spec.worldBankIso3)]);
+      const [fxResult, liveCost] = await Promise.all([getFxRates(spec.send_currency, spec.receive_currency, 1), fetchWorldBankCorridor(spec.worldBankIso3)]);
 
       const rate = fxResult.converted?.result ?? null;
       if (rate === null) {
         fetchWarnings.push(`${spec.corridor_id}: live FX rate unavailable this cycle`);
       }
 
+      if (!liveCost) {
+        fetchWarnings.push(`${spec.corridor_id}: World Bank RPW live fetch unavailable this cycle — using Q4-2024 static fallback`);
+      }
+
+      const traditionalRails = deriveTraditionalRails(spec.corridor_id, liveCost);
       if (!traditionalRails) {
-        fetchWarnings.push(`${spec.corridor_id}: World Bank RPW returned no data for this corridor`);
+        fetchWarnings.push(`${spec.corridor_id}: no World Bank data available (live or static) for this corridor`);
       }
 
       const potentialSavingPct = traditionalRails ? Math.round((traditionalRails.average_cost_pct - bestCryptoCostPct) * 10_000) / 10_000 : null;
@@ -258,7 +336,7 @@ export async function getRemittanceSnapshot(): Promise<RemittanceSnapshot> {
         traditional_rails: traditionalRails,
         traditional_rails_note: traditionalRails
           ? null
-          : "World Bank Remittance Prices Worldwide has no data available for this corridor this cycle (its API is currently unreachable from this server — see pacificRemittanceService.ts for detail). Traditional-rail cost comparison is unavailable; crypto_rails and live_fx_rate are unaffected.",
+          : "World Bank Remittance Prices Worldwide has no data available for this corridor — its live API is unreachable from this server, and no Q4-2024 static fallback figure exists for this corridor either (see pacificRemittanceService.ts for detail). Traditional-rail cost comparison is unavailable; crypto_rails and live_fx_rate are unaffected.",
         crypto_rails: cryptoRails,
         potential_saving_pct: potentialSavingPct,
         not_financial_advice: true,

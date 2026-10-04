@@ -743,7 +743,7 @@ export const paidRoutes: Array<{
     method: "GET",
     path: "/finance/remittance-corridors",
     description:
-      "Pacific remittance corridor cost comparison for 9 AU/NZ/US -> Pacific Island corridors (traditional rails via World Bank RPW vs. crypto rail network-fee estimates for XRP/XLM/ALGO), at a $200 benchmark send amount. Consumes /finance/fx internally for live cross-rates. traditional_rails is null when World Bank RPW has no data available this cycle — see traditional_rails_note. Crypto rail costs are network fees only; on/off-ramp costs are additional. Optional ?corridor=, ?min_saving_pct=, ?token=. Not financial advice. 24-hour cache.",
+      "Pacific remittance corridor cost comparison for 9 AU/NZ/US -> Pacific Island corridors (traditional rails via World Bank RPW, live if reachable else a Q4-2024 static fallback, vs. crypto rail network-fee estimates for XRP/XLM/ALGO), at a $200 benchmark send amount. Consumes /finance/fx internally for live cross-rates. traditional_rails.live_data/static_fallback say which source was used; traditional_rails is null (with traditional_rails_note) only if a corridor has neither. Crypto rail costs are network fees only; on/off-ramp costs are additional. Optional ?corridor=, ?min_saving_pct=, ?token=. Not financial advice. 24-hour cache.",
     priceUsdc: PACIFIC_REMITTANCE_PRICE_USDC,
     payToAddress: PACIFIC_REMITTANCE_PAYTO,
     discovery: discoveryFor({
@@ -768,9 +768,18 @@ export const paidRoutes: Array<{
               receive_currency: "WST",
               benchmark_send_amount_usd: 200,
               live_fx_rate: { rate: 1.9, pair: "AUD_to_WST", source: "currency-api", as_of: "daily" },
-              traditional_rails: null,
-              traditional_rails_note:
-                "World Bank Remittance Prices Worldwide has no data available for this corridor this cycle (its API is currently unreachable from this server). Traditional-rail cost comparison is unavailable; crypto_rails and live_fx_rate are unaffected.",
+              traditional_rails: {
+                average_cost_pct: 6.8,
+                average_cost_usd: 13.6,
+                cheapest_provider: "Western Union",
+                cheapest_cost_pct: 4.2,
+                provider_count: null,
+                data_source: "World Bank RPW Q4-2024",
+                data_currency: "quarterly",
+                live_data: false,
+                static_fallback: true,
+              },
+              traditional_rails_note: null,
               crypto_rails: [
                 {
                   token: "XRP",
@@ -782,7 +791,7 @@ export const paidRoutes: Array<{
                   not_financial_advice: true,
                 },
               ],
-              potential_saving_pct: null,
+              potential_saving_pct: 6.78,
               not_financial_advice: true,
             },
           ],
@@ -793,7 +802,7 @@ export const paidRoutes: Array<{
             not_financial_advice: true,
             data_sources: ["World Bank Remittance Prices Worldwide", "fawazahmed0/currency-api / ExchangeRate-API / Frankfurter (ECB) — see /finance/fx", "Static crypto network fee estimates"],
           },
-          fetch_warnings: ["AUS_WST: World Bank RPW returned no data for this corridor"],
+          fetch_warnings: ["AUS_WST: World Bank RPW live fetch unavailable this cycle — using Q4-2024 static fallback"],
         },
       },
     }),
