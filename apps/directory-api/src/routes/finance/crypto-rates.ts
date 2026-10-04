@@ -9,7 +9,7 @@ import {
   type Category,
   type CryptoToken,
 } from "../../services/pacificCryptoRatesService.js";
-import { AppError, ValidationError } from "../../lib/errors.js";
+import { ValidationError } from "../../lib/errors.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 1 / $0.001, Decisions 59/60 — a
@@ -47,10 +47,10 @@ pacificCryptoRatesRoute.get("/finance/crypto-rates", async (c) => {
       .filter((s) => s.length > 0);
   }
 
+  // Never 502s a buyer who already paid for this query (Decision 59/60) —
+  // getCryptoRatesSnapshot() itself serves a static fallback rather than
+  // null when CoinGecko is unreachable; see that function's doc comment.
   const snapshot = await getCryptoRatesSnapshot();
-  if (!snapshot) {
-    throw new AppError(502, "bad_gateway", "Crypto price data is temporarily unavailable from CoinGecko. Try again shortly.");
-  }
 
   let tokens: CryptoToken[] = snapshot.tokens;
 
@@ -76,11 +76,14 @@ pacificCryptoRatesRoute.get("/finance/crypto-rates", async (c) => {
   return c.json({
     tokens,
     total_tokens: tokens.length,
-    data_currency: "real-time",
+    data_currency: snapshot.static_fallback ? "static-fallback" : "real-time",
     coingecko_update_frequency: COINGECKO_UPDATE_FREQUENCY_NOTE,
     attribution: SOURCE_ATTRIBUTION,
     pacific_priority_tokens: PACIFIC_PRIORITY_SYMBOLS,
     fetch_warnings: snapshot.fetch_warnings,
     cached_at: snapshot.cached_at,
+    static_fallback: snapshot.static_fallback,
+    static_fallback_reason: snapshot.static_fallback_reason,
+    prices_as_of: snapshot.prices_as_of,
   });
 });
