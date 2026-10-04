@@ -141,6 +141,16 @@ function buildEndpoints(): ManifestEndpoint[] {
         data_format: "json",
       },
       {
+        path: "/finance/arbitrage-signals",
+        full_url: `${DIRECTORY_API_URL}/finance/arbitrage-signals`,
+        price_usdc: "0.05",
+        description: "Multi-chain DEX arbitrage signals (Uniswap, PancakeSwap, SushiSwap, Tinyman, Pact). Gas-adjusted spread and signal quality for curated token pairs.",
+        category: "financial_flows",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
         path: "/fisheries/purse-seine",
         full_url: `${DIRECTORY_API_URL}/fisheries/purse-seine`,
         price_usdc: "0.05",
@@ -184,7 +194,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, ocean-forecast, and coral-bleaching from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, and arbitrage-signals from the discovery manifest",
     );
   }
 
