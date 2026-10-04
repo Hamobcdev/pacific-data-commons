@@ -151,11 +151,22 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      {
+        path: "/climate/ocean-forecast",
+        full_url: `${DIRECTORY_API_URL}/climate/ocean-forecast`,
+        price_usdc: "0.05",
+        description:
+          "Daily Pacific Ocean surface forecast (HYCOM GLBy0.08 model, via Pacific Data Hub THREDDS) — mean surface temperature, current speed/direction, and sea surface elevation for the Pacific Island region. DAILY FORECAST MODEL OUTPUT, not instrument readings — see the response's own data_currency, forecast_reference_date, and valid_time fields.",
+        category: "climate",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, and samoa-gdp from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, and ocean-forecast from the discovery manifest",
     );
   }
 
