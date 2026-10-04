@@ -6,6 +6,7 @@ import type { Env } from "./lib/env.js";
 import { createSupabaseClient } from "./lib/supabase.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { rateLimit } from "./middleware/rateLimit.js";
+import { withDashboardBypass } from "./middleware/dashboardBypass.js";
 import { logSettledDirectoryQuery } from "./services/directoryPaymentLogger.js";
 import { healthRoute } from "./routes/health.js";
 import { brandingRoute } from "./routes/branding.js";
@@ -124,7 +125,11 @@ export function createApp(env: Env) {
 
   // Payment gate is mounted globally but only intercepts the paths
   // registered via addRoute() above — everything else passes through.
-  app.use("*", paymentGate.middleware());
+  // Wrapped (not called directly) so the SBP website's dashboard key can
+  // skip payment on exactly the 4 financial endpoints it needs — see
+  // middleware/dashboardBypass.ts for why this wrapping, not an earlier
+  // skip-next() middleware, is the only way to do that in Hono's model.
+  app.use("*", withDashboardBypass(paymentGate.middleware(), env.DASHBOARD_INTERNAL_KEY));
 
   app.route("/", healthRoute);
   app.route("/", brandingRoute);
