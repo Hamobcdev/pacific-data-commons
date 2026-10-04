@@ -129,6 +129,17 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      {
+        path: "/climate/water-temperature",
+        full_url: `${DIRECTORY_API_URL}/climate/water-temperature`,
+        price_usdc: "0.01",
+        description:
+          "Live water temperature at a NOAA CO-OPS Pacific tide station (Pago Pago, American Samoa or Honolulu, Hawaii). Primary-source US federal station reading — see the response's own attribution field.",
+        category: "climate",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
