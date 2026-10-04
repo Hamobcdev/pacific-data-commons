@@ -148,6 +148,28 @@ const PACIFIC_CORAL_BLEACHING_PRICE_USDC = 0.05;
 // PACIFIC_OCEAN_FORECAST_PAYTO directly above, for the same reason.
 const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
+// free public API. Tier 1 — a high-volume single-value-per-token price
+// lookup, same tier as the other first-party Tier 1 endpoints above, not
+// Tier 2 like the multi-variable regional computations.
+const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.001;
+
+// This route's build brief said payTo should read
+// process.env.PDC_DIRECTORY_WALLET — a third env var name for
+// conceptually the same wallet every other "directory service" route
+// above already uses two different names for (env.AVM_ADDRESS inside
+// directory-api; PDC_DIRECTORY_PAYTO_ADDRESS in apps/web's manifest,
+// mirroring it). Introducing a fourth differently-named var for the same
+// wallet would fragment configuration further. Resolved the same way
+// /finance/fx resolves it: passing undefined `payToAddress` here lets
+// PdcPaymentGate fall back to its own constructor default
+// (env.AVM_ADDRESS, see createApp() above) — the correct behaviour for
+// "this is a directory service endpoint," not a dedicated pilot wallet.
+// process.env.PDC_DIRECTORY_WALLET still takes effect as an explicit
+// override if someone sets it, satisfying this brief's literal
+// instruction without a new permanent env var when nothing's set.
+const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_WALLET;
+
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
 // rather than @x402-avm/extensions' bazaarResourceServerExtension, and why
@@ -506,6 +528,47 @@ export const paidRoutes: Array<{
           attribution: "NOAA Coral Reef Watch CoralTemp 5km Daily Satellite Monitoring",
           attribution_url: "https://coralreefwatch.noaa.gov/",
           region_sample_size: 6324,
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/crypto-rates",
+    description:
+      "Real-time prices for 67 curated crypto tokens, Pacific-priority weighted (ALGO, XRP, XLM always included). Source: CoinGecko public API. Optional ?symbols= (comma-separated, e.g. BTC,ETH,ALGO) filters to matching tokens — 400 only if every requested symbol is outside the curated list. Optional ?category= (defi|l1|l2|pacific) pre-filters by a hand-curated best-effort grouping. 60-second cache.",
+    priceUsdc: PACIFIC_CRYPTO_RATES_PRICE_USDC,
+    payToAddress: PACIFIC_CRYPTO_RATES_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { symbols: "BTC,ETH,ALGO" },
+      inputSchema: {
+        properties: {
+          symbols: { type: "string", description: "Comma-separated symbols, case-insensitive — optional, filters to matching curated tokens" },
+          category: { type: "string", enum: ["defi", "l1", "l2", "pacific"], description: "Pre-defined subset — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          tokens: [
+            {
+              symbol: "BTC",
+              name: "Bitcoin",
+              coingecko_id: "bitcoin",
+              price_usd: 85419,
+              price_change_24h_pct: 0.585,
+              market_cap_usd: 1716350012767,
+              volume_24h_usd: 14580956497,
+              market_cap_rank: 1,
+            },
+          ],
+          total_tokens: 1,
+          data_currency: "real-time",
+          coingecko_update_frequency: "Every ~60 seconds on CoinGecko free tier",
+          attribution: "CoinGecko Public API — https://www.coingecko.com/en/api",
+          pacific_priority_tokens: ["ALGO", "XRP", "XLM"],
+          fetch_warnings: [],
         },
       },
     }),

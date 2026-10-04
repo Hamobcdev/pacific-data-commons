@@ -32,6 +32,7 @@ import { pacificWaterTemperatureRoute } from "./routes/climate/pacific-ocean-tem
 import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.js";
 import { pacificOceanForecastRoute } from "./routes/climate/pacific-ocean-forecast.js";
 import { pacificCoralBleachingRoute } from "./routes/climate/pacific-coral-bleaching.js";
+import { pacificCryptoRatesRoute } from "./routes/finance/crypto-rates.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
@@ -148,6 +149,7 @@ export function createApp(env: Env) {
   app.route("/", pacificPurseSeineRoute);
   app.route("/", pacificOceanForecastRoute);
   app.route("/", pacificCoralBleachingRoute);
+  app.route("/", pacificCryptoRatesRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);
