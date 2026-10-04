@@ -136,6 +136,18 @@ const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.05;
 // "always process.env.PDC_PILOT_EARNINGS_WALLET" instruction.
 const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// Decision 59/60 first-party wrapper over NOAA Coral Reef Watch's
+// openly-accessible CoralTemp product (via ERDDAP — see
+// pacificCoralBleachingService.ts for why, not the THREDDS endpoint this
+// route's build brief named first). Tier 2, environmental alert — same
+// "multi-variable computation per request" reasoning as
+// PACIFIC_OCEAN_FORECAST_PRICE_USDC above.
+const PACIFIC_CORAL_BLEACHING_PRICE_USDC = 0.05;
+
+// Same env-first-then-literal-fallback resolution as
+// PACIFIC_OCEAN_FORECAST_PAYTO directly above, for the same reason.
+const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
 // rather than @x402-avm/extensions' bazaarResourceServerExtension, and why
@@ -457,6 +469,43 @@ export const paidRoutes: Array<{
           sea_surface_elevation_m: 0.112,
           region_sample_size: { water_temp: 11094, water_u: 11094, water_v: 11094, surf_el: 11094 },
           attribution: "HYCOM Global Ocean Model Forecast via Pacific Data Hub THREDDS (tds.pacificdata.org/thredds). Pacific Community (SPC). Model output — not instrument readings.",
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/climate/coral-bleaching",
+    description:
+      "Daily coral bleaching alert levels (0-4) and degree heating weeks for a Pacific reef region, sourced from NOAA Coral Reef Watch's CoralTemp 5km daily satellite product via ERDDAP. data_currency is always \"daily\" — see the response's own observation_date, reporting_lag_note, and attribution fields. Optional ?lat= (default -13.759, Samoa), ?lon= (default -172.104), ?radius_deg= (default 2.0, 0.1–10) define the query region. bleaching_alert_level is the nearest cell NOAA reported data for; max_alert_in_region and mean_dhw are computed across region_sample_size reported cells (missing/land cells excluded, never treated as zero). 24-hour cache.",
+    priceUsdc: PACIFIC_CORAL_BLEACHING_PRICE_USDC,
+    payToAddress: PACIFIC_CORAL_BLEACHING_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { lat: -13.759, lon: -172.104, radius_deg: 2.0 },
+      inputSchema: {
+        properties: {
+          lat: { type: "number", description: "Decimal degrees, -90..90 — optional, default -13.759 (Samoa)" },
+          lon: { type: "number", description: "Decimal degrees, -180..180 — optional, default -172.104 (Samoa)" },
+          radius_deg: { type: "number", description: "Bounding box half-width in degrees, 0.1..10 — optional, default 2.0" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          centre_lat: -13.759,
+          centre_lon: -172.104,
+          radius_deg: 2.0,
+          bleaching_alert_level: 0,
+          bleaching_alert_label: "No Stress",
+          max_alert_in_region: 1,
+          mean_dhw: 0.12,
+          observation_date: "2026-10-02",
+          data_currency: "daily",
+          reporting_lag_note: "NOAA CoralTemp updates daily with ~24h processing lag",
+          attribution: "NOAA Coral Reef Watch CoralTemp 5km Daily Satellite Monitoring",
+          attribution_url: "https://coralreefwatch.noaa.gov/",
+          region_sample_size: 6324,
         },
       },
     }),
