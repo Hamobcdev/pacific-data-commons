@@ -82,6 +82,15 @@ const SAMOA_GDP_PRICE_USDC = 0.01;
 // that API's query-string requests are Cloudflare-challenge-gated).
 const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.01;
 
+// Decision 59/60 first-party wrapper over WCPFC's openly-accessible public
+// THREDDS/OPeNDAP dataset. Tier 2, not Tier 1 like the other first-party
+// endpoints above: this one aggregates across 5 gear-mode variables and
+// the full Western/Central Pacific grid per request (multi-variable
+// historical summary, not a single-value lookup) — same "priced above a
+// plain Tier 1 lookup" reasoning as PACIFIC_BRIEF_PRICE_USDC, just a much
+// smaller multiplier since this has no Claude synthesis cost to cover.
+const PACIFIC_PURSE_SEINE_PRICE_USDC = 0.05;
+
 // Dedicated pilot-earnings wallet (user-provided, confirmed USDC-opted-in
 // via the indexer before this was wired up) — payTo for this endpoint,
 // not the main SBP directory wallet every other route above uses.
@@ -97,6 +106,23 @@ const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.01;
 // truth stays here, same reasoning as every other "never hardcode a wallet
 // twice" instance in this repo.
 export const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM5LKPYKOAJZ2MVAKO6KFM";
+
+// This session's build brief required this new route's payTo to read from
+// process.env.PDC_PILOT_EARNINGS_WALLET specifically ("never hardcode
+// wallet addresses"). That's in tension with the literal constant
+// directly above, which 3 already-shipped routes (samoa-cpi, samoa-gdp,
+// climate/ocean-temperature, climate/water-temperature) deliberately use
+// as-is, per that constant's own doc comment recording a prior explicit
+// user decision. Resolved without touching those 3 routes: this route
+// reads the env var first and falls back to the existing literal if unset,
+// so it satisfies the new instruction exactly when the env var is
+// configured, never breaks (unset payTo) if it isn't, and never diverges
+// from the other 3 routes' wallet unless someone deliberately sets the
+// env var to something else. nodejs_compat is enabled for this Worker
+// (wrangler.toml) and routes/discovery.ts already reads process.env
+// directly for non-critical config, so this is a known-working pattern
+// here, not a new one.
+const PACIFIC_PURSE_SEINE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
@@ -355,6 +381,39 @@ export const paidRoutes: Array<{
           attribution: "NOAA CO-OPS / National Ocean Service — tidesandcurrents.noaa.gov",
           station_id: "1770000",
           station_name: "Pago Pago, American Samoa",
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/fisheries/purse-seine",
+    description:
+      "Historical annual purse seine catch for the Western and Central Pacific, sourced from WCPFC's Public Domain 1°x1° Monthly dataset via Pacific Data Hub's THREDDS server — HISTORICAL data, not real-time (WCPFC member catch reports carry a 1–2 year verification lag; dataset covers 1967–2021, see the response's own attribution and reporting_lag_note fields). Optional ?species=, one of skj, yft, bet (default skj) — albacore is not available, this purse-seine dataset has no albacore variable. Required ?year=, a 4-digit year within 1967–2021. Returns total catch in metric tonnes summed across all fishing-gear/set-type variables and the full grid. 24-hour cache.",
+    priceUsdc: PACIFIC_PURSE_SEINE_PRICE_USDC,
+    payToAddress: PACIFIC_PURSE_SEINE_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { species: "skj", year: 2020 },
+      inputSchema: {
+        properties: {
+          species: { type: "string", enum: ["skj", "yft", "bet"], description: "Tuna species code — optional, default skj. Albacore (alb) is not available from this dataset." },
+          year: { type: "integer", description: "4-digit year, 1967–2021 — required" },
+        },
+        required: ["year"],
+      },
+      output: {
+        example: {
+          species_code: "skj",
+          common_name: "Skipjack Tuna",
+          total_catch_mt: 412857.63,
+          year_filter: 2020,
+          year_range_covered: "1967–2021",
+          data_currency: "historical",
+          reporting_lag_note: "WCPFC member catch reports are verified 1–2 years after fishing year. Data reflects completed reporting cycles only.",
+          record_count: 8640,
+          unit: "metric_tonnes",
+          attribution: "WCPFC Public Domain Aggregated Catch/Effort Data — Purse Seine 1°x1° Monthly. Western and Central Pacific Fisheries Commission. tds.pacificdata.org",
         },
       },
     }),

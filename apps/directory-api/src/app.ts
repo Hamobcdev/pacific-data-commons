@@ -29,6 +29,7 @@ import { samoaCpiRoute } from "./routes/finance/samoa-cpi.js";
 import { samoaGdpRoute } from "./routes/finance/samoa-gdp.js";
 import { pacificOceanTemperatureRoute } from "./routes/climate/ocean-temperature.js";
 import { pacificWaterTemperatureRoute } from "./routes/climate/pacific-ocean-temp.js";
+import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
@@ -142,6 +143,7 @@ export function createApp(env: Env) {
   app.route("/", samoaGdpRoute);
   app.route("/", pacificOceanTemperatureRoute);
   app.route("/", pacificWaterTemperatureRoute);
+  app.route("/", pacificPurseSeineRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);
