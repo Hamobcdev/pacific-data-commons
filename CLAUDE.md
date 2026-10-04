@@ -107,7 +107,7 @@ SBP must never build prepaid credit balances for agent usage. Prepaid credits ar
 
 ## 5. Confirmed Pre-Build Decision Register
 
-All 58 decisions are final. Do not revisit unless explicitly instructed.
+All 62 decisions are final. Do not revisit unless explicitly instructed.
 
 | # | Decision | Confirmed Answer |
 |---|---|---|
