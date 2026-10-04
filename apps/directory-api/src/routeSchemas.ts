@@ -124,6 +124,18 @@ export const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM
 // here, not a new one.
 const PACIFIC_PURSE_SEINE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// Decision 59/60 first-party wrapper over HYCOM's openly-accessible
+// THREDDS/OPeNDAP forecast product. Tier 2, same reasoning as
+// PACIFIC_PURSE_SEINE_PRICE_USDC directly above — a multi-variable
+// regional-mean computation per request, not a single-value lookup.
+const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.05;
+
+// Same env-first-then-literal-fallback resolution as
+// PACIFIC_PURSE_SEINE_PAYTO directly above, for the same reason (see that
+// constant's doc comment) — this route's build brief carried the same
+// "always process.env.PDC_PILOT_EARNINGS_WALLET" instruction.
+const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
 // rather than @x402-avm/extensions' bazaarResourceServerExtension, and why
@@ -414,6 +426,37 @@ export const paidRoutes: Array<{
           record_count: 8640,
           unit: "metric_tonnes",
           attribution: "WCPFC Public Domain Aggregated Catch/Effort Data — Purse Seine 1°x1° Monthly. Western and Central Pacific Fisheries Commission. tds.pacificdata.org",
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/climate/ocean-forecast",
+    description:
+      "Daily Pacific Ocean surface forecast from the HYCOM GLBy0.08 Global Ocean Model, via Pacific Data Hub THREDDS. DAILY FORECAST MODEL OUTPUT, not instrument readings — data_currency is always \"daily-forecast\", see the response's own forecast_reference_date, valid_time, and attribution fields. Returns mean surface temperature, mean current speed/direction, and mean sea surface elevation for the Pacific Island region (lat -25 to 25, lon 150–220°E), each a stride-sampled regional mean — region_sample_size says how many grid cells contributed. No salinity field: this HYCOM product has no salinity variable. No query params. 6-hour cache.",
+    priceUsdc: PACIFIC_OCEAN_FORECAST_PRICE_USDC,
+    payToAddress: PACIFIC_OCEAN_FORECAST_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: {},
+      inputSchema: {
+        properties: {},
+        required: [],
+      },
+      output: {
+        example: {
+          forecast_reference_date: "2026-10-04",
+          valid_time: "2026-10-04T12:00:00.000Z",
+          data_currency: "daily-forecast",
+          model: "HYCOM GLBy0.08 Global Ocean Model",
+          region: "Pacific Island region (lat -25 to 25, lon 150–220)",
+          surface_temperature_c: 27.42,
+          current_speed_ms: 0.186,
+          current_direction_deg: 254.3,
+          sea_surface_elevation_m: 0.112,
+          region_sample_size: { water_temp: 11094, water_u: 11094, water_v: 11094, surf_el: 11094 },
+          attribution: "HYCOM Global Ocean Model Forecast via Pacific Data Hub THREDDS (tds.pacificdata.org/thredds). Pacific Community (SPC). Model output — not instrument readings.",
         },
       },
     }),
