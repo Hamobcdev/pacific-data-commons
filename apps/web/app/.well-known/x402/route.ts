@@ -162,11 +162,29 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      {
+        // This route's build brief specified a `price: {amount, currency}`
+        // / `payTo` shape for this manifest entry, but every existing
+        // entry here (including the two directly above) uses this file's
+        // own ManifestEndpoint interface (price_usdc as a string, pay_to,
+        // full_url, trust_tier, data_format) — followed that real shape
+        // instead so this entry doesn't silently diverge from the type
+        // every other endpoint in this array satisfies.
+        path: "/climate/coral-bleaching",
+        full_url: `${DIRECTORY_API_URL}/climate/coral-bleaching`,
+        price_usdc: "0.05",
+        description:
+          "Daily coral bleaching alert levels for Pacific reef areas (NOAA CoralTemp, via ERDDAP). Default region: Samoa. See the response's own data_currency, observation_date, and reporting_lag_note fields.",
+        category: "climate",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, and ocean-forecast from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, ocean-forecast, and coral-bleaching from the discovery manifest",
     );
   }
 
