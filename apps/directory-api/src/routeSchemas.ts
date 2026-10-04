@@ -74,6 +74,14 @@ const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.01;
 // is documented at the route it actually applies to.
 const SAMOA_GDP_PRICE_USDC = 0.01;
 
+// Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC/CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC
+// above — Tier 1 capped, first-party wrapper over a genuinely open (no-auth)
+// external source (see pacificWaterTemperatureService.ts's doc comment for
+// the live confirmation that NOAA CO-OPS needs no key, and for why this
+// endpoint exists instead of a Pacific Data Hub/pacificdata.org wrapper —
+// that API's query-string requests are Cloudflare-challenge-gated).
+const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.01;
+
 // Dedicated pilot-earnings wallet (user-provided, confirmed USDC-opted-in
 // via the indexer before this was wired up) — payTo for this endpoint,
 // not the main SBP directory wallet every other route above uses.
@@ -316,6 +324,37 @@ export const paidRoutes: Array<{
             source_document: "Gross Domestic Product — Expenditure Approach, FY2025/26",
             data_quality: "government_source_transcribed",
           },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/climate/water-temperature",
+    description:
+      "Live water temperature at a NOAA CO-OPS Pacific tide station, sourced from NOAA's Tides & Currents Data Getter API — a primary-source US federal station reading, not a Pacific Island national authority's own instrument, see the response's own attribution field. Optional ?station=, one of 1770000 (Pago Pago, American Samoa) or 1617760 (Honolulu, Hawaii — Pacific reference). Default 1770000. 30-minute cache.",
+    priceUsdc: PACIFIC_WATER_TEMPERATURE_PRICE_USDC,
+    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { station: "1770000" },
+      inputSchema: {
+        properties: {
+          station: { type: "string", enum: ["1770000", "1617760"], description: "NOAA CO-OPS station id — optional, default 1770000" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          nation: "American Samoa",
+          indicator: "sea_water_temperature",
+          value: 26.4,
+          unit: "celsius",
+          period: "2026-10-01T15:06:00Z",
+          source: "NOAA Center for Operational Oceanographic Products and Services (CO-OPS)",
+          attribution: "NOAA CO-OPS / National Ocean Service — tidesandcurrents.noaa.gov",
+          station_id: "1770000",
+          station_name: "Pago Pago, American Samoa",
         },
       },
     }),
