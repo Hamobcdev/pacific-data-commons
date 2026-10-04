@@ -125,7 +125,7 @@ describe("getCryptoRatesSnapshot", () => {
     const snapshot = await getCryptoRatesSnapshot();
     expect(snapshot.static_fallback).toBe(true);
     expect(snapshot.static_fallback_reason).toBe("upstream_blocked");
-    expect(snapshot.prices_as_of).toBe("2026-10");
+    expect(snapshot.prices_as_of).toBe("2026-10-05");
     expect(snapshot.tokens.length).toBeGreaterThan(0);
     expect(snapshot.tokens.some((t) => t.symbol === "ALGO")).toBe(true);
   });
@@ -327,7 +327,7 @@ describe("GET /finance/crypto-rates", () => {
     const body = (await res.json()) as { static_fallback: boolean; static_fallback_reason: string; prices_as_of: string; data_currency: string; tokens: unknown[] };
     expect(body.static_fallback).toBe(true);
     expect(body.static_fallback_reason).toBe("upstream_blocked");
-    expect(body.prices_as_of).toBe("2026-10");
+    expect(body.prices_as_of).toBe("2026-10-05");
     expect(body.data_currency).toBe("static-fallback");
     expect(body.tokens.length).toBeGreaterThan(0);
   });

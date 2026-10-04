@@ -280,16 +280,16 @@ interface StaticTokenSpec {
 // Supplied directly for this fallback (see file doc comment above for
 // provenance) — not fetched, not derived from a live CoinGecko response.
 const STATIC_CRYPTO_PRICES: readonly StaticTokenSpec[] = [
-  { symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.18 },
-  { symbol: "XRP", name: "XRP", coingecko_id: "ripple", price_usd: 0.52 },
+  { symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.1323 },
+  { symbol: "XRP", name: "XRP", coingecko_id: "ripple", price_usd: 1.52 },
   { symbol: "XLM", name: "Stellar", coingecko_id: "stellar", price_usd: 0.11 },
-  { symbol: "BTC", name: "Bitcoin", coingecko_id: "bitcoin", price_usd: 62000 },
-  { symbol: "ETH", name: "Ethereum", coingecko_id: "ethereum", price_usd: 2450 },
+  { symbol: "BTC", name: "Bitcoin", coingecko_id: "bitcoin", price_usd: 86438 },
+  { symbol: "ETH", name: "Ethereum", coingecko_id: "ethereum", price_usd: 2728 },
   { symbol: "USDC", name: "USD Coin", coingecko_id: "usd-coin", price_usd: 1.0 },
   { symbol: "USDT", name: "Tether", coingecko_id: "tether", price_usd: 1.0 },
 ];
 
-const STATIC_PRICES_AS_OF = "2026-10";
+const STATIC_PRICES_AS_OF = "2026-10-05";
 
 /**
  * Built only when the live fetch fails entirely. change_24h_pct/
