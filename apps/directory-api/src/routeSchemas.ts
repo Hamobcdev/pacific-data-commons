@@ -617,7 +617,7 @@ export const paidRoutes: Array<{
               name: "Bitcoin",
               coingecko_id: "bitcoin",
               price_usd: 85419,
-              price_change_24h_pct: 0.585,
+              change_24h_pct: 0.585,
               market_cap_usd: 1716350012767,
               volume_24h_usd: 14580956497,
               market_cap_rank: 1,

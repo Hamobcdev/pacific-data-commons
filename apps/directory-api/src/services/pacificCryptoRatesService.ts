@@ -196,7 +196,7 @@ export interface CryptoToken {
   name: string;
   coingecko_id: string;
   price_usd: number;
-  price_change_24h_pct: number;
+  change_24h_pct: number;
   market_cap_usd: number;
   volume_24h_usd: number;
   market_cap_rank: number | null;
@@ -257,7 +257,7 @@ async function fetchFreshSnapshot(): Promise<CryptoRatesSnapshot | null> {
         name: entry.name,
         coingecko_id: entry.id,
         price_usd: entry.current_price,
-        price_change_24h_pct: entry.price_change_percentage_24h ?? 0,
+        change_24h_pct: entry.price_change_percentage_24h ?? 0,
         market_cap_usd: entry.market_cap ?? 0,
         volume_24h_usd: entry.total_volume ?? 0,
         market_cap_rank: entry.market_cap_rank,
@@ -303,7 +303,7 @@ function buildStaticFallbackSnapshot(reason: string): CryptoRatesSnapshot {
     name: spec.name,
     coingecko_id: spec.coingecko_id,
     price_usd: spec.price_usd,
-    price_change_24h_pct: 0,
+    change_24h_pct: 0,
     market_cap_usd: 0,
     volume_24h_usd: 0,
     market_cap_rank: null,
