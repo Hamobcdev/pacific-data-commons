@@ -629,8 +629,6 @@
     "earned": "Earned (data sold)",
     "spent": "Spent (agent queries)",
     "net_balance": "Net balance",
-    "unpaid_fee": "Unpaid SBP fee",
-    "fee_note": "Collected when balance reaches $10 USDC",
     "use_earnings": "Use earnings to query agents",
     "view_history": "View transaction history",
     "endpoints_title": "Your Endpoints",

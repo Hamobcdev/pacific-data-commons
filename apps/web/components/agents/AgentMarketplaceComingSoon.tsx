@@ -14,8 +14,10 @@ export function AgentMarketplaceComingSoon({ compact = false }: { compact?: bool
   return (
     <Card className="border-ocean/20 bg-light-bg">
       <CardContent className={compact ? "py-4" : "py-8 text-center"}>
-        <p className="font-medium text-navy">The Agent Marketplace is actively being built.</p>
-        <p className="mt-2 text-sm text-gray-600">Querying isn&apos;t live yet — check back soon, or get involved now.</p>
+        <p className="font-medium text-navy">Pacific Data Commons is live on Algorand Mainnet.</p>
+        <p className="mt-2 text-sm text-gray-600">
+          Real Pacific data. Real payments. Agent querying via x402 — explore our endpoints or get involved as a provider.
+        </p>
         <p className="mt-3 text-sm text-gray-700">
           Want your institution&apos;s data or agent to be part of Pacific Data Commons?{" "}
           <a href={`mailto:${AGENT_MARKETPLACE_CONTACT_EMAIL}`} className="text-ocean hover:underline">
