@@ -117,22 +117,49 @@ describe("getCryptoRatesSnapshot", () => {
     expect(snapshot?.fetch_warnings.some((w) => w.includes("tether"))).toBe(true);
   });
 
-  it("returns null (never throws) when the upstream fetch returns a non-ok response", async () => {
+  it("serves the static fallback (never null, never throws) when the upstream fetch returns a non-ok response", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse([], 500)),
     );
-    expect(await getCryptoRatesSnapshot()).toBeNull();
+    const snapshot = await getCryptoRatesSnapshot();
+    expect(snapshot.static_fallback).toBe(true);
+    expect(snapshot.static_fallback_reason).toBe("upstream_blocked");
+    expect(snapshot.prices_as_of).toBe("2026-10");
+    expect(snapshot.tokens.length).toBeGreaterThan(0);
+    expect(snapshot.tokens.some((t) => t.symbol === "ALGO")).toBe(true);
   });
 
-  it("returns null (never throws) when the fetch rejects outright", async () => {
+  it("serves the static fallback (never null, never throws) when the fetch rejects outright", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
         throw new Error("network error");
       }),
     );
-    expect(await getCryptoRatesSnapshot()).toBeNull();
+    const snapshot = await getCryptoRatesSnapshot();
+    expect(snapshot.static_fallback).toBe(true);
+    expect(snapshot.tokens.length).toBeGreaterThan(0);
+  });
+
+  it("marks a live snapshot's static_fallback fields as false/null", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const snapshot = await getCryptoRatesSnapshot();
+    expect(snapshot.static_fallback).toBe(false);
+    expect(snapshot.static_fallback_reason).toBeNull();
+    expect(snapshot.prices_as_of).toBeNull();
+  });
+
+  it("static fallback never fabricates a price for tokens outside the named static set", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const snapshot = await getCryptoRatesSnapshot();
+    expect(snapshot.tokens.map((t) => t.symbol).sort()).toEqual(["ALGO", "BTC", "ETH", "USDC", "USDT", "XLM", "XRP"]);
+    expect(snapshot.fetch_warnings.some((w) => w.includes("static fallback"))).toBe(true);
   });
 
   it("caches the snapshot for the 60-second TTL — a second call doesn't re-fetch", async () => {
@@ -287,7 +314,7 @@ describe("GET /finance/crypto-rates", () => {
     expect(res.headers.get("cache-control")).toBe("public, max-age=60");
   });
 
-  it("returns 502 (not 500) when CoinGecko is unreachable", async () => {
+  it("returns 200 with the static fallback (never 502) when CoinGecko is unreachable", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -296,19 +323,36 @@ describe("GET /finance/crypto-rates", () => {
     );
     const app = buildTestApp();
     const res = await app.request("/finance/crypto-rates");
-    expect(res.status).toBe(502);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toBe("bad_gateway");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { static_fallback: boolean; static_fallback_reason: string; prices_as_of: string; data_currency: string; tokens: unknown[] };
+    expect(body.static_fallback).toBe(true);
+    expect(body.static_fallback_reason).toBe("upstream_blocked");
+    expect(body.prices_as_of).toBe("2026-10");
+    expect(body.data_currency).toBe("static-fallback");
+    expect(body.tokens.length).toBeGreaterThan(0);
   });
 
-  it("returns 502 (not 500) when CoinGecko returns a non-ok response", async () => {
+  it("returns 200 with the static fallback (never 502) when CoinGecko returns a non-ok response", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse([], 429)),
     );
     const app = buildTestApp();
     const res = await app.request("/finance/crypto-rates");
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { static_fallback: boolean };
+    expect(body.static_fallback).toBe(true);
+  });
+
+  it("returns live static_fallback: false and null reason/prices_as_of when CoinGecko is reachable", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/crypto-rates");
+    const body = (await res.json()) as { static_fallback: boolean; static_fallback_reason: string | null; prices_as_of: string | null; data_currency: string };
+    expect(body.static_fallback).toBe(false);
+    expect(body.static_fallback_reason).toBeNull();
+    expect(body.prices_as_of).toBeNull();
+    expect(body.data_currency).toBe("real-time");
   });
 });
 

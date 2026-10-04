@@ -1,3 +1,5 @@
+import { logger } from "../lib/logger.js";
+
 // pacificCryptoRatesService.ts
 //
 // Real-time prices for a curated list of crypto tokens, Pacific-priority
@@ -51,6 +53,19 @@
 // curated token, or returns it with a null current_price, that token is
 // omitted from the response's tokens array and listed in
 // fetch_warnings instead — never included with a placeholder/zero price.
+//
+// Static fallback (added once CoinGecko was confirmed blocked from
+// Cloudflare Workers outbound network, same pattern as
+// pacificRemittanceService.ts's World Bank RPW fallback): when the live
+// fetch fails entirely, this service serves STATIC_CRYPTO_PRICES instead
+// of returning null — the route layer must never 502 a buyer who already
+// paid for the query (Decision 59/60's first-party endpoints promise
+// $0.01-tier data, not an error). Deliberately a small, named subset (7
+// of the 67 curated tokens), not all 67 with a guessed price: these 7
+// prices were supplied directly by the person who requested this
+// fallback, and the other 60 simply have no static figure to fall back
+// to, so they're omitted (fetch_warnings explains why) — same
+// "never fabricate a price" posture as the live path above.
 
 const FETCH_TIMEOUT_MS = 15_000;
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
@@ -191,6 +206,9 @@ export interface CryptoRatesSnapshot {
   tokens: CryptoToken[];
   fetch_warnings: string[];
   cached_at: string;
+  static_fallback: boolean;
+  static_fallback_reason: string | null;
+  prices_as_of: string | null;
 }
 
 /** Just enough of CoinGecko's /coins/markets response shape to read — untrusted third-party HTTP JSON, same posture as this codebase's other upstream response interfaces. */
@@ -246,10 +264,61 @@ async function fetchFreshSnapshot(): Promise<CryptoRatesSnapshot | null> {
       });
     }
 
-    return { tokens, fetch_warnings: fetchWarnings, cached_at: new Date().toISOString() };
+    return { tokens, fetch_warnings: fetchWarnings, cached_at: new Date().toISOString(), static_fallback: false, static_fallback_reason: null, prices_as_of: null };
   } catch {
     return null;
   }
+}
+
+interface StaticTokenSpec {
+  symbol: string;
+  name: string;
+  coingecko_id: string;
+  price_usd: number;
+}
+
+// Supplied directly for this fallback (see file doc comment above for
+// provenance) — not fetched, not derived from a live CoinGecko response.
+const STATIC_CRYPTO_PRICES: readonly StaticTokenSpec[] = [
+  { symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.18 },
+  { symbol: "XRP", name: "XRP", coingecko_id: "ripple", price_usd: 0.52 },
+  { symbol: "XLM", name: "Stellar", coingecko_id: "stellar", price_usd: 0.11 },
+  { symbol: "BTC", name: "Bitcoin", coingecko_id: "bitcoin", price_usd: 62000 },
+  { symbol: "ETH", name: "Ethereum", coingecko_id: "ethereum", price_usd: 2450 },
+  { symbol: "USDC", name: "USD Coin", coingecko_id: "usd-coin", price_usd: 1.0 },
+  { symbol: "USDT", name: "Tether", coingecko_id: "tether", price_usd: 1.0 },
+];
+
+const STATIC_PRICES_AS_OF = "2026-10";
+
+/**
+ * Built only when the live fetch fails entirely. change_24h_pct/
+ * market_cap_usd/volume_24h_usd are 0/null rather than a guessed figure
+ * — same "never fabricate" posture fetchFreshSnapshot's own per-token
+ * omission applies, just at the whole-snapshot level instead.
+ */
+function buildStaticFallbackSnapshot(reason: string): CryptoRatesSnapshot {
+  const tokens: CryptoToken[] = STATIC_CRYPTO_PRICES.map((spec) => ({
+    symbol: spec.symbol,
+    name: spec.name,
+    coingecko_id: spec.coingecko_id,
+    price_usd: spec.price_usd,
+    price_change_24h_pct: 0,
+    market_cap_usd: 0,
+    volume_24h_usd: 0,
+    market_cap_rank: null,
+  }));
+  const omittedCount = CURATED_TOKEN_IDS.length - tokens.length;
+  return {
+    tokens,
+    fetch_warnings: [
+      `CoinGecko live fetch unavailable this cycle — serving ${tokens.length} static fallback prices (as of ${STATIC_PRICES_AS_OF}); the other ${omittedCount} curated tokens have no static fallback figure and are omitted`,
+    ],
+    cached_at: new Date().toISOString(),
+    static_fallback: true,
+    static_fallback_reason: reason,
+    prices_as_of: STATIC_PRICES_AS_OF,
+  };
 }
 
 let cache: { data: CryptoRatesSnapshot; expires: number } | null = null;
@@ -257,18 +326,24 @@ let cache: { data: CryptoRatesSnapshot; expires: number } | null = null;
 /**
  * The full curated-token snapshot (unfiltered) — 60-second cached.
  * ?symbols=/?category= filtering is applied by the route layer against
- * this cached result, not as separate upstream fetches. Returns null
- * (never throws) on any upstream failure — the route layer turns that
- * into a 502.
+ * this cached result, not as separate upstream fetches. Never returns
+ * null and never throws: a failed live fetch (confirmed blocked from
+ * Cloudflare Workers outbound network at the time this fallback was
+ * added) serves buildStaticFallbackSnapshot() instead — the route layer
+ * must always be able to return 200 to a buyer who already paid for this
+ * query.
  */
-export async function getCryptoRatesSnapshot(): Promise<CryptoRatesSnapshot | null> {
+export async function getCryptoRatesSnapshot(): Promise<CryptoRatesSnapshot> {
   if (cache && Date.now() < cache.expires) return cache.data;
 
   const fresh = await fetchFreshSnapshot();
-  if (!fresh) return null;
+  const snapshot = fresh ?? buildStaticFallbackSnapshot("upstream_blocked");
+  if (snapshot.static_fallback) {
+    logger.info("crypto_rates_static_fallback", { reason: snapshot.static_fallback_reason, token_count: snapshot.tokens.length });
+  }
 
-  cache = { data: fresh, expires: Date.now() + CACHE_TTL_MS };
-  return fresh;
+  cache = { data: snapshot, expires: Date.now() + CACHE_TTL_MS };
+  return snapshot;
 }
 
 export function tokensForCategory(tokens: CryptoToken[], category: Category): CryptoToken[] {
