@@ -1,5 +1,14 @@
 import { Hono } from "hono";
-import { getArbitrageSnapshot, CURATED_PAIRS, COVERED_DEXS, COVERED_CHAINS, SOURCE_ATTRIBUTION, type Chain, type ArbitrageSignal } from "../../services/pacificDexArbitrageService.js";
+import {
+  getArbitrageSnapshot,
+  CURATED_PAIRS,
+  COVERED_DEXS,
+  COVERED_CHAINS,
+  SOURCE_ATTRIBUTION,
+  resolveTokenDecimals,
+  type Chain,
+  type ArbitrageSignal,
+} from "../../services/pacificDexArbitrageService.js";
 import { AppError, ValidationError } from "../../lib/errors.js";
 import type { AppBindings } from "../../types.js";
 
@@ -71,6 +80,19 @@ pacificDexArbitrageRoute.get("/finance/arbitrage-signals", async (c) => {
     signals = signals.filter((s) => s.net_spread_pct !== null && s.net_spread_pct > minSpreadPct);
   }
 
+  // Every token actually present in the (possibly filtered) response —
+  // not the full curated set — so a ?pair= or ?chain=-narrowed response
+  // only advertises decimals for tokens it actually returned.
+  const tokensInResponse = new Set<string>();
+  for (const signal of signals) {
+    tokensInResponse.add(signal.base_token);
+    tokensInResponse.add(signal.quote_token);
+  }
+  const tokenDecimalsUsed: Record<string, number> = {};
+  for (const token of tokensInResponse) {
+    tokenDecimalsUsed[token] = resolveTokenDecimals(token).decimals;
+  }
+
   c.header("Cache-Control", "public, max-age=60");
 
   return c.json({
@@ -86,6 +108,16 @@ pacificDexArbitrageRoute.get("/finance/arbitrage-signals", async (c) => {
     stage_note: "Stage 1: curated pairs only. Stage 2 will add on-demand arbitrary pair lookup.",
     gas_warnings: snapshot.gas_warnings,
     fetch_warnings: snapshot.fetch_warnings,
+    decimal_precision: {
+      warning:
+        "All prices and amounts in this response are human-readable display units. Always convert to raw on-chain integer units using token decimal precision before constructing swap transactions or smart contract calls.",
+      conversion_formula: "raw_units = display_amount * 10^token_decimals (use integer arithmetic, never float — float precision loss causes transaction errors)",
+      example_usdc: "1.5 USDC display → 1500000 raw units (6 decimals)",
+      example_eth: "1.5 ETH display → 1500000000000000000 raw units (18 decimals)",
+      token_decimals_used: tokenDecimalsUsed,
+    },
+    decimal_warning:
+      "IMPORTANT: spot_price_usd and liquidity_usd are display units. For on-chain use apply token_decimals from decimal_precision.token_decimals_used before constructing transactions.",
     cached_at: snapshot.cached_at,
   });
 });

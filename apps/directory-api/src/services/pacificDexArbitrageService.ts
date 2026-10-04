@@ -139,6 +139,89 @@ export const SOURCE_ATTRIBUTION =
   "PDC Arbitrage Signal Engine — aggregates Uniswap v2/v3/v4, SushiSwap, PancakeSwap v2/v3, Tinyman, and Pact. Gas: public chain RPCs, Polygon Gas Station, fixed Arbitrum/Algorand estimates. Not financial advice.";
 export const GAS_DISCLAIMER = "Gas estimates are approximate and may differ at execution time. Verify before trading.";
 
+// Token decimal precision registry — every response field is a human-
+// readable display amount (spot_price_usd, liquidity_usd); an agent
+// constructing an on-chain swap must convert to the token's native raw
+// integer units first, or risk a 10^12-scale miscalculation (e.g.
+// treating a 6-decimal USDC amount as if it were 18-decimal). Source:
+// official token contracts / network documentation.
+//
+// ALGO ASAs in general have per-asset decimals that vary (read from the
+// Algorand indexer's asset config, not a fixed constant) — but ALGO
+// itself (asset id 0, the network's native unit) and USDC-on-Algorand
+// are both fixed at 6 decimals (confirmed live against Tinyman/Pact's
+// own pool data while building this endpoint — see
+// pacificDexArbitrageService's CURATED_PAIRS). Both are hardcoded below
+// for exactly that reason. DecimalsSource's "algorand-indexer" value
+// exists for a future ASA pair that genuinely needs a live indexer
+// lookup — every token actually used by CURATED_PAIRS today resolves via
+// "registry", so that lookup path doesn't exist yet (no indexer call to
+// test, document, or leave unverified — see RESOLVE_TOKEN_DECIMALS
+// below).
+export const TOKEN_DECIMALS: Record<string, number> = {
+  ETH: 18,
+  WETH: 18,
+  BTC: 8,
+  WBTC: 8,
+  USDC: 6,
+  USDT: 6,
+  DAI: 18,
+  USDS: 18,
+  LINK: 18,
+  UNI: 18,
+  AAVE: 18,
+  CRV: 18,
+  BAL: 18,
+  CAKE: 18,
+  MATIC: 18,
+  ARB: 18,
+  OP: 18,
+  ALGO: 6,
+  "1INCH": 18,
+  SOL: 9,
+  BNB: 18,
+  AVAX: 18,
+  DOT: 10,
+  XRP: 6,
+  XLM: 7,
+};
+
+export type DecimalsSource = "registry" | "algorand-indexer" | "default-18";
+
+/** Looks up a token's native decimal precision. Defaults to 18 (the ERC-20 standard) for anything not in TOKEN_DECIMALS — the caller is responsible for surfacing a warning when that happens (see getArbitrageSnapshot), since a silently-wrong default is exactly the kind of mistake this feature exists to prevent. */
+export function resolveTokenDecimals(symbol: string): { decimals: number; source: DecimalsSource } {
+  const known = TOKEN_DECIMALS[symbol];
+  if (known !== undefined) return { decimals: known, source: "registry" };
+  return { decimals: 18, source: "default-18" };
+}
+
+/**
+ * Converts a human-readable display amount to on-chain raw integer
+ * units. Always returns a BigInt — float arithmetic (displayAmount *
+ * 10**decimals) loses precision at exactly the scale that matters here
+ * (a wei-level rounding error), so this splits the decimal string
+ * instead of doing float math.
+ * e.g. toRawUnits(1.5, 6) -> 1500000n; toRawUnits(1.5, 18) -> 1500000000000000000n.
+ * Amounts with more fractional digits than `decimals` are truncated,
+ * not rounded (matching how on-chain integer division truncates).
+ */
+export function toRawUnits(displayAmount: number, decimals: number): bigint {
+  const [whole, fraction = ""] = displayAmount.toString().split(".");
+  const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
+  return BigInt(whole + paddedFraction);
+}
+
+/**
+ * Converts on-chain raw integer units back to a human-readable display
+ * amount. e.g. toDisplayUnits(1500000n, 6) -> 1.5.
+ */
+export function toDisplayUnits(rawAmount: bigint, decimals: number): number {
+  const raw = rawAmount.toString().padStart(decimals + 1, "0");
+  const whole = raw.slice(0, -decimals) || "0";
+  const fraction = raw.slice(-decimals).replace(/0+$/, "");
+  return parseFloat(fraction ? `${whole}.${fraction}` : whole);
+}
+
 type EvmNetwork = "eth" | "arbitrum" | "bsc";
 
 interface GeckoVenue {
@@ -246,6 +329,9 @@ export interface VenueResult {
   spot_price_usd: number;
   liquidity_usd: number;
   pool_address: string;
+  base_token_decimals: number;
+  quote_token_decimals: number;
+  base_token_decimals_source: DecimalsSource;
 }
 
 export interface EstimatedGas {
@@ -494,6 +580,19 @@ export async function getArbitrageSnapshot(): Promise<ArbitrageSnapshot | null> 
   // compute the signal.
   const signals: ArbitrageSignal[] = [];
   for (const pair of CURATED_PAIRS) {
+    // Decimals are a pair-level fact (every venue of a pair trades the
+    // same two tokens) — resolved once per pair, then stamped onto each
+    // venue result below so an agent acting on a single venue object
+    // never has to cross-reference the pair level to find them.
+    const baseDecimals = resolveTokenDecimals(pair.baseToken);
+    const quoteDecimals = resolveTokenDecimals(pair.quoteToken);
+    if (baseDecimals.source === "default-18") {
+      fetchWarnings.push(`${pair.pair}: base token ${pair.baseToken} is not in TOKEN_DECIMALS — defaulting to 18 decimals`);
+    }
+    if (quoteDecimals.source === "default-18") {
+      fetchWarnings.push(`${pair.pair}: quote token ${pair.quoteToken} is not in TOKEN_DECIMALS — defaulting to 18 decimals`);
+    }
+
     const venueResults: VenueResult[] = [];
     for (const venue of pair.venues) {
       let data: VenuePriceData | null = null;
@@ -510,7 +609,16 @@ export async function getArbitrageSnapshot(): Promise<ArbitrageSnapshot | null> 
         fetchWarnings.push(`${pair.pair} / ${venue.dex} (${venue.chain}): liquidity $${Math.round(data.liquidityUsd).toLocaleString()} below the $100,000 minimum — dropped`);
         continue;
       }
-      venueResults.push({ dex: venue.dex, chain: venue.chain, spot_price_usd: data.priceUsd, liquidity_usd: data.liquidityUsd, pool_address: venue.poolAddress });
+      venueResults.push({
+        dex: venue.dex,
+        chain: venue.chain,
+        spot_price_usd: data.priceUsd,
+        liquidity_usd: data.liquidityUsd,
+        pool_address: venue.poolAddress,
+        base_token_decimals: baseDecimals.decimals,
+        quote_token_decimals: quoteDecimals.decimals,
+        base_token_decimals_source: baseDecimals.source,
+      });
     }
 
     if (venueResults.length < MIN_VENUES_PER_PAIR) {
@@ -521,6 +629,12 @@ export async function getArbitrageSnapshot(): Promise<ArbitrageSnapshot | null> 
     const sorted = [...venueResults].sort((a, b) => a.spot_price_usd - b.spot_price_usd);
     const buyVenue = sorted[0]!;
     const sellVenue = sorted[sorted.length - 1]!;
+    // Both spot_price_usd values are already human-readable USD display
+    // units (same scale on both sides, from GeckoTerminal/Tinyman/Pact
+    // directly) — a percentage is scale-invariant, so no raw/display
+    // unit conversion is needed or correct here. Decimal precision only
+    // matters once an actual on-chain swap amount is constructed, which
+    // is exactly what toRawUnits/toDisplayUnits above are for.
     const grossSpreadPct = ((sellVenue.spot_price_usd - buyVenue.spot_price_usd) / buyVenue.spot_price_usd) * 100;
 
     const buyGasUsd = gas[chainToGasKey(buyVenue.chain)];

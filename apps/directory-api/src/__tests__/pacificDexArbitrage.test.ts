@@ -1,7 +1,14 @@
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { pacificDexArbitrageRoute } from "../routes/finance/arbitrage-signals.js";
-import { getArbitrageSnapshot, __resetDexArbitrageCacheForTests, CURATED_PAIRS } from "../services/pacificDexArbitrageService.js";
+import {
+  getArbitrageSnapshot,
+  __resetDexArbitrageCacheForTests,
+  CURATED_PAIRS,
+  toRawUnits,
+  toDisplayUnits,
+  resolveTokenDecimals,
+} from "../services/pacificDexArbitrageService.js";
 import { paidRoutes } from "../routeSchemas.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import type { AppBindings } from "../types.js";
@@ -112,6 +119,80 @@ function buildTestApp() {
   app.onError(errorHandler);
   return app;
 }
+
+describe("toRawUnits", () => {
+  it("converts 1.5 at 6 decimals to 1500000n", () => {
+    expect(toRawUnits(1.5, 6)).toBe(1500000n);
+  });
+
+  it("converts 1.5 at 18 decimals to 1500000000000000000n", () => {
+    expect(toRawUnits(1.5, 18)).toBe(1500000000000000000n);
+  });
+
+  it("converts the minimum USDC unit (0.000001 at 6 decimals) to 1n", () => {
+    expect(toRawUnits(0.000001, 6)).toBe(1n);
+  });
+
+  it("converts 1 WBTC (1.0 at 8 decimals) to 100000000n", () => {
+    expect(toRawUnits(1.0, 8)).toBe(100000000n);
+  });
+
+  it("truncates (not rounds) fractional digits beyond the target decimals", () => {
+    expect(toRawUnits(1.123456789, 6)).toBe(1123456n);
+  });
+});
+
+describe("toDisplayUnits", () => {
+  it("converts 1500000n at 6 decimals to 1.5", () => {
+    expect(toDisplayUnits(1500000n, 6)).toBe(1.5);
+  });
+
+  it("converts 1500000000000000000n at 18 decimals to 1.5", () => {
+    expect(toDisplayUnits(1500000000000000000n, 18)).toBe(1.5);
+  });
+
+  it("converts 1n at 6 decimals to 0.000001", () => {
+    expect(toDisplayUnits(1n, 6)).toBe(0.000001);
+  });
+
+  it("converts 100000000n at 8 decimals to 1.0", () => {
+    expect(toDisplayUnits(100000000n, 8)).toBe(1.0);
+  });
+});
+
+describe("toRawUnits / toDisplayUnits round-trip", () => {
+  const values = [0.000001, 0.5, 1.0, 1.5, 100.0, 999999.99];
+
+  it.each(values)("round-trips %p at 6 decimals", (x) => {
+    expect(toDisplayUnits(toRawUnits(x, 6), 6)).toBe(x);
+  });
+
+  it.each([0.000001, 0.5, 1.0, 1.5])("round-trips %p at 18 decimals", (x) => {
+    expect(toDisplayUnits(toRawUnits(x, 18), 18)).toBe(x);
+  });
+});
+
+describe("resolveTokenDecimals", () => {
+  it("resolves USDC to 6 decimals from the registry", () => {
+    expect(resolveTokenDecimals("USDC")).toEqual({ decimals: 6, source: "registry" });
+  });
+
+  it("resolves ETH to 18 decimals from the registry", () => {
+    expect(resolveTokenDecimals("ETH")).toEqual({ decimals: 18, source: "registry" });
+  });
+
+  it("resolves ALGO to 6 decimals from the registry", () => {
+    expect(resolveTokenDecimals("ALGO")).toEqual({ decimals: 6, source: "registry" });
+  });
+
+  it("resolves BTC to 8 decimals from the registry", () => {
+    expect(resolveTokenDecimals("BTC")).toEqual({ decimals: 8, source: "registry" });
+  });
+
+  it("defaults to 18 decimals with source default-18 for a token not in the registry", () => {
+    expect(resolveTokenDecimals("NOTAREALTOKEN")).toEqual({ decimals: 18, source: "default-18" });
+  });
+});
 
 describe("getArbitrageSnapshot", () => {
   afterEach(() => {
@@ -499,6 +580,79 @@ describe("GET /finance/arbitrage-signals", () => {
     const body = (await res.json()) as { stage: string; stage_note: string };
     expect(body.stage).toBe("1");
     expect(body.stage_note).toContain("Stage 1");
+  });
+
+  it("includes a decimal_precision object with a warning field", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals");
+    const body = (await res.json()) as { decimal_precision: { warning: string; conversion_formula: string; token_decimals_used: Record<string, number> } };
+    expect(body.decimal_precision).toBeDefined();
+    expect(body.decimal_precision.warning).toContain("human-readable display units");
+    expect(body.decimal_precision.conversion_formula).toContain("10^token_decimals");
+  });
+
+  it("includes a top-level decimal_warning string", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals");
+    const body = (await res.json()) as { decimal_warning: string };
+    expect(body.decimal_warning).toContain("IMPORTANT");
+  });
+
+  it("populates token_decimals_used for every token appearing in the response", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals");
+    const body = (await res.json()) as { signals: Array<{ base_token: string; quote_token: string }>; decimal_precision: { token_decimals_used: Record<string, number> } };
+    const expectedTokens = new Set<string>();
+    for (const s of body.signals) {
+      expectedTokens.add(s.base_token);
+      expectedTokens.add(s.quote_token);
+    }
+    for (const token of expectedTokens) {
+      expect(body.decimal_precision.token_decimals_used).toHaveProperty(token);
+    }
+  });
+
+  it("USDC always has decimals: 6 in the response", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals?pair=ETH%2FUSDC");
+    const body = (await res.json()) as { decimal_precision: { token_decimals_used: Record<string, number> } };
+    expect(body.decimal_precision.token_decimals_used.USDC).toBe(6);
+  });
+
+  it("ETH always has decimals: 18 in the response", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals?pair=ETH%2FUSDC");
+    const body = (await res.json()) as { decimal_precision: { token_decimals_used: Record<string, number> } };
+    expect(body.decimal_precision.token_decimals_used.ETH).toBe(18);
+  });
+
+  it("ALGO always has decimals: 6 in the response", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals?pair=ALGO%2FUSDC");
+    const body = (await res.json()) as { decimal_precision: { token_decimals_used: Record<string, number> } };
+    expect(body.decimal_precision.token_decimals_used.ALGO).toBe(6);
+  });
+
+  it("each venue includes base_token_decimals and quote_token_decimals", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals?pair=ETH%2FUSDC");
+    const body = (await res.json()) as {
+      signals: Array<{ venues: Array<{ base_token_decimals: number; quote_token_decimals: number; base_token_decimals_source: string }> }>;
+    };
+    const venues = body.signals[0]?.venues ?? [];
+    expect(venues.length).toBeGreaterThan(0);
+    for (const v of venues) {
+      expect(v.base_token_decimals).toBe(18); // ETH
+      expect(v.quote_token_decimals).toBe(6); // USDC
+      expect(v.base_token_decimals_source).toBe("registry");
+    }
   });
 });
 
