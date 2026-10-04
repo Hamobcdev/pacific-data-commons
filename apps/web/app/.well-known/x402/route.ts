@@ -224,10 +224,20 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      {
+        path: "/finance/crypto-rates",
+        full_url: `${DIRECTORY_API_URL}/finance/crypto-rates`,
+        price_usdc: "0.001",
+        description: "Real-time prices for 67 curated crypto tokens, Pacific-priority weighted (ALGO, XRP, XLM). CoinGecko source.",
+        category: "financial_flows",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
-    console.warn("x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search and /finance/fx from the discovery manifest");
+    console.warn("x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search, /finance/fx, and /finance/crypto-rates from the discovery manifest");
   }
 
   return endpoints;
