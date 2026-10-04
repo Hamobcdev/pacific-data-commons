@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getResumedProvider } from "@/lib/onboarding/resume";
 import { listPublicEndpoints } from "@/lib/directory/get-public-listings";
+import { formatUsdcPrice } from "@/lib/format/usdc";
 import { GlobalNav } from "@/components/nav/GlobalNav";
 import { GlobalFooter } from "@/components/nav/GlobalFooter";
 import { HeaderBand } from "@/components/layout/HeaderBand";
@@ -124,7 +125,7 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
                         <p className="mt-3 text-xs text-gray-500">
                           {listing.institutionName} · {listing.country}
                         </p>
-                        <p className="mt-1 text-sm font-medium text-navy">{t("fromPrice", { price: listing.lowestPriceUsdc.toFixed(2) })}</p>
+                        <p className="mt-1 text-sm font-medium text-navy">{t("fromPrice", { price: formatUsdcPrice(listing.lowestPriceUsdc) })}</p>
                       </CardContent>
                     </Card>
                   </Link>
