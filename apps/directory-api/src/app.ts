@@ -34,6 +34,7 @@ import { pacificOceanForecastRoute } from "./routes/climate/pacific-ocean-foreca
 import { pacificCoralBleachingRoute } from "./routes/climate/pacific-coral-bleaching.js";
 import { pacificCryptoRatesRoute } from "./routes/finance/crypto-rates.js";
 import { pacificDexArbitrageRoute } from "./routes/finance/arbitrage-signals.js";
+import { pacificRemittanceRoute } from "./routes/finance/remittance-corridors.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
@@ -152,6 +153,7 @@ export function createApp(env: Env) {
   app.route("/", pacificCoralBleachingRoute);
   app.route("/", pacificCryptoRatesRoute);
   app.route("/", pacificDexArbitrageRoute);
+  app.route("/", pacificRemittanceRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);

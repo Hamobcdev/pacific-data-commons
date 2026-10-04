@@ -183,6 +183,19 @@ const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.05;
 // own build brief carried the same "always process.env.PDC_PILOT_EARNINGS_WALLET" instruction).
 const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// Decision 59/60 first-party wrapper over World Bank Remittance Prices
+// Worldwide (confirmed live to be entirely Cloudflare-blocked for
+// server-side requests this session — see pacificRemittanceService.ts)
+// plus /finance/fx's own already-x402-gated FX data, consumed internally
+// in-process (not a second payment). Tier 1 — quarterly source data,
+// lightweight fetch, same tier as this codebase's other Tier 1 first-party
+// rows.
+const PACIFIC_REMITTANCE_PRICE_USDC = 0.01;
+
+// Same env-first-then-literal-fallback resolution as
+// PACIFIC_DEX_ARBITRAGE_PAYTO directly above, for the same reason.
+const PACIFIC_REMITTANCE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
 // rather than @x402-avm/extensions' bazaarResourceServerExtension, and why
@@ -284,7 +297,7 @@ export const paidRoutes: Array<{
     method: "GET",
     path: "/finance/fx",
     description:
-      "Pacific FX rates: WST, FJD, TOP, PGK, SBD, VUV plus AUD, NZD, EUR, GBP, JPY, CNY, ALGO, and USDC, base USD. Optional conversion via ?from=&to=&amount=. Updated daily, 60-minute cache.",
+      "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies (USD, AUD, NZD, EUR, GBP, JPY, CNY, SGD, CAD, HKD), ALGO, and USDC. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=. AUD-pegged micro-states (Kiribati, Nauru, Tuvalu) flagged in micro_state_pegs, not fetched as separate rates. Updated daily, 24-hour cache.",
     priceUsdc: FX_PRICE_USDC,
     discovery: discoveryFor({
       method: "GET",
@@ -294,6 +307,9 @@ export const paidRoutes: Array<{
           from: { type: "string", description: "Source currency code — optional, required together with to and amount for conversion" },
           to: { type: "string", description: "Target currency code — optional, required together with from and amount for conversion" },
           amount: { type: "number", description: "Amount to convert — optional, required together with from and to for conversion" },
+          base: { type: "string", description: "Re-base all rates to this currency instead of USD — optional, ignored if from/to/amount given" },
+          pairs: { type: "string", description: "Comma-separated currency codes — only these appear in rates — optional" },
+          pacific_only: { type: "boolean", description: "Only Pacific island currencies (plus ALGO/USDC) in rates — optional" },
         },
         required: [],
       },
@@ -302,7 +318,38 @@ export const paidRoutes: Array<{
           base: "USD",
           timestamp: "2026-08-25T00:00:00.000Z",
           source: "currency-api",
-          rates: { WST: 2.72, FJD: 2.19, TOP: 2.41, PGK: 4.44, SBD: 8.01, VUV: 118.36, AUD: 1.4, NZD: 1.67, EUR: 0.86, GBP: 0.73, JPY: 159.1, CNY: 6.72, ALGO: 0.092, USDC: 1.0 },
+          rates: {
+            WST: 2.72,
+            FJD: 2.19,
+            TOP: 2.41,
+            PGK: 4.44,
+            SBD: 8.01,
+            VUV: 118.36,
+            XPF: 106.0,
+            KHR: 4055.0,
+            AUD: 1.4,
+            NZD: 1.67,
+            EUR: 0.86,
+            GBP: 0.73,
+            JPY: 159.1,
+            CNY: 6.72,
+            SGD: 1.28,
+            CAD: 1.43,
+            HKD: 7.85,
+            ALGO: 0.092,
+            USDC: 1.0,
+          },
+          micro_state_pegs: [
+            { country: "Kiribati", currency: "AUD", note: "pegged_to_aud", peg_confirmed: true },
+            { country: "Nauru", currency: "AUD", note: "pegged_to_aud", peg_confirmed: true },
+            { country: "Tuvalu", currency: "AUD", note: "pegged_to_aud", peg_confirmed: true },
+          ],
+          data_sources: ["fawazahmed0/currency-api (jsDelivr)"],
+          data_currency: "daily",
+          coverage_note: "All rates sourced from fawazahmed0/currency-api, a daily-updated community-maintained feed. Rates are indicative mid-market. Not financial advice.",
+          not_financial_advice: true,
+          generated_at: "2026-08-25T00:00:00.000Z",
+          cache_expires_at: "2026-08-26T00:00:00.000Z",
         },
       },
     }),
@@ -688,6 +735,65 @@ export const paidRoutes: Array<{
           benchmark_trade_size_usd: 10000,
           benchmark_trade_note:
             "Slippage and execution estimates assume a $10,000 benchmark trade. Larger trades will experience greater slippage and may not be profitable at the indicated spread.",
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/remittance-corridors",
+    description:
+      "Pacific remittance corridor cost comparison for 9 AU/NZ/US -> Pacific Island corridors (traditional rails via World Bank RPW vs. crypto rail network-fee estimates for XRP/XLM/ALGO), at a $200 benchmark send amount. Consumes /finance/fx internally for live cross-rates. traditional_rails is null when World Bank RPW has no data available this cycle — see traditional_rails_note. Crypto rail costs are network fees only; on/off-ramp costs are additional. Optional ?corridor=, ?min_saving_pct=, ?token=. Not financial advice. 24-hour cache.",
+    priceUsdc: PACIFIC_REMITTANCE_PRICE_USDC,
+    payToAddress: PACIFIC_REMITTANCE_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { corridor: "AUS_WST" },
+      inputSchema: {
+        properties: {
+          corridor: { type: "string", description: "One corridor id, e.g. AUS_WST — optional, 400 if not one of the 9 curated corridors" },
+          min_saving_pct: { type: "number", description: "Only return corridors where potential_saving_pct exceeds this — optional, default 0" },
+          token: { type: "string", enum: ["XRP", "XLM", "ALGO"], description: "Filter crypto_rails to just this token — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          corridors: [
+            {
+              corridor_id: "AUS_WST",
+              send_country: "Australia",
+              send_currency: "AUD",
+              receive_country: "Samoa",
+              receive_currency: "WST",
+              benchmark_send_amount_usd: 200,
+              live_fx_rate: { rate: 1.9, pair: "AUD_to_WST", source: "currency-api", as_of: "daily" },
+              traditional_rails: null,
+              traditional_rails_note:
+                "World Bank Remittance Prices Worldwide has no data available for this corridor this cycle (its API is currently unreachable from this server). Traditional-rail cost comparison is unavailable; crypto_rails and live_fx_rate are unaffected.",
+              crypto_rails: [
+                {
+                  token: "XRP",
+                  network_fee_usd: 0.0001,
+                  fx_spread_pct_estimate: 0.02,
+                  total_estimated_cost_pct: 0.02,
+                  total_estimated_cost_usd: 0.04,
+                  on_off_ramp_note: "Network fees only — on-ramp/off-ramp costs additional and vary by local provider",
+                  not_financial_advice: true,
+                },
+              ],
+              potential_saving_pct: null,
+              not_financial_advice: true,
+            },
+          ],
+          meta: {
+            benchmark_send_amount_usd: 200,
+            corridors_returned: 1,
+            note: "Crypto rail costs are network fees only. Local on-ramp and off-ramp costs are additional and vary by provider and country.",
+            not_financial_advice: true,
+            data_sources: ["World Bank Remittance Prices Worldwide", "fawazahmed0/currency-api / ExchangeRate-API / Frankfurter (ECB) — see /finance/fx", "Static crypto network fee estimates"],
+          },
+          fetch_warnings: ["AUS_WST: World Bank RPW returned no data for this corridor"],
         },
       },
     }),
