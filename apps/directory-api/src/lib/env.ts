@@ -49,9 +49,10 @@ const envSchema = z.object({
   COMPLIANCE_API_KEY: z.string().min(1, "COMPLIANCE_API_KEY is required — gates the /compliance/* AML/KYC stub routes"),
 
   // Internal dashboard bypass — lets the SBP website (apps/web,
-  // synergybcpacific.com) fetch the 4 financial first-party endpoints
-  // (/finance/crypto-rates, /finance/fx, /finance/arbitrage-signals,
-  // /finance/remittance-corridors) without paying x402 on every request,
+  // synergybcpacific.com) fetch the 5 financial first-party endpoints
+  // (/finance/crypto-rates, /finance/crypto-history, /finance/fx,
+  // /finance/arbitrage-signals, /finance/remittance-corridors) without
+  // paying x402 on every request,
   // via middleware/dashboardBypass.ts. Unlike INTERNAL_API_KEY/
   // COMPLIANCE_API_KEY above, deliberately OPTIONAL and not required at
   // boot: this gates a convenience bypass, not a route a caller actually

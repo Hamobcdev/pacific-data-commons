@@ -1,11 +1,19 @@
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { pacificCryptoRatesRoute } from "../routes/finance/crypto-rates.js";
-import { getCryptoRatesSnapshot, __resetCryptoRatesCacheForTests, CURATED_TOKEN_IDS, COINGECKO_MARKETS_URL } from "../services/pacificCryptoRatesService.js";
+import {
+  getCryptoRatesSnapshot,
+  __resetCryptoRatesCacheForTests,
+  CURATED_TOKEN_IDS,
+  COINGECKO_MARKETS_URL,
+  type CryptoPriceCronRecord,
+} from "../services/pacificCryptoRatesService.js";
 import { paidRoutes } from "../routeSchemas.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
+import { createFakeKv } from "./testUtils.js";
 import type { AppBindings } from "../types.js";
 import type { Env } from "../lib/env.js";
+import type { KVNamespace } from "@cloudflare/workers-types";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -46,11 +54,12 @@ function defaultFetchMock() {
   return vi.fn(async () => jsonResponse(FULL_MOCK_SET.filter((c) => c.current_price !== null)));
 }
 
-function buildTestApp() {
+function buildTestApp(kv?: KVNamespace) {
   const app = new Hono<AppBindings>();
   const env = {} as Env;
   app.use("*", async (c, next) => {
     c.set("env", env);
+    c.set("cryptoPricesKv", kv);
     await next();
   });
   app.route("/", pacificCryptoRatesRoute);
@@ -187,6 +196,78 @@ describe("getCryptoRatesSnapshot", () => {
   });
 });
 
+describe("getCryptoRatesSnapshot with a KV binding (Cloudflare Workers live feed)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetCryptoRatesCacheForTests();
+  });
+
+  function cronRecord(overrides: Partial<CryptoPriceCronRecord> = {}): CryptoPriceCronRecord {
+    return {
+      updated_at: "2026-10-05T00:05:00.000Z",
+      source: "binance",
+      static_fallback: false,
+      tokens: [
+        { symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.1323, change_24h_pct: 2.5, market_cap_usd: 0, volume_24h_usd: 0, market_cap_rank: null },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("returns the KV record directly, without calling fetch, when prices:current is present and non-empty", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const kv = createFakeKv({ "prices:current": JSON.stringify(cronRecord()) });
+
+    const snapshot = await getCryptoRatesSnapshot(kv);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(snapshot.static_fallback).toBe(false);
+    expect(snapshot.static_fallback_reason).toBeNull();
+    expect(snapshot.cached_at).toBe("2026-10-05T00:05:00.000Z");
+    expect(snapshot.tokens.map((t) => t.symbol)).toEqual(["ALGO"]);
+  });
+
+  it("falls through to the static fallback (not a live CoinGecko-from-Workers attempt) when prices:current is missing", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const kv = createFakeKv();
+
+    const snapshot = await getCryptoRatesSnapshot(kv);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(snapshot.static_fallback).toBe(true);
+    expect(snapshot.static_fallback_reason).toBe("kv_unavailable");
+    expect(snapshot.tokens.some((t) => t.symbol === "ALGO")).toBe(true);
+  });
+
+  it("falls through to the static fallback when prices:current has an empty tokens array", async () => {
+    const kv = createFakeKv({ "prices:current": JSON.stringify(cronRecord({ tokens: [] })) });
+
+    const snapshot = await getCryptoRatesSnapshot(kv);
+
+    expect(snapshot.static_fallback).toBe(true);
+    expect(snapshot.static_fallback_reason).toBe("kv_unavailable");
+  });
+
+  it("falls through to the static fallback (never throws) when the stored KV value is malformed JSON", async () => {
+    const kv = createFakeKv({ "prices:current": "{not valid json" });
+
+    const snapshot = await getCryptoRatesSnapshot(kv);
+
+    expect(snapshot.static_fallback).toBe(true);
+    expect(snapshot.static_fallback_reason).toBe("kv_unavailable");
+  });
+
+  it("without a KV binding, behaves exactly as before — attempts the live CoinGecko fetch", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+
+    const snapshot = await getCryptoRatesSnapshot(undefined);
+
+    expect(snapshot.static_fallback).toBe(false);
+  });
+});
+
 describe("GET /finance/crypto-rates", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -312,6 +393,28 @@ describe("GET /finance/crypto-rates", () => {
     const res = await app.request("/finance/crypto-rates");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=60");
+  });
+
+  it("serves from the KV live feed (data_currency real-time, no fetch call) when cryptoPricesKv is set on context", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const kv = createFakeKv({
+      "prices:current": JSON.stringify({
+        updated_at: "2026-10-05T00:05:00.000Z",
+        source: "binance",
+        static_fallback: false,
+        tokens: [{ symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.1323, change_24h_pct: 2.5, market_cap_usd: 0, volume_24h_usd: 0, market_cap_rank: null }],
+      }),
+    });
+    const app = buildTestApp(kv);
+
+    const res = await app.request("/finance/crypto-rates");
+
+    expect(res.status).toBe(200);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    const body = (await res.json()) as { data_currency: string; tokens: Array<{ symbol: string }> };
+    expect(body.data_currency).toBe("real-time");
+    expect(body.tokens.map((t) => t.symbol)).toEqual(["ALGO"]);
   });
 
   it("returns 200 with the static fallback (never 502) when CoinGecko is unreachable", async () => {

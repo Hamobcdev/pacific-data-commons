@@ -45,7 +45,7 @@ function stubSupportedFacilitatorResponse() {
 }
 
 describe("isDashboardBypassRequest (pure decision logic)", () => {
-  it("returns true when the key matches and the path is one of the 4 bypass paths", () => {
+  it("returns true when the key matches and the path is one of the 5 bypass paths", () => {
     expect(isDashboardBypassRequest("/finance/fx", TEST_KEY, TEST_KEY)).toBe(true);
   });
 
@@ -65,13 +65,19 @@ describe("isDashboardBypassRequest (pure decision logic)", () => {
     expect(isDashboardBypassRequest("/finance/fx", TEST_KEY, "")).toBe(false);
   });
 
-  it("returns false for a correct key on a path NOT in the 4 curated financial endpoints", () => {
+  it("returns false for a correct key on a path NOT in the 5 curated financial endpoints", () => {
     expect(isDashboardBypassRequest("/fisheries/purse-seine", TEST_KEY, TEST_KEY)).toBe(false);
     expect(isDashboardBypassRequest("/search", TEST_KEY, TEST_KEY)).toBe(false);
   });
 
-  it("covers exactly the 4 documented financial endpoints, no more, no fewer", () => {
-    expect(DASHBOARD_BYPASS_PATHS).toEqual(["/finance/crypto-rates", "/finance/fx", "/finance/arbitrage-signals", "/finance/remittance-corridors"]);
+  it("covers exactly the 5 documented financial endpoints, no more, no fewer", () => {
+    expect(DASHBOARD_BYPASS_PATHS).toEqual([
+      "/finance/crypto-rates",
+      "/finance/crypto-history",
+      "/finance/fx",
+      "/finance/arbitrage-signals",
+      "/finance/remittance-corridors",
+    ]);
     for (const path of DASHBOARD_BYPASS_PATHS) {
       expect(isDashboardBypassRequest(path, TEST_KEY, TEST_KEY)).toBe(true);
     }
@@ -144,7 +150,7 @@ describe("withDashboardBypass (integration — real PdcPaymentGate, wrapped)", (
     expect(res.status).toBe(402);
   });
 
-  it("does not bypass a correct key on a route outside the 4 curated financial endpoints — payment is still enforced", async () => {
+  it("does not bypass a correct key on a route outside the 5 curated financial endpoints — payment is still enforced", async () => {
     const app = buildTestApp(TEST_KEY, "/fisheries/purse-seine");
     const res = await app.request("/fisheries/purse-seine", { headers: { "X-Internal-Key": TEST_KEY } });
     expect(res.status).toBe(402);

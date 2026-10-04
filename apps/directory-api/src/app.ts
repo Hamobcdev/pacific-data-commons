@@ -34,6 +34,7 @@ import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.j
 import { pacificOceanForecastRoute } from "./routes/climate/pacific-ocean-forecast.js";
 import { pacificCoralBleachingRoute } from "./routes/climate/pacific-coral-bleaching.js";
 import { pacificCryptoRatesRoute } from "./routes/finance/crypto-rates.js";
+import { pacificCryptoHistoryRoute } from "./routes/finance/crypto-history.js";
 import { pacificDexArbitrageRoute } from "./routes/finance/arbitrage-signals.js";
 import { pacificRemittanceRoute } from "./routes/finance/remittance-corridors.js";
 import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
@@ -41,6 +42,7 @@ import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
 import { pacificTravelRoute } from "./routes/intelligence/pacific-travel.js";
 import type { AppBindings } from "./types.js";
+import type { KVNamespace } from "@cloudflare/workers-types";
 
 // Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
 // Errata (Section 12): $0.01, not the $0.001 in the original Part 3 draft.
@@ -57,8 +59,13 @@ const DIRECTORY_QUERY_PRICE_USDC = 0.01;
  * driven by Node's @hono/node-server (index.ts, local dev) or Cloudflare
  * Workers' fetch handler (worker.ts, Session 40 Cloudflare migration) —
  * env is passed in by whichever entry point loaded it.
+ *
+ * cryptoPricesKv is optional and Workers-only: worker.ts passes the real
+ * CRYPTO_PRICES_KV binding through; index.ts (Node local dev) has no
+ * Workers bindings and omits it, leaving /finance/crypto-rates and
+ * /finance/crypto-history to their existing non-KV fallback behaviour.
  */
-export function createApp(env: Env) {
+export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   // Must be installed before the x402 payment gate's middleware is
   // constructed below (it kicks off @x402/hono's dynamic bazaar-validation
   // import as soon as middleware() runs) — see
@@ -118,6 +125,7 @@ export function createApp(env: Env) {
     c.set("env", env);
     c.set("supabase", supabase);
     c.set("paymentGate", paymentGate);
+    c.set("cryptoPricesKv", cryptoPricesKv);
     await next();
   });
 
@@ -126,7 +134,7 @@ export function createApp(env: Env) {
   // Payment gate is mounted globally but only intercepts the paths
   // registered via addRoute() above — everything else passes through.
   // Wrapped (not called directly) so the SBP website's dashboard key can
-  // skip payment on exactly the 4 financial endpoints it needs — see
+  // skip payment on exactly the 5 financial endpoints it needs — see
   // middleware/dashboardBypass.ts for why this wrapping, not an earlier
   // skip-next() middleware, is the only way to do that in Hono's model.
   app.use("*", withDashboardBypass(paymentGate.middleware(), env.DASHBOARD_INTERNAL_KEY));
@@ -157,6 +165,7 @@ export function createApp(env: Env) {
   app.route("/", pacificOceanForecastRoute);
   app.route("/", pacificCoralBleachingRoute);
   app.route("/", pacificCryptoRatesRoute);
+  app.route("/", pacificCryptoHistoryRoute);
   app.route("/", pacificDexArbitrageRoute);
   app.route("/", pacificRemittanceRoute);
   app.route("/", pacificBriefRoute);

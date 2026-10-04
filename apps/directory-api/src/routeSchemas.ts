@@ -170,6 +170,12 @@ const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.001;
 // instruction without a new permanent env var when nothing's set.
 const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_WALLET;
 
+// Same KV-backed data as /finance/crypto-rates, just windowed into a time
+// series — same tier/payTo reasoning as PACIFIC_CRYPTO_RATES_PRICE_USDC/
+// PACIFIC_CRYPTO_RATES_PAYTO directly above applies identically here.
+const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.001;
+const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_WALLET;
+
 // Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's
 // openly-accessible public APIs (not the 4 dead sources this route's
 // build brief named first — see pacificDexArbitrageService.ts for the
@@ -629,6 +635,35 @@ export const paidRoutes: Array<{
           attribution: "CoinGecko Public API — https://www.coingecko.com/en/api",
           pacific_priority_tokens: ["ALGO", "XRP", "XLM"],
           fetch_warnings: [],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/crypto-history",
+    description:
+      "Historical price points for one of the 7 KV-tracked crypto symbols (ALGO, BTC, ETH, XRP, XLM, USDC, USDT), windowed by ?tf= for the dashboard's timeframe chart selector. Required ?symbol=. Optional ?tf= (5m|15m|1h|4h|8h|1D|1W|1M, default 1D) — 1W/1M return the fullest 24h buffer available plus a note, since the KV history buffer doesn't yet hold 7/30 days. Backed by a Cloudflare Cron Trigger polling Binance (primary) or CoinCap (fallback) every 5 minutes — see /finance/crypto-rates for the live current-price equivalent. 60-second cache.",
+    priceUsdc: PACIFIC_CRYPTO_HISTORY_PRICE_USDC,
+    payToAddress: PACIFIC_CRYPTO_HISTORY_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { symbol: "ALGO", tf: "1D" },
+      inputSchema: {
+        properties: {
+          symbol: { type: "string", enum: ["ALGO", "BTC", "ETH", "XRP", "XLM", "USDC", "USDT"], description: "Required — one of the 7 KV-tracked symbols" },
+          tf: { type: "string", enum: ["5m", "15m", "1h", "4h", "8h", "1D", "1W", "1M"], description: "Optional, default 1D — window size over the history buffer" },
+        },
+        required: ["symbol"],
+      },
+      output: {
+        example: {
+          symbol: "ALGO",
+          timeframe: "1D",
+          points: [{ t: 1759600000000, p: 0.1323 }],
+          point_count: 1,
+          max_available_points: 288,
+          note: null,
         },
       },
     }),
