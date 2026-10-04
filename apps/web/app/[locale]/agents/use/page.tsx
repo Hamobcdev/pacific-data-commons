@@ -9,12 +9,17 @@ import { isAgentMarketplaceEnabled } from "@/lib/agents/marketplaceStatus";
  * "coming soon" scaffold. Distinct from the full /agents catalogue: this is
  * a minimal picker meant for a visitor who already has a wallet in hand
  * (e.g. a provider following the dashboard's "Use earnings to query
- * agents" link) and just needs to choose which agent to run next, with
- * that wallet forwarded through to whichever agent they pick.
+ * agents" link) and just needs to choose which agent to run next.
+ *
+ * No wallet is forwarded via query param to the agent links below (removed
+ * — security fix): a wallet address in the URL let anyone craft
+ * /agents/{id}?wallet=<any address> and have that page read another
+ * provider's revenue data with no auth check at all. Wallet identity for
+ * the run flow must come from the visitor's own connected browser wallet
+ * or an authenticated session, never a URL param.
  */
-export default async function UseAgentPage({ searchParams }: { searchParams: { wallet?: string } }) {
+export default async function UseAgentPage() {
   const t = await getTranslations("Agents.use");
-  const walletQuery = searchParams.wallet ? `?wallet=${encodeURIComponent(searchParams.wallet)}` : "";
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -29,7 +34,7 @@ export default async function UseAgentPage({ searchParams }: { searchParams: { w
       <ul className="mt-6 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
         {AGENT_CATALOGUE.map((agent) => (
           <li key={agent.id}>
-            <Link href={`/agents/${agent.id}${walletQuery}`} className="flex items-center gap-3 p-4 hover:bg-light-bg">
+            <Link href={`/agents/${agent.id}`} className="flex items-center gap-3 p-4 hover:bg-light-bg">
               <span className="text-xl" aria-hidden="true">
                 {agent.icon}
               </span>

@@ -39,16 +39,8 @@ export async function WalletPanel({ provider }: { provider: Provider }) {
           <span>${netBalance.toFixed(2)} USDC</span>
         </div>
 
-        <div className="rounded-md bg-light-bg p-3 text-base">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">{t("unpaid_fee")}</span>
-            <span className="font-medium text-navy">${provider.tier12_earnings_accrued.toFixed(2)} USDC</span>
-          </div>
-          <p className="mt-1 text-xs text-gray-500">{t("fee_note")}</p>
-        </div>
-
         <div className="flex flex-col gap-2 pt-2 text-base">
-          <Link href={`/agents/use?wallet=${encodeURIComponent(provider.wallet_address ?? "")}`} className="text-ocean hover:underline">
+          <Link href="/agents/use" className="text-ocean hover:underline">
             {t("use_earnings")} →
           </Link>
           <Link href="/dashboard/transactions" className="text-ocean hover:underline">

@@ -3,22 +3,21 @@ import { findCatalogueEntry } from "@/lib/agents/types";
 import { AgentRunForm } from "@/components/agents/AgentRunForm";
 import { AgentMarketplaceComingSoon } from "@/components/agents/AgentMarketplaceComingSoon";
 import { isAgentMarketplaceEnabled } from "@/lib/agents/marketplaceStatus";
-import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Agent detail + run interface (Deliverable 7) — replaces the Session 6.1
- * "coming soon" scaffold. Reads `?wallet=` (set by the dashboard's "Use
- * earnings to query agents" link, Deliverable 8) to pre-load the visitor's
- * identity into the run form and, if that address matches a registered
- * provider, show their earned/spent balance above it.
+ * "coming soon" scaffold.
+ *
+ * Security fix: this page used to read `?wallet=` from the URL and query
+ * the providers table directly with it — no auth, no ownership check.
+ * Anyone who knew or guessed a provider's wallet address (public on-chain
+ * data) could read that provider's revenue/spend by visiting this page
+ * with `?wallet=<address>`. Removed entirely. If a visitor's provider
+ * balance needs to show here again, it must come from an authenticated
+ * server session (the same getResumedProvider() pattern the dashboard
+ * uses), never a URL param.
  */
-export default async function AgentDetailPage({
-  params,
-  searchParams,
-}: {
-  params: { agentId: string };
-  searchParams: { wallet?: string };
-}) {
+export default async function AgentDetailPage({ params }: { params: { agentId: string } }) {
   const entry = findCatalogueEntry(params.agentId);
 
   if (!entry) {
@@ -35,24 +34,6 @@ export default async function AgentDetailPage({
 
   const marketplaceEnabled = isAgentMarketplaceEnabled();
 
-  // No point querying a provider's balance to pre-load a run form that
-  // won't render — see isAgentMarketplaceEnabled()'s doc comment.
-  let walletBalance: { totalRevenueUsdc: number; agentSpendUsdc: number } | undefined;
-  if (marketplaceEnabled && searchParams.wallet) {
-    const supabase = createServiceClient();
-    const { data } = await supabase
-      .from("providers")
-      .select("total_revenue_usdc, agent_spend_usdc")
-      .eq("wallet_address", searchParams.wallet)
-      .maybeSingle();
-    if (data) {
-      walletBalance = {
-        totalRevenueUsdc: (data.total_revenue_usdc as number) ?? 0,
-        agentSpendUsdc: (data.agent_spend_usdc as number) ?? 0,
-      };
-    }
-  }
-
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <p className="text-sm text-gray-500">{entry.categories.join(" · ")}</p>
@@ -64,7 +45,7 @@ export default async function AgentDetailPage({
 
       <div className="mt-6">
         {marketplaceEnabled ? (
-          <AgentRunForm agent={entry} presetWallet={searchParams.wallet} walletBalance={walletBalance} />
+          <AgentRunForm agent={entry} />
         ) : (
           <AgentMarketplaceComingSoon />
         )}
