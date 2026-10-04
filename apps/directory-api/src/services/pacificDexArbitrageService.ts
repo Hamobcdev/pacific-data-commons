@@ -118,8 +118,70 @@ const MIN_VENUES_PER_PAIR = 2;
 // percentage deduction against a notional trade size. Not given by the
 // brief as an exact figure — $10,000 is a reasonable reference size for
 // evaluating whether a spread clears gas costs, not a claim about any
-// specific buyer's actual trade size.
-const ASSUMED_TRADE_SIZE_USD = 10_000;
+// specific buyer's actual trade size. Also the benchmark trade size for
+// the slippage estimate below (both uses are exposed together as
+// benchmark_trade_size_usd in the response, so they must stay the same
+// constant rather than two numbers that could drift apart).
+export const ASSUMED_TRADE_SIZE_USD = 10_000;
+
+// Slippage estimate: (trade_size_usd / venue_liquidity_usd) * 100 *
+// SLIPPAGE_FACTOR. venue_liquidity_usd is the SMALLER of the buy/sell
+// venues' liquidity — a trade's realistic slippage is bounded by its
+// thinnest leg, not its deepest one, and this is deliberately a
+// conservative (over- not under-) estimate per the build brief's own
+// framing ("conservative estimate for concentrated liquidity pools").
+// This is a documented modeling assumption, not a verifiable fact about
+// any specific pool's real depth curve — hence estimated_slippage_pct,
+// never "actual".
+const SLIPPAGE_FACTOR = 2;
+
+// Below this liquidity (on the thinner of the two venues), the
+// slippage formula is treated as too unreliable to report at all —
+// estimated_slippage_pct is null and thin_liquidity_warning is set,
+// rather than publishing a number built on a pool too shallow for the
+// $10k benchmark trade to be a meaningful reference point.
+const THIN_LIQUIDITY_USD = 50_000;
+
+// Conservative execution window given this endpoint's own 60-second
+// cache TTL (CACHE_TTL_MS above) — a signal can be up to 60s stale by
+// the time a buyer reads it, so recommending a window noticeably
+// shorter than the cache lifetime (30s, half of it) is deliberate: it
+// pushes a buyer to re-fetch a fresh signal rather than act on
+// unknowingly-stale prices for the full cache window.
+const RECOMMENDED_EXECUTION_WINDOW_MS = 30_000;
+
+export interface SlippageEstimate {
+  estimated_slippage_pct: number | null;
+  thin_liquidity_warning: boolean;
+}
+
+/**
+ * Exported as its own function (same reason toRawUnits/toDisplayUnits
+ * are standalone) rather than left inline in getArbitrageSnapshot's
+ * per-pair loop: given the EXISTING venue-liquidity filter above
+ * (MIN_LIQUIDITY_USD = 100,000, applied before a venue ever reaches a
+ * signal), no venue that reaches this function can ever actually be
+ * below THIN_LIQUIDITY_USD (50,000) in real operation — 50k < 100k, so
+ * the "< 50000" branch below is unreachable through the full live
+ * pipeline today. It's still implemented exactly as specified (a future
+ * change to MIN_LIQUIDITY_USD, or a pair added with a lower floor,
+ * could make it reachable), and pulling it out into its own function
+ * means that branch has a real, direct unit test instead of being
+ * untestable dead code reached only through mocking an impossible
+ * upstream state.
+ */
+export function computeSlippageEstimate(minVenueLiquidityUsd: number): SlippageEstimate {
+  if (minVenueLiquidityUsd < THIN_LIQUIDITY_USD) {
+    return { estimated_slippage_pct: null, thin_liquidity_warning: true };
+  }
+  const pct = (ASSUMED_TRADE_SIZE_USD / minVenueLiquidityUsd) * 100 * SLIPPAGE_FACTOR;
+  return { estimated_slippage_pct: Math.round(pct * 1000) / 1000, thin_liquidity_warning: false };
+}
+
+const MEV_WARNING =
+  "Pacific region arbitrage signals are visible to global MEV searchers. Use private mempool services (Flashbots Protect, MEV Blocker) for execution on Ethereum mainnet.";
+const CROSS_CHAIN_NOTE = "Cross-chain arbitrage requires pre-positioned capital on both chains or a bridge — bridge latency may exceed signal window.";
+const FEE_TIER_NOTE = "Uniswap v3 pools have fee tiers (0.05%/0.3%/1%) — verify pool fee tier before constructing swap calldata.";
 
 // Documented assumption: typical gas units for one AMM swap leg (a
 // single buy or sell), used for every EVM chain's gas-in-USD
@@ -344,6 +406,17 @@ export interface EstimatedGas {
 
 export type SignalQuality = "weak" | "moderate" | "strong";
 
+export interface ExecutionHint {
+  buy_venue_chain: Chain;
+  buy_dex: string;
+  buy_pool_address: string;
+  sell_venue_chain: Chain;
+  sell_dex: string;
+  sell_pool_address: string;
+  fee_tier_note: string;
+  not_financial_advice: true;
+}
+
 export interface ArbitrageSignal {
   pair: string;
   base_token: string;
@@ -358,6 +431,15 @@ export interface ArbitrageSignal {
   is_profitable_estimated: boolean;
   gas_disclaimer: string;
   observed_at: string;
+  estimated_slippage_pct: number | null;
+  thin_liquidity_warning: boolean;
+  net_spread_after_slippage_pct: number | null;
+  is_executable_estimated: boolean;
+  is_cross_chain: boolean;
+  cross_chain_note: string | null;
+  recommended_execution_window_ms: number;
+  mev_warning: string;
+  execution_hint: ExecutionHint;
 }
 
 export interface ArbitrageSnapshot {
@@ -649,6 +731,34 @@ export async function getArbitrageSnapshot(): Promise<ArbitrageSnapshot | null> 
       gasWarnings.push(`${pair.pair}: gas cost unavailable for ${buyVenue.chain}/${sellVenue.chain} this cycle — net_spread_pct could not be computed`);
     }
 
+    // Slippage is bounded by the thinner of the two venues (see
+    // SLIPPAGE_FACTOR's doc comment above) — both buyVenue and
+    // sellVenue already satisfy liquidity_usd >= MIN_LIQUIDITY_USD by
+    // construction (the filter above already dropped anything thinner),
+    // so this minimum is never literally the liquidity of a dropped
+    // venue, only ever the lower of two already-qualifying ones.
+    const minVenueLiquidityUsd = Math.min(buyVenue.liquidity_usd, sellVenue.liquidity_usd);
+    const { estimated_slippage_pct: estimatedSlippagePct, thin_liquidity_warning: thinLiquidityWarning } = computeSlippageEstimate(minVenueLiquidityUsd);
+
+    // Same ASSUMED_TRADE_SIZE_USD benchmark as net_spread_pct's gas
+    // deduction above, expressed as its own named percentage so it can
+    // be combined with estimatedSlippagePct below. Null under the exact
+    // same condition net_spread_pct already uses (gas unavailable this
+    // cycle) — not just when slippage is null — since both are required
+    // inputs to net_spread_after_slippage_pct.
+    const estimatedGasPct = totalGasUsd !== null ? (totalGasUsd / ASSUMED_TRADE_SIZE_USD) * 100 : null;
+    const netSpreadAfterSlippagePct =
+      estimatedSlippagePct !== null && estimatedGasPct !== null ? grossSpreadPct - estimatedGasPct - estimatedSlippagePct : null;
+
+    const isExecutableEstimated =
+      netSpreadAfterSlippagePct !== null &&
+      netSpreadAfterSlippagePct > 0.05 &&
+      estimatedSlippagePct !== null &&
+      buyVenue.liquidity_usd > 100_000 &&
+      sellVenue.liquidity_usd > 100_000;
+
+    const isCrossChain = buyVenue.chain !== sellVenue.chain;
+
     signals.push({
       pair: pair.pair,
       base_token: pair.baseToken,
@@ -669,6 +779,24 @@ export async function getArbitrageSnapshot(): Promise<ArbitrageSnapshot | null> 
       is_profitable_estimated: isProfitableEstimated,
       gas_disclaimer: GAS_DISCLAIMER,
       observed_at: new Date().toISOString(),
+      estimated_slippage_pct: estimatedSlippagePct === null ? null : Math.round(estimatedSlippagePct * 1000) / 1000,
+      thin_liquidity_warning: thinLiquidityWarning,
+      net_spread_after_slippage_pct: netSpreadAfterSlippagePct === null ? null : Math.round(netSpreadAfterSlippagePct * 1000) / 1000,
+      is_executable_estimated: isExecutableEstimated,
+      is_cross_chain: isCrossChain,
+      cross_chain_note: isCrossChain ? CROSS_CHAIN_NOTE : null,
+      recommended_execution_window_ms: RECOMMENDED_EXECUTION_WINDOW_MS,
+      mev_warning: MEV_WARNING,
+      execution_hint: {
+        buy_venue_chain: buyVenue.chain,
+        buy_dex: buyVenue.dex,
+        buy_pool_address: buyVenue.pool_address,
+        sell_venue_chain: sellVenue.chain,
+        sell_dex: sellVenue.dex,
+        sell_pool_address: sellVenue.pool_address,
+        fee_tier_note: FEE_TIER_NOTE,
+        not_financial_advice: true,
+      },
     });
   }
 

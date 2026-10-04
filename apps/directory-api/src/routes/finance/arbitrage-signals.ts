@@ -6,6 +6,7 @@ import {
   COVERED_CHAINS,
   SOURCE_ATTRIBUTION,
   resolveTokenDecimals,
+  ASSUMED_TRADE_SIZE_USD,
   type Chain,
   type ArbitrageSignal,
 } from "../../services/pacificDexArbitrageService.js";
@@ -93,10 +94,18 @@ pacificDexArbitrageRoute.get("/finance/arbitrage-signals", async (c) => {
     tokenDecimalsUsed[token] = resolveTokenDecimals(token).decimals;
   }
 
+  // signal_age_ms must be computed here, at response time, not stored on
+  // the cached signal — a signal's underlying prices were fetched once
+  // (observed_at, fixed for the life of the 60s cache), but its AGE
+  // grows with every subsequent request served from that same cache
+  // entry. Baking a fixed number into the cached object would make it
+  // wrong for every response after the first.
+  const signalsWithAge = signals.map((s) => ({ ...s, signal_age_ms: Date.now() - new Date(s.observed_at).getTime() }));
+
   c.header("Cache-Control", "public, max-age=60");
 
   return c.json({
-    signals,
+    signals: signalsWithAge,
     total_pairs_monitored: snapshot.total_pairs_monitored,
     pairs_with_signal: signals.length,
     covered_dexs: COVERED_DEXS,
@@ -118,6 +127,9 @@ pacificDexArbitrageRoute.get("/finance/arbitrage-signals", async (c) => {
     },
     decimal_warning:
       "IMPORTANT: spot_price_usd and liquidity_usd are display units. For on-chain use apply token_decimals from decimal_precision.token_decimals_used before constructing transactions.",
+    benchmark_trade_size_usd: ASSUMED_TRADE_SIZE_USD,
+    benchmark_trade_note:
+      "Slippage and execution estimates assume a $10,000 benchmark trade. Larger trades will experience greater slippage and may not be profitable at the indicated spread.",
     cached_at: snapshot.cached_at,
   });
 });

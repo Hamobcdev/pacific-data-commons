@@ -8,6 +8,7 @@ import {
   toRawUnits,
   toDisplayUnits,
   resolveTokenDecimals,
+  computeSlippageEstimate,
 } from "../services/pacificDexArbitrageService.js";
 import { paidRoutes } from "../routeSchemas.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
@@ -172,6 +173,34 @@ describe("toRawUnits / toDisplayUnits round-trip", () => {
   });
 });
 
+describe("computeSlippageEstimate", () => {
+  it("computes a slippage estimate for a liquid venue (>= $50,000)", () => {
+    // (10000 / 1000000) * 100 * 2 = 2
+    expect(computeSlippageEstimate(1_000_000)).toEqual({ estimated_slippage_pct: 2, thin_liquidity_warning: false });
+  });
+
+  it("returns estimated_slippage_pct: null and thin_liquidity_warning: true below $50,000", () => {
+    // Only reachable as a direct unit test today: the per-signal pipeline's
+    // own MIN_LIQUIDITY_USD filter (100,000) already drops any venue below
+    // 50,000 before it can ever reach this calculation — see this
+    // function's own doc comment in the service file. Testing the
+    // function directly is what actually exercises this branch.
+    expect(computeSlippageEstimate(40_000)).toEqual({ estimated_slippage_pct: null, thin_liquidity_warning: true });
+  });
+
+  it("a null estimated_slippage_pct here is, by itself, sufficient to force is_executable_estimated false in the real pipeline", () => {
+    // Documents the logical link the integration-level tests below can't
+    // exercise directly (see the test above): getArbitrageSnapshot's
+    // is_executable_estimated formula ANDs in
+    // `estimatedSlippagePct !== null` as one of its conditions, so this
+    // thin-liquidity result alone — independent of gross spread, gas, or
+    // anything else — would make is_executable_estimated false.
+    const { estimated_slippage_pct } = computeSlippageEstimate(10_000);
+    const wouldBeExecutable = estimated_slippage_pct !== null; // same condition getArbitrageSnapshot ANDs in
+    expect(wouldBeExecutable).toBe(false);
+  });
+});
+
 describe("resolveTokenDecimals", () => {
   it("resolves USDC to 6 decimals from the registry", () => {
     expect(resolveTokenDecimals("USDC")).toEqual({ decimals: 6, source: "registry" });
@@ -273,6 +302,50 @@ describe("getArbitrageSnapshot", () => {
     expect(snapshot!.signals.length).toBeGreaterThan(0);
     for (const sig of snapshot!.signals) {
       expect(sig.gas_disclaimer).toBe("Gas estimates are approximate and may differ at execution time. Verify before trading.");
+    }
+  });
+
+  it("sets is_cross_chain true when the best buy/sell venues are on different chains (ETH/USDC: ethereum vs arbitrum)", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const snapshot = await getArbitrageSnapshot();
+    const sig = snapshot?.signals.find((s) => s.pair === "ETH/USDC");
+    expect(sig?.is_cross_chain).toBe(true);
+    expect(sig?.cross_chain_note).toBe(
+      "Cross-chain arbitrage requires pre-positioned capital on both chains or a bridge — bridge latency may exceed signal window.",
+    );
+  });
+
+  it("sets is_cross_chain false and cross_chain_note null when both venues are on the same chain (UNI/ETH: ethereum only)", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const snapshot = await getArbitrageSnapshot();
+    const sig = snapshot?.signals.find((s) => s.pair === "UNI/ETH");
+    expect(sig?.is_cross_chain).toBe(false);
+    expect(sig?.cross_chain_note).toBeNull();
+  });
+
+  it("sets is_executable_estimated false when net_spread_after_slippage_pct is negative (ETH/USDC: small gross spread, gas + slippage exceed it)", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const snapshot = await getArbitrageSnapshot();
+    const sig = snapshot?.signals.find((s) => s.pair === "ETH/USDC");
+    expect(sig?.net_spread_after_slippage_pct).not.toBeNull();
+    expect(sig!.net_spread_after_slippage_pct!).toBeLessThan(0);
+    expect(sig?.is_executable_estimated).toBe(false);
+  });
+
+  it("always includes execution_hint.not_financial_advice: true on every signal", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const snapshot = await getArbitrageSnapshot();
+    expect(snapshot!.signals.length).toBeGreaterThan(0);
+    for (const sig of snapshot!.signals) {
+      expect(sig.execution_hint.not_financial_advice).toBe(true);
+    }
+  });
+
+  it("always includes mev_warning on every signal", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const snapshot = await getArbitrageSnapshot();
+    for (const sig of snapshot!.signals) {
+      expect(sig.mev_warning).toContain("MEV searchers");
     }
   });
 
@@ -653,6 +726,27 @@ describe("GET /finance/arbitrage-signals", () => {
       expect(v.quote_token_decimals).toBe(6); // USDC
       expect(v.base_token_decimals_source).toBe("registry");
     }
+  });
+
+  it("includes signal_age_ms on every signal as a non-negative number, computed from observed_at", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals");
+    const body = (await res.json()) as { signals: Array<{ signal_age_ms: number }> };
+    expect(body.signals.length).toBeGreaterThan(0);
+    for (const s of body.signals) {
+      expect(typeof s.signal_age_ms).toBe("number");
+      expect(s.signal_age_ms).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("always sets benchmark_trade_size_usd to 10000 at the top level", async () => {
+    vi.stubGlobal("fetch", defaultFetchMock());
+    const app = buildTestApp();
+    const res = await app.request("/finance/arbitrage-signals");
+    const body = (await res.json()) as { benchmark_trade_size_usd: number; benchmark_trade_note: string };
+    expect(body.benchmark_trade_size_usd).toBe(10000);
+    expect(body.benchmark_trade_note).toContain("$10,000 benchmark trade");
   });
 });
 
