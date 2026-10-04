@@ -151,6 +151,17 @@ function buildEndpoints(): ManifestEndpoint[] {
         data_format: "json",
       },
       {
+        path: "/finance/remittance-corridors",
+        full_url: `${DIRECTORY_API_URL}/finance/remittance-corridors`,
+        price_usdc: "0.01",
+        description:
+          "Pacific remittance corridor cost comparison (AU/NZ/US -> Samoa/Fiji/PNG/Tonga): World Bank RPW traditional-rail costs vs. XRP/XLM/ALGO network-fee estimates, at a $200 benchmark. Not financial advice.",
+        category: "financial_flows",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
         path: "/fisheries/purse-seine",
         full_url: `${DIRECTORY_API_URL}/fisheries/purse-seine`,
         price_usdc: "0.05",
@@ -194,7 +205,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, and arbitrage-signals from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, and remittance-corridors from the discovery manifest",
     );
   }
 
@@ -228,7 +239,7 @@ function buildEndpoints(): ManifestEndpoint[] {
         full_url: `${DIRECTORY_API_URL}/finance/fx`,
         price_usdc: "0.001",
         description:
-          "Pacific FX rates: WST, FJD, TOP, PGK, SBD, VUV plus AUD, NZD, EUR, GBP, JPY, CNY, ALGO, and USDC, base USD. Optional conversion via ?from=&to=&amount=.",
+          "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies, ALGO, and USDC. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=.",
         category: "financial_flows",
         pay_to: directoryWallet,
         trust_tier: "bronze",
