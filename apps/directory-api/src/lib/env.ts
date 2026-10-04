@@ -48,6 +48,17 @@ const envSchema = z.object({
   // of /internal/*, so it gets its own secret rather than reusing theirs.
   COMPLIANCE_API_KEY: z.string().min(1, "COMPLIANCE_API_KEY is required — gates the /compliance/* AML/KYC stub routes"),
 
+  // Internal dashboard bypass — lets the SBP website (apps/web,
+  // synergybcpacific.com) fetch the 4 financial first-party endpoints
+  // (/finance/crypto-rates, /finance/fx, /finance/arbitrage-signals,
+  // /finance/remittance-corridors) without paying x402 on every request,
+  // via middleware/dashboardBypass.ts. Unlike INTERNAL_API_KEY/
+  // COMPLIANCE_API_KEY above, deliberately OPTIONAL and not required at
+  // boot: this gates a convenience bypass, not a route a caller actually
+  // needs working, so "unset" must mean "bypass never activates, x402
+  // enforced as normal" (fail closed), not a boot failure.
+  DASHBOARD_INTERNAL_KEY: z.string().optional(),
+
   // Resend — Session 17 is this repo's first real integration (see
   // CLAUDE.md Section 26.4: no SMTP/Resend provider has been configured
   // anywhere before now). Optional: a provider-notification email failing
