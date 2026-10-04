@@ -140,6 +140,17 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      {
+        path: "/fisheries/purse-seine",
+        full_url: `${DIRECTORY_API_URL}/fisheries/purse-seine`,
+        price_usdc: "0.05",
+        description:
+          "Historical annual purse seine catch for the Western and Central Pacific (WCPFC Public Domain data, 1967–2021). HISTORICAL, not real-time — see the response's own data_currency and reporting_lag_note fields. Requires ?year=.",
+        category: "fisheries",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
