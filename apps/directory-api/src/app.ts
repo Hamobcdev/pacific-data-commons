@@ -16,6 +16,7 @@ import { providerRoute } from "./routes/provider.js";
 import { endpointRoute } from "./routes/endpoint.js";
 import { verifyRoute } from "./routes/verify.js";
 import { discoveryRoute } from "./routes/discovery.js";
+import { wellKnownX402Route } from "./routes/wellKnownX402.js";
 import { psrRoute } from "./routes/psr.js";
 import { attributionRoute } from "./routes/attribution.js";
 import { complianceRoute } from "./routes/compliance.js";
@@ -121,6 +122,7 @@ export function createApp(env: Env) {
   app.route("/", healthRoute);
   app.route("/", brandingRoute);
   app.route("/", discoveryRoute);
+  app.route("/", wellKnownX402Route);
   app.route("/", psrRoute);
   app.route("/", categoriesRoute);
   app.route("/", countriesRoute);
