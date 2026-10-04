@@ -165,19 +165,40 @@ function buildEndpoints(): ManifestEndpoint[] {
   // directory-api's AVM_ADDRESS value.
   const directoryWallet = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
   if (directoryWallet) {
-    endpoints.push({
-      path: "/search",
-      full_url: `${DIRECTORY_API_URL}/search`,
-      price_usdc: DIRECTORY_QUERY_PRICE_USDC,
-      description: "PDC directory search — query all registered Pacific data endpoints.",
-      category: "directory",
-      pay_to: directoryWallet,
-      trust_tier: "directory",
-      data_format: "json",
-    });
+    endpoints.push(
+      {
+        path: "/search",
+        full_url: `${DIRECTORY_API_URL}/search`,
+        price_usdc: DIRECTORY_QUERY_PRICE_USDC,
+        description: "PDC directory search — query all registered Pacific data endpoints.",
+        category: "directory",
+        pay_to: directoryWallet,
+        trust_tier: "directory",
+        data_format: "json",
+      },
+      {
+        // directory-api/src/routeSchemas.ts declares no payToAddress for
+        // this route, so PdcPaymentGate falls back to its constructor
+        // default (env.AVM_ADDRESS) — the same wallet as /search above,
+        // not PDC_PILOT_EARNINGS_WALLET (that's only for the Decision
+        // 59/60 endpoints pushed in the block above this one). Mirrored
+        // here via PDC_DIRECTORY_PAYTO_ADDRESS, same as /search, per this
+        // route's no-hardcoding requirement (CLAUDE.md P4/§18) — this must
+        // be kept equal to directory-api's own AVM_ADDRESS value.
+        path: "/finance/fx",
+        full_url: `${DIRECTORY_API_URL}/finance/fx`,
+        price_usdc: "0.001",
+        description:
+          "Pacific FX rates: WST, FJD, TOP, PGK, SBD, VUV plus AUD, NZD, EUR, GBP, JPY, CNY, ALGO, and USDC, base USD. Optional conversion via ?from=&to=&amount=.",
+        category: "financial_flows",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+    );
   } else {
     // eslint-disable-next-line no-console
-    console.warn("x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search from the discovery manifest");
+    console.warn("x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search and /finance/fx from the discovery manifest");
   }
 
   return endpoints;
