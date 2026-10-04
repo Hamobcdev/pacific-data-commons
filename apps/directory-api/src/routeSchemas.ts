@@ -170,6 +170,19 @@ const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.001;
 // instruction without a new permanent env var when nothing's set.
 const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_WALLET;
 
+// Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's
+// openly-accessible public APIs (not the 4 dead sources this route's
+// build brief named first — see pacificDexArbitrageService.ts for the
+// full live-verification record). Tier 2 — multi-source aggregation
+// (up to 5 upstream fetches per cache cycle across 7 curated pairs),
+// same reasoning as the other Tier 2 first-party endpoints above.
+const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.05;
+
+// Same env-first-then-literal-fallback resolution as
+// PACIFIC_CORAL_BLEACHING_PAYTO above, for the same reason (this route's
+// own build brief carried the same "always process.env.PDC_PILOT_EARNINGS_WALLET" instruction).
+const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
 // rather than @x402-avm/extensions' bazaarResourceServerExtension, and why
@@ -568,6 +581,61 @@ export const paidRoutes: Array<{
           coingecko_update_frequency: "Every ~60 seconds on CoinGecko free tier",
           attribution: "CoinGecko Public API — https://www.coingecko.com/en/api",
           pacific_priority_tokens: ["ALGO", "XRP", "XLM"],
+          fetch_warnings: [],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/arbitrage-signals",
+    description:
+      "Multi-chain DEX arbitrage signals: gross spread, gas-adjusted net spread, and signal quality (weak/moderate/strong) for 7 curated token pairs across Ethereum, Arbitrum, BNB Chain, and Algorand. Sourced from GeckoTerminal (Uniswap v2/v3/v4, SushiSwap, PancakeSwap v2/v3) and, for ALGO/USDC, Tinyman and Pact directly. Optional ?pair= (one curated pair, 400 if not curated), ?chain= (ethereum|arbitrum|bnb|polygon|algorand), ?min_spread_pct= (default 0). Not financial advice — gas estimates are approximate. 60-second cache.",
+    priceUsdc: PACIFIC_DEX_ARBITRAGE_PRICE_USDC,
+    payToAddress: PACIFIC_DEX_ARBITRAGE_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { pair: "ETH/USDC" },
+      inputSchema: {
+        properties: {
+          pair: { type: "string", description: "One curated pair, e.g. ETH/USDC — optional, 400 if not in the curated list" },
+          min_spread_pct: { type: "number", description: "Only return signals whose net_spread_pct exceeds this — optional, default 0" },
+          chain: { type: "string", enum: ["ethereum", "arbitrum", "bnb", "polygon", "algorand"], description: "Filter to signals touching this chain — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          signals: [
+            {
+              pair: "ETH/USDC",
+              base_token: "ETH",
+              quote_token: "USDC",
+              venues: [
+                { dex: "Uniswap v3", chain: "ethereum", spot_price_usd: 2700.41, liquidity_usd: 98111892, pool_address: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640" },
+                { dex: "Uniswap v3", chain: "arbitrum", spot_price_usd: 2701.34, liquidity_usd: 1115038, pool_address: "0xc31e54c7a869b9fcbecc14363cf510d1c41fa443" },
+              ],
+              best_buy_venue: "Uniswap v3 / ethereum",
+              best_sell_venue: "Uniswap v3 / arbitrum",
+              gross_spread_pct: 0.034,
+              estimated_gas: { buy_chain: "ethereum", sell_chain: "arbitrum", buy_gas_usd: 4.2, sell_gas_usd: 0.002, total_gas_usd: 4.202 },
+              net_spread_pct: -0.0082,
+              signal_quality: "weak",
+              is_profitable_estimated: false,
+              gas_disclaimer: "Gas estimates are approximate and may differ at execution time. Verify before trading.",
+              observed_at: "2026-10-04T00:00:00.000Z",
+            },
+          ],
+          total_pairs_monitored: 7,
+          pairs_with_signal: 1,
+          covered_dexs: ["Uniswap v2", "Uniswap v3", "Uniswap v4", "SushiSwap v3", "PancakeSwap v2", "PancakeSwap v3", "Tinyman", "Pact"],
+          covered_chains: ["ethereum", "arbitrum", "bnb", "polygon", "algorand"],
+          data_currency: "real-time",
+          cache_ttl_seconds: 60,
+          attribution: "PDC Arbitrage Signal Engine — aggregates Uniswap v2/v3/v4, SushiSwap, PancakeSwap v2/v3, Tinyman, and Pact. Gas: public chain RPCs, Polygon Gas Station, fixed Arbitrum/Algorand estimates. Not financial advice.",
+          stage: "1",
+          stage_note: "Stage 1: curated pairs only. Stage 2 will add on-demand arbitrary pair lookup.",
+          gas_warnings: [],
           fetch_warnings: [],
         },
       },
