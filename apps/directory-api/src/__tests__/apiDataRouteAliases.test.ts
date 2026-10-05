@@ -18,10 +18,11 @@ function buildTestApp() {
 }
 
 describe("API_DATA_ROUTE_ALIASES", () => {
-  it("covers exactly the 14 documented aliases, no more, no fewer", () => {
+  it("covers exactly the 15 documented aliases, no more, no fewer", () => {
     expect(API_DATA_ROUTE_ALIASES).toEqual({
       "samoa-cpi": "/finance/samoa-cpi",
       "samoa-gdp": "/finance/samoa-gdp",
+      "fiji-gdp": "/finance/fiji-gdp",
       "ocean-temperature": "/climate/ocean-temperature",
       "pacific-ocean-temp": "/climate/pacific-ocean-temp",
       "ocean-forecast": "/climate/pacific-ocean-forecast",

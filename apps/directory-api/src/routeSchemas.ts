@@ -74,6 +74,12 @@ const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.01;
 // is documented at the route it actually applies to.
 const SAMOA_GDP_PRICE_USDC = 0.01;
 
+// Same Decision 42 reasoning as SAMOA_GDP_PRICE_USDC directly above —
+// governance/research endpoint over an openly-accessible government
+// report (Fiji Bureau of Statistics' own published GDP rebase release),
+// Tier 1 capped, underlying document never paywalled.
+const FIJI_GDP_PRICE_USDC = 0.01;
+
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC/CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC
 // above — Tier 1 capped, first-party wrapper over a genuinely open (no-auth)
 // external source (see pacificWaterTemperatureService.ts's doc comment for
@@ -460,6 +466,42 @@ export const paidRoutes: Array<{
           attribution: {
             source: "Samoa Bureau of Statistics",
             source_document: "Gross Domestic Product — Expenditure Approach, FY2025/26",
+            data_quality: "government_source_transcribed",
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/fiji-gdp",
+    description:
+      "Fiji GDP by industry, transcribed from the Fiji Bureau of Statistics' own published rebase release (FBoS Release No. 62, 3 Sep 2025, GDP rebased to 2019 base) — not a third-party-aggregated feed, see the response's own attribution field. Required ?year=, one of 2019-2024. Optional ?measure=nominal|real_growth, default nominal. Industry-level breakdown is published only for 2019 (the rebase base year); 2020-2024 return total GDP plus real growth rate only (2024 is preliminary) — see the response's own detail_level field.",
+    priceUsdc: FIJI_GDP_PRICE_USDC,
+    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { year: "2019" },
+      inputSchema: {
+        properties: {
+          year: { type: "string", enum: ["2019", "2020", "2021", "2022", "2023", "2024"], description: "4-digit year — required" },
+          measure: { type: "string", enum: ["nominal", "real_growth"], description: "nominal (default) or real_growth — optional" },
+        },
+        required: ["year"],
+      },
+      output: {
+        example: {
+          nation: "FJ",
+          indicator: "Gross Domestic Product by Industry",
+          source_institution: "Fiji Bureau of Statistics",
+          publication: "FBoS Release No. 62 — GDP Rebase 2019",
+          base_year: 2019,
+          unit: "FJD Millions",
+          measure: "nominal",
+          data: { year: "2019", detail_level: "full_industry_breakdown", preliminary: false, industries: { total: 11547.1, agriculture_forestry_fishing: 748.2 } },
+          attribution: {
+            source: "Fiji Bureau of Statistics",
+            source_document: "Gross Domestic Product — Rebase to 2019, FBoS Release No. 62",
             data_quality: "government_source_transcribed",
           },
         },

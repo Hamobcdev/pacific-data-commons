@@ -28,6 +28,7 @@ import { walletBalanceRoute } from "./routes/algorand/wallet-balance.js";
 import { fxRoute } from "./routes/finance/fx.js";
 import { samoaCpiRoute } from "./routes/finance/samoa-cpi.js";
 import { samoaGdpRoute } from "./routes/finance/samoa-gdp.js";
+import { fijiGdpRoute } from "./routes/finance/fiji-gdp.js";
 import { pacificOceanTemperatureRoute } from "./routes/climate/ocean-temperature.js";
 import { pacificWaterTemperatureRoute } from "./routes/climate/pacific-ocean-temp.js";
 import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.js";
@@ -71,6 +72,7 @@ export const API_DATA_ROUTE_ALIASES: Record<string, string> = {
   "ocean-forecast": "/climate/pacific-ocean-forecast",
   "coral-bleaching": "/climate/pacific-coral-bleaching",
   "purse-seine": "/fisheries/pacific-purse-seine",
+  "fiji-gdp": "/finance/fiji-gdp",
   search: "/search",
   fx: "/finance/fx",
   "crypto-prices": "/finance/crypto-rates",
@@ -202,6 +204,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", fxRoute);
   app.route("/", samoaCpiRoute);
   app.route("/", samoaGdpRoute);
+  app.route("/", fijiGdpRoute);
   app.route("/", pacificOceanTemperatureRoute);
   app.route("/", pacificWaterTemperatureRoute);
   app.route("/", pacificPurseSeineRoute);
