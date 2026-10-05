@@ -17,7 +17,7 @@ import type { AppBindings } from "../../types.js";
 //     Samoa) or 1617760 (Honolulu, Hawaii). Default 1770000.
 export const pacificWaterTemperatureRoute = new Hono<AppBindings>();
 
-pacificWaterTemperatureRoute.get("/climate/water-temperature", async (c) => {
+pacificWaterTemperatureRoute.get("/climate/pacific-ocean-temp", async (c) => {
   const station = c.req.query("station") ?? DEFAULT_STATION;
 
   if (!isValidStation(station)) {

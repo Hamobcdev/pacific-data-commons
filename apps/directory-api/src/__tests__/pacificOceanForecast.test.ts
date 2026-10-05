@@ -314,7 +314,7 @@ describe("getPacificOceanForecast", () => {
   });
 });
 
-describe("GET /climate/ocean-forecast", () => {
+describe("GET /climate/pacific-ocean-forecast", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     __resetOceanForecastCacheForTests();
@@ -323,7 +323,7 @@ describe("GET /climate/ocean-forecast", () => {
   it("returns 200 with the forecast and Cache-Control for a successful request", async () => {
     vi.stubGlobal("fetch", defaultFetchMock());
     const app = buildTestApp();
-    const res = await app.request("/climate/ocean-forecast");
+    const res = await app.request("/climate/pacific-ocean-forecast");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=21600");
 
@@ -340,7 +340,7 @@ describe("GET /climate/ocean-forecast", () => {
       vi.fn(async () => textResponse("", 500)),
     );
     const app = buildTestApp();
-    const res = await app.request("/climate/ocean-forecast");
+    const res = await app.request("/climate/pacific-ocean-forecast");
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("bad_gateway");
@@ -356,7 +356,7 @@ describe("GET /climate/ocean-forecast", () => {
       }),
     );
     const app = buildTestApp();
-    const res = await app.request("/climate/ocean-forecast");
+    const res = await app.request("/climate/pacific-ocean-forecast");
     expect(res.status).toBe(502);
   });
 
@@ -373,23 +373,23 @@ describe("GET /climate/ocean-forecast", () => {
       }),
     );
     const app = buildTestApp();
-    const res = await app.request("/climate/ocean-forecast");
+    const res = await app.request("/climate/pacific-ocean-forecast");
     expect(res.status).toBe(502);
   });
 
   it("takes no query parameters — the same request shape always succeeds or fails the same way", async () => {
     vi.stubGlobal("fetch", defaultFetchMock());
     const app = buildTestApp();
-    const res1 = await app.request("/climate/ocean-forecast");
-    const res2 = await app.request("/climate/ocean-forecast?ignored=true");
+    const res1 = await app.request("/climate/pacific-ocean-forecast");
+    const res2 = await app.request("/climate/pacific-ocean-forecast?ignored=true");
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);
   });
 });
 
-describe("routeSchemas: /climate/ocean-forecast payment gate", () => {
+describe("routeSchemas: /climate/pacific-ocean-forecast payment gate", () => {
   it("is registered as a paid route with the expected Tier 2 price", () => {
-    const route = paidRoutes.find((r) => r.path === "/climate/ocean-forecast" && r.method === "GET");
+    const route = paidRoutes.find((r) => r.path === "/climate/pacific-ocean-forecast" && r.method === "GET");
     expect(route).toBeDefined();
     expect(route?.priceUsdc).toBe(0.05);
     expect(route?.payToAddress).toBeTruthy();

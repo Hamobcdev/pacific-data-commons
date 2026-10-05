@@ -22,7 +22,7 @@ import type { AppBindings } from "../../types.js";
 // unavailable) for a request that made no client-side mistake.
 export const pacificOceanForecastRoute = new Hono<AppBindings>();
 
-pacificOceanForecastRoute.get("/climate/ocean-forecast", async (c) => {
+pacificOceanForecastRoute.get("/climate/pacific-ocean-forecast", async (c) => {
   const result = await getPacificOceanForecast();
   if (!result) {
     throw new AppError(502, "bad_gateway", "Ocean forecast data is temporarily unavailable from the upstream THREDDS server. Try again shortly.");

@@ -130,8 +130,8 @@ function buildEndpoints(): ManifestEndpoint[] {
         data_format: "json",
       },
       {
-        path: "/climate/water-temperature",
-        full_url: `${DIRECTORY_API_URL}/climate/water-temperature`,
+        path: "/climate/pacific-ocean-temp",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-temp`,
         price_usdc: "0.01",
         description:
           "Live water temperature at a NOAA CO-OPS Pacific tide station (Pago Pago, American Samoa or Honolulu, Hawaii). Primary-source US federal station reading — see the response's own attribution field.",
@@ -173,8 +173,8 @@ function buildEndpoints(): ManifestEndpoint[] {
         data_format: "json",
       },
       {
-        path: "/climate/ocean-forecast",
-        full_url: `${DIRECTORY_API_URL}/climate/ocean-forecast`,
+        path: "/climate/pacific-ocean-forecast",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-forecast`,
         price_usdc: "0.05",
         description:
           "Daily Pacific Ocean surface forecast (HYCOM GLBy0.08 model, via Pacific Data Hub THREDDS) — mean surface temperature, current speed/direction, and sea surface elevation for the Pacific Island region. DAILY FORECAST MODEL OUTPUT, not instrument readings — see the response's own data_currency, forecast_reference_date, and valid_time fields.",
@@ -191,8 +191,8 @@ function buildEndpoints(): ManifestEndpoint[] {
         // full_url, trust_tier, data_format) — followed that real shape
         // instead so this entry doesn't silently diverge from the type
         // every other endpoint in this array satisfies.
-        path: "/climate/coral-bleaching",
-        full_url: `${DIRECTORY_API_URL}/climate/coral-bleaching`,
+        path: "/climate/pacific-coral-bleaching",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-coral-bleaching`,
         price_usdc: "0.05",
         description:
           "Daily coral bleaching alert levels for Pacific reef areas (NOAA CoralTemp, via ERDDAP). Default region: Samoa. See the response's own data_currency, observation_date, and reporting_lag_note fields.",
