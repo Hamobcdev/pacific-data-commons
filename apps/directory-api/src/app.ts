@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { PdcPaymentGate, installBazaarAjvWorkersLogFilter } from "@pdc/x402-adapter";
 import { logger } from "./lib/logger.js";
 import { paidRoutes } from "./routeSchemas.js";
@@ -52,6 +52,47 @@ const DIRECTORY_QUERY_PRICE_USDC = 0.01;
 // PACIFIC_BRIEF_PRICE_USDC, EVENTS_PRICE_USDC, WEATHER_PRICE_USDC,
 // PACIFIC_TRAVEL_PRICE_USDC) moved into ./routeSchemas.ts alongside the
 // paidRoutes array they price — see that file's doc comment for why.
+
+// /api/data/* -> canonical route aliases (fix/api-data-route-aliases). A
+// 301 redirect, not a second route registration: the payment gate only
+// ever knows about the canonical paths registered via addRoute() above,
+// so an alias that served the response directly here would bypass x402
+// entirely for that path. Redirecting instead sends the client's
+// follow-up request to the real path, where payment is enforced as
+// normal. Deliberately an explicit lookup table, not a generic
+// /api/data/:rest -> /:rest rewrite — only these 12 paths are known
+// aliases; anything else under /api/data/ falls through to the 404
+// handler rather than guessing a target.
+export const API_DATA_ROUTE_ALIASES: Record<string, string> = {
+  "samoa-cpi": "/finance/samoa-cpi",
+  "samoa-gdp": "/finance/samoa-gdp",
+  "ocean-temperature": "/climate/ocean-temperature",
+  "pacific-ocean-temp": "/climate/pacific-ocean-temp",
+  "ocean-forecast": "/climate/pacific-ocean-forecast",
+  "coral-bleaching": "/climate/pacific-coral-bleaching",
+  "purse-seine": "/fisheries/pacific-purse-seine",
+  search: "/search",
+  fx: "/finance/fx",
+  "crypto-rates": "/finance/crypto-rates",
+  "arbitrage-signals": "/finance/arbitrage-signals",
+  "remittance-corridors": "/finance/remittance-corridors",
+};
+
+/**
+ * Pure handler, exported separately for direct unit testing — same
+ * "pull the branching into a plain function" pattern as
+ * middleware/dashboardBypass.ts's isDashboardBypassRequest. Preserves the
+ * original query string verbatim (via URL.search, not a re-serialised
+ * URLSearchParams) so duplicate keys and param order survive the redirect
+ * unchanged.
+ */
+export function apiDataAliasHandler(c: Context<AppBindings>): Response | Promise<Response> {
+  const pathParam = c.req.param("path");
+  const target = pathParam ? API_DATA_ROUTE_ALIASES[pathParam] : undefined;
+  if (!target) return notFoundHandler(c);
+  const { search } = new URL(c.req.url);
+  return c.redirect(`${target}${search}`, 301);
+}
 
 /**
  * Builds and returns the configured Hono app. Pure with respect to runtime
@@ -172,6 +213,13 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);
   app.route("/", pacificTravelRoute);
+
+  // /api/data/* -> canonical route aliases — see API_DATA_ROUTE_ALIASES'
+  // doc comment above for why this is a redirect, not a route alias
+  // registered against the payment gate. :path{.+} (not a plain *)
+  // captures the remainder as a named param, including any slashes, so a
+  // nested alias target wouldn't need special-casing if one is ever added.
+  app.get("/api/data/:path{.+}", apiDataAliasHandler);
 
   app.notFound(notFoundHandler);
   app.onError(errorHandler);
