@@ -24,7 +24,7 @@ import type { AppBindings } from "../../types.js";
 //     ASCII), which isn't workable for a live paid endpoint.
 export const pacificPurseSeineRoute = new Hono<AppBindings>();
 
-pacificPurseSeineRoute.get("/fisheries/purse-seine", async (c) => {
+pacificPurseSeineRoute.get("/fisheries/pacific-purse-seine", async (c) => {
   const speciesRaw = (c.req.query("species") ?? DEFAULT_SPECIES).toLowerCase();
 
   if (speciesRaw === "alb") {

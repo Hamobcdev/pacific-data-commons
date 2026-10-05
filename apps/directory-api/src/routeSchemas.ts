@@ -499,7 +499,7 @@ export const paidRoutes: Array<{
   },
   {
     method: "GET",
-    path: "/fisheries/purse-seine",
+    path: "/fisheries/pacific-purse-seine",
     description:
       "Historical annual purse seine catch for the Western and Central Pacific, sourced from WCPFC's Public Domain 1°x1° Monthly dataset via Pacific Data Hub's THREDDS server — HISTORICAL data, not real-time (WCPFC member catch reports carry a 1–2 year verification lag; dataset covers 1967–2021, see the response's own attribution and reporting_lag_note fields). Optional ?species=, one of skj, yft, bet (default skj) — albacore is not available, this purse-seine dataset has no albacore variable. Required ?year=, a 4-digit year within 1967–2021. Returns total catch in metric tonnes summed across all fishing-gear/set-type variables and the full grid. 24-hour cache.",
     priceUsdc: PACIFIC_PURSE_SEINE_PRICE_USDC,
