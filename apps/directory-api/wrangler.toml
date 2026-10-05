@@ -63,8 +63,8 @@ LOG_LEVEL = "info"
 # against the account at deploy time).
 [[kv_namespaces]]
 binding = "CRYPTO_PRICES_KV"
-id = "REPLACE_WITH_REAL_KV_ID"
-preview_id = "REPLACE_WITH_PREVIEW_KV_ID"
+id = "69654f39fa1343b4a3595ca6aa1fa5c8"
+preview_id = "82d04d89a603471d9eb3bb6bb7a11a27"
 
 # Cron Trigger for cronCryptoPriceFetcher.ts — every 5 minutes. Wired to
 # worker.ts's `scheduled` export.
