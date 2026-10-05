@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { runCronCryptoPriceFetch, type HistoryPoint } from "../handlers/cronCryptoPriceFetcher.js";
 import type { CryptoPriceCronRecord, CryptoToken } from "../services/pacificCryptoRatesService.js";
 import { createFakeKv, getFakeKvStore } from "./testUtils.js";
+import type { Env } from "../lib/env.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -54,7 +55,7 @@ describe("runCronCryptoPriceFetch", () => {
     });
     const kv = createFakeKv();
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const store = getFakeKvStore(kv);
     const record = JSON.parse(store.get("prices:current")!) as CryptoPriceCronRecord;
@@ -79,7 +80,7 @@ describe("runCronCryptoPriceFetch", () => {
     });
     const kv = createFakeKv();
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const store = getFakeKvStore(kv);
     const record = JSON.parse(store.get("prices:current")!) as CryptoPriceCronRecord;
@@ -98,7 +99,7 @@ describe("runCronCryptoPriceFetch", () => {
     });
     const kv = createFakeKv();
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const store = getFakeKvStore(kv);
     const record = JSON.parse(store.get("prices:current")!) as CryptoPriceCronRecord;
@@ -109,7 +110,7 @@ describe("runCronCryptoPriceFetch", () => {
     stubFetchByUrl({ "api.binance.com": () => jsonResponse(FULL_BINANCE_TICKERS) });
     const kv = createFakeKv();
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const record = JSON.parse(getFakeKvStore(kv).get("prices:current")!) as CryptoPriceCronRecord;
     const btc = record.tokens.find((t) => t.symbol === "BTC") as CryptoToken;
@@ -127,7 +128,7 @@ describe("runCronCryptoPriceFetch", () => {
       "api.coincap.io": () => jsonResponse([], 500),
     });
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const store = getFakeKvStore(kv);
     expect(store.get("prices:current")).toBe(
@@ -140,7 +141,7 @@ describe("runCronCryptoPriceFetch", () => {
     stubFetchByUrl({ "api.binance.com": () => jsonResponse(FULL_BINANCE_TICKERS) });
     const kv = createFakeKv();
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const store = getFakeKvStore(kv);
     const algoHistory = JSON.parse(store.get("history:ALGO")!) as HistoryPoint[];
@@ -158,7 +159,7 @@ describe("runCronCryptoPriceFetch", () => {
     const kv = createFakeKv({ "history:ALGO": JSON.stringify(existing) });
     stubFetchByUrl({ "api.binance.com": () => jsonResponse(FULL_BINANCE_TICKERS) });
 
-    await runCronCryptoPriceFetch(kv);
+    await runCronCryptoPriceFetch({} as Env, kv);
 
     const store = getFakeKvStore(kv);
     const algoHistory = JSON.parse(store.get("history:ALGO")!) as HistoryPoint[];

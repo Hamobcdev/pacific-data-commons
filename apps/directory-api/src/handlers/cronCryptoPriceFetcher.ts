@@ -5,6 +5,12 @@
  */
 
 import type { Env } from '../lib/env';
+import type { KVNamespace } from "@cloudflare/workers-types";
+
+export interface HistoryPoint {
+  t: number;
+  p: number;
+}
 
 export interface CryptoRate {
   symbol: string;
@@ -106,7 +112,7 @@ async function appendHistory(kv: KVNamespace, symbol: string, rate: CryptoRate):
   await kv.put(key, JSON.stringify(hist), { expirationTtl: 60 * 60 * 48 });
 }
 
-export async function cronCryptoPriceFetcher(env: Env): Promise<void> {
+export async function cronCryptoPriceFetcher(env: Env, kv: KVNamespace): Promise<void> {
   console.info('[cron_crypto] tick start');
   let rates = await fetchFromKraken().catch((err) => {
     console.error('[cron_crypto] Kraken threw:', err?.message ?? err);
@@ -122,8 +128,8 @@ export async function cronCryptoPriceFetcher(env: Env): Promise<void> {
   if (!rates) { console.error('[cron_crypto] All sources failed — KV unchanged'); return; }
   const current: Record<string, CryptoRate> = {};
   for (const [symbol, rate] of rates) current[symbol] = rate;
-  await env.CRYPTO_PRICES_KV.put('prices:current', JSON.stringify(current), { expirationTtl: 7200 });
-  await Promise.all([...rates.values()].map((r) => appendHistory(env.CRYPTO_PRICES_KV, r.symbol, r)));
+  await kv.put('prices:current', JSON.stringify(current), { expirationTtl: 7200 });
+  await Promise.all([...rates.values()].map((r) => appendHistory(kv, r.symbol, r)));
   const source = [...rates.values()][0]?.source ?? 'unknown';
   console.info(`[cron_crypto] tick complete — ${rates.size} tokens written (source: ${source})`);
 }

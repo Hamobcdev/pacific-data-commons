@@ -53,6 +53,6 @@ export default {
       logger.error("crypto_price_cron_missing_kv_binding", { cron: controller.cron });
       return;
     }
-    ctx.waitUntil(runCronCryptoPriceFetch(cfEnv));
+    ctx.waitUntil(runCronCryptoPriceFetch(loadEnv(cfEnv as unknown as NodeJS.ProcessEnv), cfEnv.CRYPTO_PRICES_KV!));
   },
 };
