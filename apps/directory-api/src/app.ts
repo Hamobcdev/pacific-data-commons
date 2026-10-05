@@ -35,6 +35,7 @@ import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.j
 import { pacificOceanForecastRoute } from "./routes/climate/pacific-ocean-forecast.js";
 import { pacificCoralBleachingRoute } from "./routes/climate/pacific-coral-bleaching.js";
 import { pacificCycloneHistoryRoute } from "./routes/climate/pacificCycloneHistory.js";
+import { pacificEnsoIndexRoute } from "./routes/climate/pacificEnsoIndex.js";
 import { pacificCryptoRatesRoute } from "./routes/finance/crypto-rates.js";
 import { pacificCryptoHistoryRoute } from "./routes/finance/crypto-history.js";
 import { pacificDexArbitrageRoute } from "./routes/finance/arbitrage-signals.js";
@@ -212,6 +213,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificOceanForecastRoute);
   app.route("/", pacificCoralBleachingRoute);
   app.route("/", pacificCycloneHistoryRoute);
+  app.route("/", pacificEnsoIndexRoute);
   app.route("/", pacificCryptoRatesRoute);
   app.route("/", pacificCryptoHistoryRoute);
   app.route("/", pacificDexArbitrageRoute);
