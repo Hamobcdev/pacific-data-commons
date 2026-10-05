@@ -73,6 +73,8 @@ export const API_DATA_ROUTE_ALIASES: Record<string, string> = {
   "purse-seine": "/fisheries/pacific-purse-seine",
   search: "/search",
   fx: "/finance/fx",
+  "crypto-prices": "/finance/crypto-rates",
+  "fx-rates": "/finance/fx",
   "crypto-rates": "/finance/crypto-rates",
   "arbitrage-signals": "/finance/arbitrage-signals",
   "remittance-corridors": "/finance/remittance-corridors",

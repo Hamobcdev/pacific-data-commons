@@ -18,7 +18,7 @@ function buildTestApp() {
 }
 
 describe("API_DATA_ROUTE_ALIASES", () => {
-  it("covers exactly the 12 documented aliases, no more, no fewer", () => {
+  it("covers exactly the 14 documented aliases, no more, no fewer", () => {
     expect(API_DATA_ROUTE_ALIASES).toEqual({
       "samoa-cpi": "/finance/samoa-cpi",
       "samoa-gdp": "/finance/samoa-gdp",
@@ -29,6 +29,8 @@ describe("API_DATA_ROUTE_ALIASES", () => {
       "purse-seine": "/fisheries/pacific-purse-seine",
       search: "/search",
       fx: "/finance/fx",
+      "crypto-prices": "/finance/crypto-rates",
+      "fx-rates": "/finance/fx",
       "crypto-rates": "/finance/crypto-rates",
       "arbitrage-signals": "/finance/arbitrage-signals",
       "remittance-corridors": "/finance/remittance-corridors",
