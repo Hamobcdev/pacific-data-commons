@@ -12,3 +12,5 @@ dist/
 .DS_Store
 coverage/
 .turbo/
+data/ibtracs-sp.csv
+data/ibtracs-sp.csv
