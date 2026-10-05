@@ -6,15 +6,21 @@ import type { AppBindings } from "../types.js";
  * Lets the SBP website (apps/web, synergybcpacific.com) fetch PDC's
  * financial first-party endpoints without triggering x402 payment on
  * every request — external agents still pay as normal. Scoped to
- * exactly these 4 paths, not every paid route: a leaked
- * DASHBOARD_INTERNAL_KEY should expose at most these 4 endpoints' worth
+ * exactly these 5 paths, not every paid route: a leaked
+ * DASHBOARD_INTERNAL_KEY should expose at most these 5 endpoints' worth
  * of free access, not the whole platform's revenue surface. Must stay
  * in sync by hand with the actual route registrations in app.ts (same
  * "no single source of truth across files" caveat CLAUDE.md §26.2 notes
- * for dataCategories.ts) — there are only 4 entries, so this is a
+ * for dataCategories.ts) — there are only 5 entries, so this is a
  * deliberate, documented trade-off, not an oversight.
  */
-export const DASHBOARD_BYPASS_PATHS: readonly string[] = ["/finance/crypto-rates", "/finance/fx", "/finance/arbitrage-signals", "/finance/remittance-corridors"];
+export const DASHBOARD_BYPASS_PATHS: readonly string[] = [
+  "/finance/crypto-rates",
+  "/finance/crypto-history",
+  "/finance/fx",
+  "/finance/arbitrage-signals",
+  "/finance/remittance-corridors",
+];
 
 /**
  * Pure decision logic, exported separately for direct unit testing

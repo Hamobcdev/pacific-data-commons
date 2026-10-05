@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { KVNamespace } from "@cloudflare/workers-types";
 
 interface FakeTableConfig {
   data?: unknown[] | null;
@@ -116,4 +117,35 @@ export function getFakeUpdates(client: SupabaseClient): Array<{ table: string; r
 
 export function getFakeEqCalls(client: SupabaseClient): Array<{ table: string; column: string; value: unknown }> {
   return (client as unknown as { __eqCalls: Array<{ table: string; column: string; value: unknown }> }).__eqCalls;
+}
+
+/**
+ * Minimal Map-based KVNamespace fake — real KV only stores strings, so
+ * get/put mirror that: put() takes whatever string the caller already
+ * JSON.stringify'd, and get(key, { type: "json" }) JSON.parses it back on
+ * read, same as the real binding. Only the subset this codebase's KV
+ * callers actually use (get with optional { type: "json" }, put) is
+ * implemented — not the full KVNamespace interface.
+ */
+export function createFakeKv(initial: Record<string, string> = {}): KVNamespace {
+  const store = new Map<string, string>(Object.entries(initial));
+
+  const fake = {
+    get: async (key: string, options?: { type?: string }) => {
+      const raw = store.get(key);
+      if (raw === undefined) return null;
+      return options?.type === "json" ? JSON.parse(raw) : raw;
+    },
+    put: async (key: string, value: string) => {
+      store.set(key, value);
+    },
+    __store: store,
+  };
+
+  return fake as unknown as KVNamespace;
+}
+
+/** Reads back the fake KV's underlying Map, for asserting what a handler wrote. */
+export function getFakeKvStore(kv: KVNamespace): Map<string, string> {
+  return (kv as unknown as { __store: Map<string, string> }).__store;
 }

@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger.js";
+import type { KVNamespace } from "@cloudflare/workers-types";
 
 // pacificCryptoRatesService.ts
 //
@@ -53,6 +54,24 @@ import { logger } from "../lib/logger.js";
 // curated token, or returns it with a null current_price, that token is
 // omitted from the response's tokens array and listed in
 // fetch_warnings instead — never included with a placeholder/zero price.
+//
+// KV-backed live feed (added once CoinGecko-from-Workers was confirmed
+// permanently blocked, not just occasionally flaky — see the static
+// fallback paragraph below): handlers/cronCryptoPriceFetcher.ts runs on a
+// Cloudflare Cron Trigger every 5 minutes, fetching from Binance (primary)
+// or CoinCap (fallback) — both reachable from Workers' outbound network,
+// unlike CoinGecko — and writing the result to CRYPTO_PRICES_KV under
+// "prices:current". getCryptoRatesSnapshot() reads that key first when a
+// KV binding is passed in (Workers only; Node local dev has none). This
+// KV-sourced feed only covers the same 7-symbol set as STATIC_CRYPTO_PRICES
+// below (ALGO/BTC/ETH/XRP/XLM/USDC/USDT) — Binance/CoinCap don't offer a
+// single-call equivalent to CoinGecko's 67-token /coins/markets, so
+// ?category= filters other than "pacific" return empty once the KV feed is
+// live, a real scope reduction from the 67-token CoinGecko path, not an
+// oversight. When no KV binding is passed, or the "prices:current" key is
+// empty/missing, this falls through to the static fallback directly (not
+// to a doomed live CoinGecko-from-Workers attempt) — see
+// buildStaticFallbackSnapshot below.
 //
 // Static fallback (added once CoinGecko was confirmed blocked from
 // Cloudflare Workers outbound network, same pattern as
@@ -211,6 +230,19 @@ export interface CryptoRatesSnapshot {
   prices_as_of: string | null;
 }
 
+/**
+ * The shape handlers/cronCryptoPriceFetcher.ts writes to
+ * CRYPTO_PRICES_KV["prices:current"]. Shared here (rather than defined
+ * only in the cron handler) so this read side and that write side can't
+ * drift independently — both import this same type.
+ */
+export interface CryptoPriceCronRecord {
+  updated_at: string;
+  source: "binance" | "coincap";
+  static_fallback: false;
+  tokens: CryptoToken[];
+}
+
 /** Just enough of CoinGecko's /coins/markets response shape to read — untrusted third-party HTTP JSON, same posture as this codebase's other upstream response interfaces. */
 interface CoinGeckoMarketEntry {
   id: string;
@@ -324,20 +356,58 @@ function buildStaticFallbackSnapshot(reason: string): CryptoRatesSnapshot {
 let cache: { data: CryptoRatesSnapshot; expires: number } | null = null;
 
 /**
+ * Reads CRYPTO_PRICES_KV["prices:current"] (written by
+ * handlers/cronCryptoPriceFetcher.ts) and maps it onto CryptoRatesSnapshot.
+ * Returns null — never throws — when there's no record yet, the record is
+ * malformed, or the KV read itself fails; all three are "no live KV data",
+ * handled identically by the caller (fall through to the static fallback).
+ */
+async function readKvCryptoPrices(kv: KVNamespace): Promise<CryptoRatesSnapshot | null> {
+  try {
+    const record = await kv.get<CryptoPriceCronRecord>("prices:current", { type: "json" });
+    if (!record || !Array.isArray(record.tokens) || record.tokens.length === 0) return null;
+    return {
+      tokens: record.tokens,
+      fetch_warnings: [],
+      cached_at: record.updated_at,
+      static_fallback: false,
+      static_fallback_reason: null,
+      prices_as_of: null,
+    };
+  } catch (err) {
+    logger.warn("crypto_rates_kv_read_failed", { error: err instanceof Error ? err.message : String(err) });
+    return null;
+  }
+}
+
+/**
  * The full curated-token snapshot (unfiltered) — 60-second cached.
  * ?symbols=/?category= filtering is applied by the route layer against
  * this cached result, not as separate upstream fetches. Never returns
- * null and never throws: a failed live fetch (confirmed blocked from
- * Cloudflare Workers outbound network at the time this fallback was
- * added) serves buildStaticFallbackSnapshot() instead — the route layer
- * must always be able to return 200 to a buyer who already paid for this
- * query.
+ * null and never throws.
+ *
+ * When a KV binding is passed (Workers only — see the KV-backed live feed
+ * doc comment near the top of this file), "prices:current" is tried first
+ * and, on a hit, returned directly without attempting the CoinGecko-from-
+ * Workers fetch below (confirmed permanently blocked, not worth the
+ * timeout on every cache miss) — falling through straight to the static
+ * fallback on a KV miss instead. With no KV binding (Node local dev, and
+ * every existing test that doesn't pass one), behaviour is unchanged from
+ * before the KV feed existed: try the live CoinGecko fetch, then the
+ * static fallback.
  */
-export async function getCryptoRatesSnapshot(): Promise<CryptoRatesSnapshot> {
+export async function getCryptoRatesSnapshot(kv?: KVNamespace): Promise<CryptoRatesSnapshot> {
   if (cache && Date.now() < cache.expires) return cache.data;
 
-  const fresh = await fetchFreshSnapshot();
-  const snapshot = fresh ?? buildStaticFallbackSnapshot("upstream_blocked");
+  let snapshot: CryptoRatesSnapshot;
+  if (kv) {
+    const kvSnapshot = await readKvCryptoPrices(kv);
+    snapshot = kvSnapshot ?? buildStaticFallbackSnapshot("kv_unavailable");
+  } else {
+    const fresh = await fetchFreshSnapshot();
+    snapshot = fresh ?? buildStaticFallbackSnapshot("upstream_blocked");
+  }
+
   if (snapshot.static_fallback) {
     logger.info("crypto_rates_static_fallback", { reason: snapshot.static_fallback_reason, token_count: snapshot.tokens.length });
   }

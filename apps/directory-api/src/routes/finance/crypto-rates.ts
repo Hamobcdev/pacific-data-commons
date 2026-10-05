@@ -49,8 +49,11 @@ pacificCryptoRatesRoute.get("/finance/crypto-rates", async (c) => {
 
   // Never 502s a buyer who already paid for this query (Decision 59/60) —
   // getCryptoRatesSnapshot() itself serves a static fallback rather than
-  // null when CoinGecko is unreachable; see that function's doc comment.
-  const snapshot = await getCryptoRatesSnapshot();
+  // null when neither the KV live feed nor CoinGecko is reachable; see
+  // that function's doc comment. cryptoPricesKv is undefined on Node
+  // local dev (no Workers bindings) — getCryptoRatesSnapshot() handles
+  // that the same way it always has.
+  const snapshot = await getCryptoRatesSnapshot(c.get("cryptoPricesKv"));
 
   let tokens: CryptoToken[] = snapshot.tokens;
 
