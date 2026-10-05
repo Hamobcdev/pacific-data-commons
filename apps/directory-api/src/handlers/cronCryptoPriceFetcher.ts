@@ -8,7 +8,9 @@ import type { Env } from '../lib/env';
 import type { KVNamespace } from "@cloudflare/workers-types";
 
 export interface HistoryPoint {
-  t: number;
+  /** ISO timestamp — CryptoRate.last_updated at the time this point was appended. */
+  t: string;
+  /** CryptoRate.price_usd at the time this point was appended. */
   p: number;
 }
 

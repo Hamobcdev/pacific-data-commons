@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { ValidationError } from "../../lib/errors.js";
-import type { HistoryPoint } from "../../handlers/cronCryptoPriceFetcher.js";
+import type { CryptoRate, HistoryPoint } from "../../handlers/cronCryptoPriceFetcher.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 1 / $0.001, same tier as
@@ -64,8 +64,15 @@ pacificCryptoHistoryRoute.get("/finance/crypto-history", async (c) => {
   // No KV binding (Node local dev) or no history written yet both mean
   // "nothing to window" — 200 with an empty array, same never-502 posture
   // as /finance/crypto-rates, not an error.
+  //
+  // history:{symbol} is written by cronCryptoPriceFetcher.ts as
+  // CryptoRate[] (the same shape as prices:current's per-symbol entries),
+  // not HistoryPoint[] — mapped here, read-side only, into the {t, p}
+  // shape the dashboard's chart actually wants: t = last_updated (ISO),
+  // p = price_usd.
   const kv = c.get("cryptoPricesKv");
-  const allPoints: HistoryPoint[] = kv ? ((await kv.get<HistoryPoint[]>(`history:${symbol}`, { type: "json" })) ?? []) : [];
+  const storedRates: CryptoRate[] = kv ? ((await kv.get<CryptoRate[]>(`history:${symbol}`, { type: "json" })) ?? []) : [];
+  const allPoints: HistoryPoint[] = storedRates.map((rate) => ({ t: rate.last_updated, p: rate.price_usd }));
 
   const windowSize = TIMEFRAME_POINTS[tf];
   const points = allPoints.slice(-windowSize);
