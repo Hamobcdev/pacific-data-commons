@@ -355,6 +355,16 @@ function buildStaticFallbackSnapshot(reason: string): CryptoRatesSnapshot {
 
 let cache: { data: CryptoRatesSnapshot; expires: number } | null = null;
 
+const KRAKEN_TOKEN_META: Record<string, { name: string; coingecko_id: string }> = {
+  ALGO: { name: 'Algorand',  coingecko_id: 'algorand' },
+  BTC:  { name: 'Bitcoin',   coingecko_id: 'bitcoin'  },
+  ETH:  { name: 'Ethereum',  coingecko_id: 'ethereum' },
+  XRP:  { name: 'XRP',       coingecko_id: 'ripple'   },
+  XLM:  { name: 'Stellar',   coingecko_id: 'stellar'  },
+  USDC: { name: 'USD Coin',  coingecko_id: 'usd-coin' },
+  USDT: { name: 'Tether',    coingecko_id: 'tether'   },
+};
+
 /**
  * Reads CRYPTO_PRICES_KV["prices:current"] (written by
  * handlers/cronCryptoPriceFetcher.ts) and maps it onto CryptoRatesSnapshot.
@@ -364,18 +374,43 @@ let cache: { data: CryptoRatesSnapshot; expires: number } | null = null;
  */
 async function readKvCryptoPrices(kv: KVNamespace): Promise<CryptoRatesSnapshot | null> {
   try {
-    const record = await kv.get<CryptoPriceCronRecord>("prices:current", { type: "json" });
-    if (!record || !Array.isArray(record.tokens) || record.tokens.length === 0) return null;
+    const raw = await kv.get('prices:current', { type: 'json' }) as Record<string, unknown> | null;
+    if (!raw || typeof raw !== 'object') return null;
+
+    const entries = Object.values(raw) as Array<Record<string, unknown>>;
+    if (entries.length === 0) return null;
+
+    const tokens: CryptoToken[] = entries
+      .filter((e) => e && typeof e.symbol === 'string')
+      .map((e) => {
+        const sym = e.symbol as string;
+        const meta = KRAKEN_TOKEN_META[sym] ?? { name: sym, coingecko_id: sym.toLowerCase() };
+        return {
+          symbol:          sym,
+          name:            meta.name,
+          coingecko_id:    meta.coingecko_id,
+          price_usd:       (e.price_usd as number)      ?? 0,
+          change_24h_pct:  (e.change_24h_pct as number) ?? 0,
+          market_cap_usd:  (e.market_cap_usd as number) ?? 0,
+          volume_24h_usd:  (e.volume_24h as number)     ?? 0,
+          market_cap_rank: null,
+        };
+      });
+
+    if (tokens.length === 0) return null;
+
     return {
-      tokens: record.tokens,
+      tokens,
       fetch_warnings: [],
-      cached_at: record.updated_at,
+      cached_at: (entries[0]?.last_updated as string) ?? new Date().toISOString(),
       static_fallback: false,
       static_fallback_reason: null,
       prices_as_of: null,
     };
   } catch (err) {
-    logger.warn("crypto_rates_kv_read_failed", { error: err instanceof Error ? err.message : String(err) });
+    logger.warn('crypto_rates_kv_read_failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
 }
