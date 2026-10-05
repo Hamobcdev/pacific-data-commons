@@ -69,7 +69,7 @@ preview_id = "82d04d89a603471d9eb3bb6bb7a11a27"
 # Cron Trigger for cronCryptoPriceFetcher.ts — every 5 minutes. Wired to
 # worker.ts's `scheduled` export.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/15 * * * *"]
 
 # Secret environment variables remain set via Cloudflare dashboard
 # (Workers & Pages > pdc-directory-api > Settings > Variables and Secrets)
