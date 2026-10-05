@@ -29,6 +29,7 @@ import { fxRoute } from "./routes/finance/fx.js";
 import { samoaCpiRoute } from "./routes/finance/samoa-cpi.js";
 import { samoaGdpRoute } from "./routes/finance/samoa-gdp.js";
 import { fijiGdpRoute } from "./routes/finance/fiji-gdp.js";
+import { fijiCpiRoute } from "./routes/finance/fiji-cpi.js";
 import { pacificOceanTemperatureRoute } from "./routes/climate/ocean-temperature.js";
 import { pacificWaterTemperatureRoute } from "./routes/climate/pacific-ocean-temp.js";
 import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.js";
@@ -207,6 +208,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", samoaCpiRoute);
   app.route("/", samoaGdpRoute);
   app.route("/", fijiGdpRoute);
+  app.route("/", fijiCpiRoute);
   app.route("/", pacificOceanTemperatureRoute);
   app.route("/", pacificWaterTemperatureRoute);
   app.route("/", pacificPurseSeineRoute);

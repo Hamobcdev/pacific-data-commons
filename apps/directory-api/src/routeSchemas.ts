@@ -80,6 +80,14 @@ const SAMOA_GDP_PRICE_USDC = 0.01;
 // Tier 1 capped, underlying document never paywalled.
 const FIJI_GDP_PRICE_USDC = 0.01;
 
+// Same Decision 42 reasoning as FIJI_GDP_PRICE_USDC/SAMOA_GDP_PRICE_USDC
+// above — governance/research endpoint over openly-accessible government
+// releases (Fiji Bureau of Statistics' own monthly CPI press releases),
+// Tier 1 capped, underlying releases never paywalled. payTo is declared
+// further down, right after PDC_PILOT_EARNINGS_WALLET itself (used-before-
+// declaration otherwise — this constant is block-scoped further below).
+const FIJI_CPI_PRICE_USDC = 0.01;
+
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC/CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC
 // above — Tier 1 capped, first-party wrapper over a genuinely open (no-auth)
 // external source (see pacificWaterTemperatureService.ts's doc comment for
@@ -112,6 +120,11 @@ const PACIFIC_PURSE_SEINE_PRICE_USDC = 0.05;
 // truth stays here, same reasoning as every other "never hardcode a wallet
 // twice" instance in this repo.
 export const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM5LKPYKOAJZ2MVAKO6KFM";
+
+// FIJI_CPI_PRICE_USDC's payTo — declared here, not next to the price
+// constant above, since PDC_PILOT_EARNINGS_WALLET itself isn't declared
+// until this point in the file.
+const FIJI_CPI_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
 // This session's build brief required this new route's payTo to read from
 // process.env.PDC_PILOT_EARNINGS_WALLET specifically ("never hardcode
@@ -518,6 +531,43 @@ export const paidRoutes: Array<{
             source_document: "Gross Domestic Product — Rebase to 2019, FBoS Release No. 62",
             data_quality: "government_source_transcribed",
           },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/fiji-cpi",
+    description:
+      "Fiji Consumer Price Index, transcribed from the Fiji Bureau of Statistics' own monthly CPI press releases — not a third-party-aggregated feed, see the response's own attribution field. Covers July-September 2026 (each month's own FBoS release page). Optional ?year= (4-digit), ?from=/?to= (YYYY-MM range). base_year is null — FBoS's releases state CPI weights are derived from the 2019/2020 Household Income and Expenditure Survey (HIES), not an index base period.",
+    priceUsdc: FIJI_CPI_PRICE_USDC,
+    payToAddress: FIJI_CPI_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { year: 2026 },
+      inputSchema: {
+        properties: {
+          year: { type: "number", description: "4-digit year, e.g. 2026 — optional" },
+          from: { type: "string", description: "YYYY-MM, inclusive — optional" },
+          to: { type: "string", description: "YYYY-MM, inclusive — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          nation: "FJ",
+          indicator: "Consumer Price Index",
+          period: "2026-09",
+          value: 117.6,
+          unit: "index",
+          base_year: null,
+          weights_basis: "2019/2020 Household Income and Expenditure Survey (HIES)",
+          month_over_month_pct: -0.4,
+          year_over_year_pct: 6.8,
+          annual_average_pct: 1.9,
+          source_institution: "Fiji Bureau of Statistics",
+          publication_date: "2026-10-01",
+          release_title: "Consumer Price Index – September 2026",
         },
       },
     }),
