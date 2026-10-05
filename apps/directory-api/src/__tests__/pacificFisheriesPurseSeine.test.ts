@@ -245,7 +245,7 @@ describe("getPurseSeineCatch", () => {
   });
 });
 
-describe("GET /fisheries/purse-seine", () => {
+describe("GET /fisheries/pacific-purse-seine", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     __resetFisheriesCacheForTests();
@@ -254,7 +254,7 @@ describe("GET /fisheries/purse-seine", () => {
   it("defaults to species skj when species is omitted", async () => {
     vi.stubGlobal("fetch", stubFetchForYear2021({ skj: 1 }));
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?year=2021");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { species_code: string };
     expect(body.species_code).toBe("skj");
@@ -263,7 +263,7 @@ describe("GET /fisheries/purse-seine", () => {
   it("accepts species=yft", async () => {
     vi.stubGlobal("fetch", stubFetchForYear2021({ yft: 1 }));
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?species=yft&year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?species=yft&year=2021");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { species_code: string };
     expect(body.species_code).toBe("yft");
@@ -272,7 +272,7 @@ describe("GET /fisheries/purse-seine", () => {
   it("accepts species=bet", async () => {
     vi.stubGlobal("fetch", stubFetchForYear2021({ bet: 1 }));
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?species=bet&year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?species=bet&year=2021");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { species_code: string };
     expect(body.species_code).toBe("bet");
@@ -280,7 +280,7 @@ describe("GET /fisheries/purse-seine", () => {
 
   it("returns 400 for species=alb with an explanation, not a fabricated zero", async () => {
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?species=alb&year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?species=alb&year=2021");
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; message: string };
     expect(body.error).toBe("invalid_request");
@@ -290,13 +290,13 @@ describe("GET /fisheries/purse-seine", () => {
 
   it("returns 400 for an unrecognised species", async () => {
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?species=mackerel&year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?species=mackerel&year=2021");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when year is missing", async () => {
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine");
+    const res = await app.request("/fisheries/pacific-purse-seine");
     expect(res.status).toBe(400);
     const body = (await res.json()) as { message: string };
     expect(body.message).toContain("required");
@@ -304,13 +304,13 @@ describe("GET /fisheries/purse-seine", () => {
 
   it("returns 400 for a non-4-digit year", async () => {
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?year=99");
+    const res = await app.request("/fisheries/pacific-purse-seine?year=99");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for a year outside the dataset's covered range", async () => {
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?year=2099");
+    const res = await app.request("/fisheries/pacific-purse-seine?year=2099");
     expect(res.status).toBe(400);
     const body = (await res.json()) as { message: string };
     expect(body.message).toContain("between");
@@ -319,7 +319,7 @@ describe("GET /fisheries/purse-seine", () => {
   it("returns 200 with the purse seine summary and Cache-Control for a valid request", async () => {
     vi.stubGlobal("fetch", stubFetchForYear2021({ skj: 1 }));
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?species=skj&year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?species=skj&year=2021");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
 
@@ -338,16 +338,16 @@ describe("GET /fisheries/purse-seine", () => {
       }),
     );
     const app = buildTestApp();
-    const res = await app.request("/fisheries/purse-seine?species=skj&year=2021");
+    const res = await app.request("/fisheries/pacific-purse-seine?species=skj&year=2021");
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("service_unavailable");
   });
 });
 
-describe("routeSchemas: /fisheries/purse-seine payment gate", () => {
+describe("routeSchemas: /fisheries/pacific-purse-seine payment gate", () => {
   it("is registered as a paid route with the expected Tier 2 price", () => {
-    const route = paidRoutes.find((r) => r.path === "/fisheries/purse-seine" && r.method === "GET");
+    const route = paidRoutes.find((r) => r.path === "/fisheries/pacific-purse-seine" && r.method === "GET");
     expect(route).toBeDefined();
     expect(route?.priceUsdc).toBe(0.05);
     expect(route?.payToAddress).toBeTruthy();
