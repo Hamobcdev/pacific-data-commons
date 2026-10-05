@@ -130,6 +130,17 @@ function buildEndpoints(): ManifestEndpoint[] {
         data_format: "json",
       },
       {
+        path: "/finance/fiji-gdp",
+        full_url: `${DIRECTORY_API_URL}/finance/fiji-gdp`,
+        price_usdc: "0.01",
+        description:
+          "Fiji GDP by industry (FBoS Release No. 62, GDP rebased to 2019 base). Requires ?year= (2019-2024). Industry-level breakdown published only for 2019 — see the response's own detail_level field. Source: Fiji Bureau of Statistics.",
+        category: "financial_flows",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
         path: "/climate/pacific-ocean-temp",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-temp`,
         price_usdc: "0.01",
@@ -205,7 +216,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, and remittance-corridors from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, and remittance-corridors from the discovery manifest",
     );
   }
 
