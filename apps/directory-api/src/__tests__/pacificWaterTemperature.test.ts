@@ -111,7 +111,7 @@ describe("getPacificWaterTemperature", () => {
   });
 });
 
-describe("GET /climate/water-temperature", () => {
+describe("GET /climate/pacific-ocean-temp", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     __resetWaterTemperatureCacheForTests();
@@ -121,7 +121,7 @@ describe("GET /climate/water-temperature", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(NOAA_PAGO_PAGO_RESPONSE)));
 
     const app = buildTestApp();
-    const res = await app.request("/climate/water-temperature");
+    const res = await app.request("/climate/pacific-ocean-temp");
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as { station_id: string };
@@ -130,7 +130,7 @@ describe("GET /climate/water-temperature", () => {
 
   it("returns 400 for an invalid station", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/water-temperature?station=0000000");
+    const res = await app.request("/climate/pacific-ocean-temp?station=0000000");
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("invalid_request");
@@ -140,7 +140,7 @@ describe("GET /climate/water-temperature", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(NOAA_PAGO_PAGO_RESPONSE)));
 
     const app = buildTestApp();
-    const res = await app.request("/climate/water-temperature?station=1770000");
+    const res = await app.request("/climate/pacific-ocean-temp?station=1770000");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=1800");
 
@@ -158,7 +158,7 @@ describe("GET /climate/water-temperature", () => {
     );
 
     const app = buildTestApp();
-    const res = await app.request("/climate/water-temperature?station=1770000");
+    const res = await app.request("/climate/pacific-ocean-temp?station=1770000");
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("service_unavailable");

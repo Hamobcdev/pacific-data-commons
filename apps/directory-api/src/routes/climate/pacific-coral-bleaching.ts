@@ -20,7 +20,7 @@ import type { AppBindings } from "../../types.js";
 //   radius_deg (default 2.0) — bounding box half-width in degrees, 0.1..10
 export const pacificCoralBleachingRoute = new Hono<AppBindings>();
 
-pacificCoralBleachingRoute.get("/climate/coral-bleaching", async (c) => {
+pacificCoralBleachingRoute.get("/climate/pacific-coral-bleaching", async (c) => {
   const latRaw = c.req.query("lat");
   let lat = DEFAULT_LAT;
   if (latRaw !== undefined) {

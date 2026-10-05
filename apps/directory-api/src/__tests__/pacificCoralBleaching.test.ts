@@ -204,7 +204,7 @@ describe("getCoralBleaching", () => {
   });
 });
 
-describe("GET /climate/coral-bleaching", () => {
+describe("GET /climate/pacific-coral-bleaching", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     __resetCoralBleachingCacheForTests();
@@ -213,7 +213,7 @@ describe("GET /climate/coral-bleaching", () => {
   it("defaults to Samoa coordinates when lat/lon/radius_deg are omitted", async () => {
     vi.stubGlobal("fetch", defaultFetchMock());
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching");
+    const res = await app.request("/climate/pacific-coral-bleaching");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { centre_lat: number; centre_lon: number; radius_deg: number };
     expect(body.centre_lat).toBe(-13.759);
@@ -224,7 +224,7 @@ describe("GET /climate/coral-bleaching", () => {
   it("accepts custom lat/lon/radius_deg and reflects them in the response", async () => {
     vi.stubGlobal("fetch", defaultFetchMock());
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?lat=-17.5&lon=177.0&radius_deg=1.5");
+    const res = await app.request("/climate/pacific-coral-bleaching?lat=-17.5&lon=177.0&radius_deg=1.5");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { centre_lat: number; centre_lon: number; radius_deg: number };
     expect(body.centre_lat).toBe(-17.5);
@@ -234,44 +234,44 @@ describe("GET /climate/coral-bleaching", () => {
 
   it("returns 400 for lat above 90", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?lat=95");
+    const res = await app.request("/climate/pacific-coral-bleaching?lat=95");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for lat below -90", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?lat=-95");
+    const res = await app.request("/climate/pacific-coral-bleaching?lat=-95");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for lon out of range", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?lon=185");
+    const res = await app.request("/climate/pacific-coral-bleaching?lon=185");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for radius_deg below 0.1", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?radius_deg=0.05");
+    const res = await app.request("/climate/pacific-coral-bleaching?radius_deg=0.05");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for radius_deg above 10", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?radius_deg=15");
+    const res = await app.request("/climate/pacific-coral-bleaching?radius_deg=15");
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for a non-numeric lat", async () => {
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching?lat=not-a-number");
+    const res = await app.request("/climate/pacific-coral-bleaching?lat=not-a-number");
     expect(res.status).toBe(400);
   });
 
   it("returns 200 with Cache-Control for a valid request", async () => {
     vi.stubGlobal("fetch", defaultFetchMock());
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching");
+    const res = await app.request("/climate/pacific-coral-bleaching");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
   });
@@ -284,16 +284,16 @@ describe("GET /climate/coral-bleaching", () => {
       }),
     );
     const app = buildTestApp();
-    const res = await app.request("/climate/coral-bleaching");
+    const res = await app.request("/climate/pacific-coral-bleaching");
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("bad_gateway");
   });
 });
 
-describe("routeSchemas: /climate/coral-bleaching payment gate", () => {
+describe("routeSchemas: /climate/pacific-coral-bleaching payment gate", () => {
   it("is registered as a paid route with the expected Tier 2 price", () => {
-    const route = paidRoutes.find((r) => r.path === "/climate/coral-bleaching" && r.method === "GET");
+    const route = paidRoutes.find((r) => r.path === "/climate/pacific-coral-bleaching" && r.method === "GET");
     expect(route).toBeDefined();
     expect(route?.priceUsdc).toBe(0.05);
     expect(route?.payToAddress).toBeTruthy();

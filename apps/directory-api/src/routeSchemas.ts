@@ -468,7 +468,7 @@ export const paidRoutes: Array<{
   },
   {
     method: "GET",
-    path: "/climate/water-temperature",
+    path: "/climate/pacific-ocean-temp",
     description:
       "Live water temperature at a NOAA CO-OPS Pacific tide station, sourced from NOAA's Tides & Currents Data Getter API — a primary-source US federal station reading, not a Pacific Island national authority's own instrument, see the response's own attribution field. Optional ?station=, one of 1770000 (Pago Pago, American Samoa) or 1617760 (Honolulu, Hawaii — Pacific reference). Default 1770000. 30-minute cache.",
     priceUsdc: PACIFIC_WATER_TEMPERATURE_PRICE_USDC,
@@ -532,7 +532,7 @@ export const paidRoutes: Array<{
   },
   {
     method: "GET",
-    path: "/climate/ocean-forecast",
+    path: "/climate/pacific-ocean-forecast",
     description:
       "Daily Pacific Ocean surface forecast from the HYCOM GLBy0.08 Global Ocean Model, via Pacific Data Hub THREDDS. DAILY FORECAST MODEL OUTPUT, not instrument readings — data_currency is always \"daily-forecast\", see the response's own forecast_reference_date, valid_time, and attribution fields. Returns mean surface temperature, mean current speed/direction, and mean sea surface elevation for the Pacific Island region (lat -25 to 25, lon 150–220°E), each a stride-sampled regional mean — region_sample_size says how many grid cells contributed. No salinity field: this HYCOM product has no salinity variable. No query params. 6-hour cache.",
     priceUsdc: PACIFIC_OCEAN_FORECAST_PRICE_USDC,
@@ -563,7 +563,7 @@ export const paidRoutes: Array<{
   },
   {
     method: "GET",
-    path: "/climate/coral-bleaching",
+    path: "/climate/pacific-coral-bleaching",
     description:
       "Daily coral bleaching alert levels (0-4) and degree heating weeks for a Pacific reef region, sourced from NOAA Coral Reef Watch's CoralTemp 5km daily satellite product via ERDDAP. data_currency is always \"daily\" — see the response's own observation_date, reporting_lag_note, and attribution fields. Optional ?lat= (default -13.759, Samoa), ?lon= (default -172.104), ?radius_deg= (default 2.0, 0.1–10) define the query region. bleaching_alert_level is the nearest cell NOAA reported data for; max_alert_in_region and mean_dhw are computed across region_sample_size reported cells (missing/land cells excluded, never treated as zero). 24-hour cache.",
     priceUsdc: PACIFIC_CORAL_BLEACHING_PRICE_USDC,
