@@ -18,8 +18,8 @@ export interface CryptoRate {
 
 const KRAKEN_PAIRS: Record<string, string> = {
   ALGO: 'ALGOUSD',
-  BTC:  'XBTUSD',
-  ETH:  'ETHUSD',
+  BTC:  'XXBTZUSD',
+  ETH:  'XETHZUSD',
   XRP:  'XXRPZUSD',
   XLM:  'XXLMZUSD',
   USDC: 'USDCUSD',
