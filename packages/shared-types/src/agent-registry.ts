@@ -19,7 +19,7 @@
 import type { AgentType } from "./agents.js";
 import type { DataCategory } from "./endpoints.js";
 
-export type AgentSlug = "trade" | "climate" | "fisheries" | "agricultural" | "remittance" | "grants";
+export type AgentSlug = "trade" | "climate" | "fisheries" | "agricultural" | "remittance" | "grants" | "financial";
 
 export interface AgentFieldOption {
   value: string;
@@ -58,6 +58,18 @@ export interface AgentCatalogueEntry {
   /** Shown on the marketplace card when the standard markup doesn't apply
    * (e.g. agricultural's subsidised smallholder pricing). */
   note?: string;
+  /**
+   * Informational only — the PDC endpoint paths this agent's domain spans,
+   * shown on the marketplace card. NOT a selection list BaseAgent's
+   * resolveEndpoints() queries from: that method resolves one endpoint per
+   * `categories` entry via directory search (category + optional country),
+   * the same mechanism every agent uses, with no per-path filter. An agent
+   * whose domain spans several endpoints that all share one data_category
+   * (e.g. financial's 8 endpoints, all "financial_flows") will have this
+   * list be longer than `categories` — that's expected, not a sign the two
+   * should match 1:1.
+   */
+  endpoints?: string[];
   fields: AgentCatalogueField[];
 }
 
@@ -231,6 +243,47 @@ export const AGENT_REGISTRY: Record<AgentSlug, AgentCatalogueEntry> = {
       { name: "country", label: "Country", kind: "text", required: true, description: "Pacific nation name", placeholder: "Pacific nation name" },
       { name: "focus_area", label: "Focus area", kind: "text", required: true, description: "e.g. ocean conservation, digital infrastructure, food security", placeholder: "e.g. ocean conservation, digital infrastructure, food security" },
       { name: "data_assets", label: "Data assets", kind: "text", required: false, description: "Optional — what data the institution has that could support an application", placeholder: "Optional — data your institution has that supports an application" },
+    ],
+  },
+  financial: {
+    slug: "financial",
+    agentType: "financial_intelligence",
+    name: "Financial Intelligence Agent",
+    description:
+      "Monitors Pacific GDP, CPI, FX rates, crypto markets, and remittance corridors. Delivers structured briefings on regional economic indicators sourced from national statistics bureaus and live market feeds.",
+    categories: ["financial_flows"],
+    icon: "💹",
+    priceRangeUsdc: [2, 6],
+    markupPct: 20,
+    endpoints: [
+      "/finance/fiji-gdp",
+      "/finance/samoa-gdp",
+      "/finance/samoa-cpi",
+      "/finance/fx",
+      "/finance/crypto-rates",
+      "/finance/crypto-history",
+      "/finance/arbitrage-signals",
+      "/finance/remittance-corridors",
+    ],
+    fields: [
+      {
+        name: "indicator",
+        label: "Indicator focus",
+        kind: "select",
+        required: true,
+        description: "One of: gdp, cpi, fx, crypto, remittance, arbitrage, overview",
+        options: [
+          { value: "gdp", label: "GDP" },
+          { value: "cpi", label: "CPI / inflation" },
+          { value: "fx", label: "FX rates" },
+          { value: "crypto", label: "Crypto markets" },
+          { value: "remittance", label: "Remittance corridors" },
+          { value: "arbitrage", label: "DEX arbitrage" },
+          { value: "overview", label: "Regional overview" },
+        ],
+      },
+      { name: "country", label: "Country", kind: "text", required: false, description: "Optional — Pacific nation name, most relevant for gdp/cpi/remittance indicators", placeholder: "Pacific nation name (optional)" },
+      { name: "time_period", label: "Time period", kind: "text", required: false, description: "Optional — e.g. 2020-2024, defaults to latest available", placeholder: "e.g. 2020-2024 (defaults to latest)" },
     ],
   },
 };

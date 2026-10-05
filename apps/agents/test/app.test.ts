@@ -48,6 +48,7 @@ function emptyAgentMap(): Map<AgentSlug, RunnableAgent | null> {
     ["agricultural", null],
     ["remittance", null],
     ["grants", null],
+    ["financial", null],
   ]);
 }
 
@@ -58,11 +59,11 @@ describe("GET /health, GET /agents", () => {
     expect(res.status).toBe(200);
   });
 
-  it("lists all six agents with registered:false when no agent id is configured", async () => {
+  it("lists all seven agents with registered:false when no agent id is configured", async () => {
     const app = createApp(fakeEnv(), emptyAgentMap());
     const res = await app.request("/agents");
     const body = (await res.json()) as { agents: Array<{ id: string; registered: boolean }> };
-    expect(body.agents).toHaveLength(6);
+    expect(body.agents).toHaveLength(7);
     expect(body.agents.every((a) => a.registered === false)).toBe(true);
   });
 });

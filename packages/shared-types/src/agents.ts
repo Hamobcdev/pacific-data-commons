@@ -14,6 +14,7 @@ export type AgentType =
   | "agricultural_exports"
   | "remittance_navigator"
   | "grant_matcher"
+  | "financial_intelligence"
   | "third_party";
 
 export type AgentVerificationTier = "unverified" | "verified" | "certified";

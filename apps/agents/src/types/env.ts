@@ -58,6 +58,7 @@ const envSchema = z.object({
   AGRICULTURAL_AGENT_ID: z.string().uuid().optional(),
   REMITTANCE_AGENT_ID: z.string().uuid().optional(),
   GRANTS_AGENT_ID: z.string().uuid().optional(),
+  FINANCIAL_AGENT_ID: z.string().uuid().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
