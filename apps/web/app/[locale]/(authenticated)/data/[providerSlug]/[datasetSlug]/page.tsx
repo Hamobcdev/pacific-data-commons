@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrustTierBadge } from "@/components/ui/TrustTierBadge";
 import { ShareButtons } from "@/components/ui/ShareButtons";
+import { EndpointPricingCard } from "@/components/dataset/EndpointPricingCard";
 import { VersionHistoryTimeline } from "@/components/dashboard/VersionHistoryTimeline";
 import { Breadcrumb } from "@/components/nav/Breadcrumb";
 
@@ -77,24 +78,12 @@ export default async function DatasetDetailPage({
         pricePerQuery={`$${lowestPrice.toFixed(2)}`}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pricing</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="divide-y divide-gray-100">
-            {endpoint.pricing_tiers.map((tier) => (
-              <li key={tier.tier} className="flex items-center justify-between py-2">
-                <div>
-                  <p className="font-medium text-navy">{tier.name}</p>
-                  <p className="text-xs text-gray-500">{tier.description}</p>
-                </div>
-                <span className="font-medium text-navy">${tier.price_usdc.toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <EndpointPricingCard
+        endpointTitle={endpoint.title}
+        endpointUrl={endpoint.endpoint_url}
+        payToAddress={process.env.PDC_PILOT_EARNINGS_WALLET ?? null}
+        tiers={endpoint.pricing_tiers}
+      />
 
       <Card>
         <CardHeader>
@@ -115,7 +104,7 @@ export default async function DatasetDetailPage({
         href="/agents"
         className="inline-block rounded-lg bg-ocean px-5 py-2.5 text-sm font-medium text-white hover:bg-ocean/90"
       >
-        Query this dataset
+        Prefer an AI agent to query this for you? Browse the agent marketplace
       </a>
 
       <div>

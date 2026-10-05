@@ -29,6 +29,7 @@ import { fxRoute } from "./routes/finance/fx.js";
 import { samoaCpiRoute } from "./routes/finance/samoa-cpi.js";
 import { samoaGdpRoute } from "./routes/finance/samoa-gdp.js";
 import { fijiGdpRoute } from "./routes/finance/fiji-gdp.js";
+import { fijiCpiRoute } from "./routes/finance/fiji-cpi.js";
 import { pacificOceanTemperatureRoute } from "./routes/climate/ocean-temperature.js";
 import { pacificWaterTemperatureRoute } from "./routes/climate/pacific-ocean-temp.js";
 import { pacificPurseSeineRoute } from "./routes/fisheries/pacific-purse-seine.js";
@@ -36,6 +37,7 @@ import { pacificOceanForecastRoute } from "./routes/climate/pacific-ocean-foreca
 import { pacificCoralBleachingRoute } from "./routes/climate/pacific-coral-bleaching.js";
 import { pacificCycloneHistoryRoute } from "./routes/climate/pacificCycloneHistory.js";
 import { pacificSeaLevelRoute } from "./routes/climate/pacificSeaLevel.js";
+import { pacificEnsoIndexRoute } from "./routes/climate/pacificEnsoIndex.js";
 import { pacificCryptoRatesRoute } from "./routes/finance/crypto-rates.js";
 import { pacificCryptoHistoryRoute } from "./routes/finance/crypto-history.js";
 import { pacificDexArbitrageRoute } from "./routes/finance/arbitrage-signals.js";
@@ -207,6 +209,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", samoaCpiRoute);
   app.route("/", samoaGdpRoute);
   app.route("/", fijiGdpRoute);
+  app.route("/", fijiCpiRoute);
   app.route("/", pacificOceanTemperatureRoute);
   app.route("/", pacificWaterTemperatureRoute);
   app.route("/", pacificPurseSeineRoute);
@@ -214,9 +217,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificCoralBleachingRoute);
   app.route("/", pacificCycloneHistoryRoute);
   app.route("/", pacificSeaLevelRoute);
-  app.route("/", pacificCryptoRatesRoute);
   app.route("/", pacificCryptoHistoryRoute);
-  app.route("/", pacificDexArbitrageRoute);
   app.route("/", pacificRemittanceRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
