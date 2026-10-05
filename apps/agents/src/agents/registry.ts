@@ -15,6 +15,7 @@ import { FisheriesStatusAgent } from "./fisheries.js";
 import { AgriculturalExportsAgent } from "./agricultural.js";
 import { RemittanceNavigatorAgent } from "./remittance.js";
 import { GrantMatcherAgent } from "./grants.js";
+import { FinancialIntelligenceAgent } from "./financial.js";
 
 export type { AgentSlug };
 
@@ -25,6 +26,7 @@ const CREATE_BY_SLUG: Record<AgentSlug, (config: AgentRuntimeConfig) => BaseAgen
   agricultural: (config) => new AgriculturalExportsAgent(config),
   remittance: (config) => new RemittanceNavigatorAgent(config),
   grants: (config) => new GrantMatcherAgent(config),
+  financial: (config) => new FinancialIntelligenceAgent(config),
 };
 
 const AGENT_ID_ENV_BY_SLUG: Record<AgentSlug, (env: Env) => string | undefined> = {
@@ -34,6 +36,7 @@ const AGENT_ID_ENV_BY_SLUG: Record<AgentSlug, (env: Env) => string | undefined> 
   agricultural: (env) => env.AGRICULTURAL_AGENT_ID,
   remittance: (env) => env.REMITTANCE_AGENT_ID,
   grants: (env) => env.GRANTS_AGENT_ID,
+  financial: (env) => env.FINANCIAL_AGENT_ID,
 };
 
 export interface AgentRegistryEntry {
@@ -53,9 +56,9 @@ export interface AgentRegistryEntry {
 }
 
 /**
- * Central list every route in index.ts mounts from — one place all six
+ * Central list every route in index.ts mounts from — one place all seven
  * agents' HTTP-facing metadata lives, so GET /agents, GET /agents/:type,
- * and the six POST routes can never describe a different agent than the
+ * and the seven POST routes can never describe a different agent than the
  * one actually running. The data itself (name/description/categories/price/
  * fields) is sourced from @pdc/shared-types' AGENT_REGISTRY; only the
  * function-valued `create`/`agentIdFromEnv` are local to this service.

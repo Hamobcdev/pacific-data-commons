@@ -2,7 +2,7 @@
 /**
  * PDC Agent Registration Script
  *
- * Inserts all six SBP first-party agents (Section 19) into the `agents`
+ * Inserts all seven SBP first-party agents (Section 19) into the `agents`
  * table. developer_id is left NULL (first-party, not a third-party
  * developer registration), verification_tier is 'certified' (SBP's own
  * agents skip the unverified/verified stages a third-party agent would go
@@ -22,7 +22,8 @@
  *
  * Output: each agent's id — set these as apps/agents/.env's
  * TRADE_AGENT_ID / CLIMATE_AGENT_ID / FISHERIES_AGENT_ID /
- * AGRICULTURAL_AGENT_ID / REMITTANCE_AGENT_ID / GRANTS_AGENT_ID.
+ * AGRICULTURAL_AGENT_ID / REMITTANCE_AGENT_ID / GRANTS_AGENT_ID /
+ * FINANCIAL_AGENT_ID.
  */
 import { createClient } from "@supabase/supabase-js";
 import { getManualPaymentAddress } from "@pdc/x402-adapter";
@@ -81,6 +82,12 @@ const AGENT_SEEDS: AgentSeed[] = [
     agent_name: "Pacific Grant Matcher",
     agent_type: "grant_matcher",
     description: "Match your institution to active Pacific funding programmes.",
+  },
+  {
+    envVarName: "FINANCIAL_AGENT_ID",
+    agent_name: "Financial Intelligence Agent",
+    agent_type: "financial_intelligence",
+    description: "Monitors Pacific GDP, CPI, FX rates, crypto markets, and remittance corridors.",
   },
 ];
 

@@ -61,7 +61,7 @@ describe("GET /.well-known/x402", () => {
     expect(cpiEndpoint?.pay_to).not.toBe(TEST_AVM_ADDRESS); // pilot-earnings wallet, not the main directory wallet
 
     expect(body.agents.marketplace_url).toBe("https://pdc.synergybcpacific.com/en/agents");
-    expect(body.agents.catalogue.length).toBe(6);
+    expect(body.agents.catalogue.length).toBe(7);
   });
 
   it("omits docs and agents.marketplace_url rather than fabricating a domain when WEB_APP_URL isn't set", async () => {

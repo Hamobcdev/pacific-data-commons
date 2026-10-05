@@ -65,7 +65,7 @@ export interface AgentDependencies {
   queryExternalSource: typeof queryExternalSource;
 }
 
-/** Query tier picked for every agent's PDC queries. All six agents query
+/** Query tier picked for every agent's PDC queries. All seven agents query
  * tier 1 (the cheapest/"summary" tier) — the report synthesis needs the
  * verified headline numbers per endpoint, not the raw full dataset. */
 const QUERY_TIER = 1;
@@ -101,7 +101,7 @@ export class SovereigntyBlockedError extends Error {
 }
 
 /**
- * BaseAgent — shared execution pattern for all six PDC first-party agents
+ * BaseAgent — shared execution pattern for all seven PDC first-party agents
  * (Deliverable 1). Concrete agents supply agentType, inputSchema,
  * requiredCategories, and synthesisPrompt; everything else — validation,
  * sovereignty enforcement, dry-run, payment, synthesis, attribution — lives

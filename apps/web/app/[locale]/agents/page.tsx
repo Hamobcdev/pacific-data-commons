@@ -17,13 +17,15 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   { value: "agricultural", label: "Agriculture" },
   { value: "remittance", label: "Remittance" },
   { value: "grants", label: "Grants" },
+  { value: "financial", label: "Financial" },
 ];
 
 /**
  * The full marketplace catalogue (Deliverable 7 — replaces the Session 6.1
  * "coming soon" scaffold). A client component: the filter needs local
- * state and the catalogue is a small static list (six entries), so there's
- * no cost to filtering client-side vs. a server round-trip per filter click.
+ * state and the catalogue is a small static list (seven entries), so
+ * there's no cost to filtering client-side vs. a server round-trip per
+ * filter click.
  */
 export default function AgentsPage() {
   const t = useTranslations("AgentMarketplace");
