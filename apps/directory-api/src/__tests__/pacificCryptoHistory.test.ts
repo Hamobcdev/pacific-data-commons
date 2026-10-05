@@ -6,7 +6,7 @@ import { createFakeKv } from "./testUtils.js";
 import type { AppBindings } from "../types.js";
 import type { Env } from "../lib/env.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
-import type { HistoryPoint } from "../handlers/cronCryptoPriceFetcher.js";
+import type { CryptoRate, HistoryPoint } from "../handlers/cronCryptoPriceFetcher.js";
 
 function buildTestApp(kv?: KVNamespace) {
   const app = new Hono<AppBindings>();
@@ -22,8 +22,19 @@ function buildTestApp(kv?: KVNamespace) {
   return app;
 }
 
-function points(count: number): HistoryPoint[] {
-  return Array.from({ length: count }, (_, i) => ({ t: i * 300_000, p: 0.1 + i * 0.0001 }));
+// history:{symbol} is written by cronCryptoPriceFetcher.ts as CryptoRate[]
+// (see that file + crypto-history.ts's read-side mapping), not
+// HistoryPoint[] directly — these fixtures mirror the real stored shape.
+function rates(count: number): CryptoRate[] {
+  return Array.from({ length: count }, (_, i) => ({
+    symbol: "TEST",
+    price_usd: 0.1 + i * 0.0001,
+    change_24h_pct: 0,
+    volume_24h: 0,
+    market_cap_usd: 0,
+    last_updated: new Date(i * 300_000).toISOString(),
+    source: "kraken",
+  }));
 }
 
 describe("GET /finance/crypto-history", () => {
@@ -46,7 +57,7 @@ describe("GET /finance/crypto-history", () => {
   });
 
   it("defaults to tf=1D and returns all available points, case-insensitive symbol", async () => {
-    const kv = createFakeKv({ "history:ALGO": JSON.stringify(points(50)) });
+    const kv = createFakeKv({ "history:ALGO": JSON.stringify(rates(50)) });
     const app = buildTestApp(kv);
     const res = await app.request("/finance/crypto-history?symbol=algo");
     expect(res.status).toBe(200);
@@ -57,7 +68,7 @@ describe("GET /finance/crypto-history", () => {
   });
 
   it("windows to the last N points per timeframe", async () => {
-    const kv = createFakeKv({ "history:BTC": JSON.stringify(points(288)) });
+    const kv = createFakeKv({ "history:BTC": JSON.stringify(rates(288)) });
     const app = buildTestApp(kv);
 
     const res1h = await app.request("/finance/crypto-history?symbol=BTC&tf=1h");
@@ -68,11 +79,11 @@ describe("GET /finance/crypto-history", () => {
     const body5m = (await res5m.json()) as { points: HistoryPoint[] };
     expect(body5m.points).toHaveLength(1);
     // The most recent point, not the oldest.
-    expect(body5m.points[0]?.t).toBe(287 * 300_000);
+    expect(body5m.points[0]?.t).toBe(new Date(287 * 300_000).toISOString());
   });
 
   it("returns everything available (not a 400) for 1W/1M, with an explanatory note", async () => {
-    const kv = createFakeKv({ "history:ETH": JSON.stringify(points(288)) });
+    const kv = createFakeKv({ "history:ETH": JSON.stringify(rates(288)) });
     const app = buildTestApp(kv);
 
     const res = await app.request("/finance/crypto-history?symbol=ETH&tf=1W");
@@ -83,7 +94,7 @@ describe("GET /finance/crypto-history", () => {
   });
 
   it("returns a null note for ordinary timeframes", async () => {
-    const kv = createFakeKv({ "history:ETH": JSON.stringify(points(10)) });
+    const kv = createFakeKv({ "history:ETH": JSON.stringify(rates(10)) });
     const app = buildTestApp(kv);
     const res = await app.request("/finance/crypto-history?symbol=ETH&tf=1h");
     const body = (await res.json()) as { note: string | null };
@@ -108,7 +119,7 @@ describe("GET /finance/crypto-history", () => {
   });
 
   it("sets Cache-Control for a valid request", async () => {
-    const app = buildTestApp(createFakeKv({ "history:XRP": JSON.stringify(points(3)) }));
+    const app = buildTestApp(createFakeKv({ "history:XRP": JSON.stringify(rates(3)) }));
     const res = await app.request("/finance/crypto-history?symbol=XRP");
     expect(res.headers.get("cache-control")).toBe("public, max-age=60");
   });

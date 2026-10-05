@@ -6,12 +6,12 @@ import {
   __resetCryptoRatesCacheForTests,
   CURATED_TOKEN_IDS,
   COINGECKO_MARKETS_URL,
-  type CryptoPriceCronRecord,
 } from "../services/pacificCryptoRatesService.js";
 import { paidRoutes } from "../routeSchemas.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import { createFakeKv } from "./testUtils.js";
 import type { AppBindings } from "../types.js";
+import type { CryptoRate } from "../handlers/cronCryptoPriceFetcher.js";
 import type { Env } from "../lib/env.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
@@ -202,14 +202,12 @@ describe("getCryptoRatesSnapshot with a KV binding (Cloudflare Workers live feed
     __resetCryptoRatesCacheForTests();
   });
 
-  function cronRecord(overrides: Partial<CryptoPriceCronRecord> = {}): CryptoPriceCronRecord {
+  // The cron writer (handlers/cronCryptoPriceFetcher.ts) writes
+  // "prices:current" as a flat Record<symbol, CryptoRate> — no
+  // {updated_at, source, tokens} wrapper.
+  function cronRecord(overrides: Partial<Record<string, CryptoRate>> = {}): Record<string, CryptoRate> {
     return {
-      updated_at: "2026-10-05T00:05:00.000Z",
-      source: "binance",
-      static_fallback: false,
-      tokens: [
-        { symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.1323, change_24h_pct: 2.5, market_cap_usd: 0, volume_24h_usd: 0, market_cap_rank: null },
-      ],
+      ALGO: { symbol: "ALGO", price_usd: 0.1323, change_24h_pct: 2.5, volume_24h: 0, market_cap_usd: 0, last_updated: "2026-10-05T00:05:00.000Z", source: "kraken" },
       ...overrides,
     };
   }
@@ -241,8 +239,8 @@ describe("getCryptoRatesSnapshot with a KV binding (Cloudflare Workers live feed
     expect(snapshot.tokens.some((t) => t.symbol === "ALGO")).toBe(true);
   });
 
-  it("falls through to the static fallback when prices:current has an empty tokens array", async () => {
-    const kv = createFakeKv({ "prices:current": JSON.stringify(cronRecord({ tokens: [] })) });
+  it("falls through to the static fallback when prices:current is an empty record", async () => {
+    const kv = createFakeKv({ "prices:current": JSON.stringify({}) });
 
     const snapshot = await getCryptoRatesSnapshot(kv);
 
@@ -400,10 +398,7 @@ describe("GET /finance/crypto-rates", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const kv = createFakeKv({
       "prices:current": JSON.stringify({
-        updated_at: "2026-10-05T00:05:00.000Z",
-        source: "binance",
-        static_fallback: false,
-        tokens: [{ symbol: "ALGO", name: "Algorand", coingecko_id: "algorand", price_usd: 0.1323, change_24h_pct: 2.5, market_cap_usd: 0, volume_24h_usd: 0, market_cap_rank: null }],
+        ALGO: { symbol: "ALGO", price_usd: 0.1323, change_24h_pct: 2.5, volume_24h: 0, market_cap_usd: 0, last_updated: "2026-10-05T00:05:00.000Z", source: "kraken" },
       }),
     });
     const app = buildTestApp(kv);
