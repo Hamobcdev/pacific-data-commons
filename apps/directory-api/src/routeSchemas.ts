@@ -175,6 +175,13 @@ const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? P
 const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.05;
 const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// Priced above the other static-bundle first-party rows ($0.05) per this
+// endpoint's own build brief ($0.15) — a multi-station (8 Pacific nations),
+// multi-source (two UHSLC datasets reconciled per station, see
+// scripts/preprocess-sea-level.mjs) monthly aggregate, not a single-value
+// lookup.
+const PACIFIC_SEA_LEVEL_PRICE_USDC = 0.15;
+const PACIFIC_SEA_LEVEL_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 // NOAA PSL MEI.v2 static bundle — same tier/payTo reasoning as
 // PACIFIC_CYCLONE_HISTORY_PRICE_USDC directly above: static reference data,
 // no live upstream refetch, same $0.05 early-adopter floor.
@@ -1153,6 +1160,39 @@ export const paidRoutes: Array<{
   },
   {
     method: "GET",
+    path: "/climate/pacific-sea-level",
+    description:
+      "Pacific sea level monitoring — monthly mean sea level (mm, relative to each station's own local reference datum) for 8 UHSLC tide gauge stations: Apia (WS), Suva (FJ), Nuku'alofa (TO), Port Vila (VU), Honiara (SB), Tarawa/Betio (KI), Funafuti (TV), Port Moresby (PG). Source: University of Hawaii Sea Level Center (UHSLC), NOAA/NCEI co-sponsored — used instead of BoM SEAFRAME, whose licensing could not be confirmed. 7 stations current through July 2026 (preliminary Fast Delivery data); Port Moresby has no current UHSLC feed and is historical only (1991-1993, Research Quality data) — see each record's own data_quality field. Not directly comparable in absolute terms between stations (different local datums). Optional filters: ?station= (name substring), ?nation= (ISO-2 code), ?from=/?to= (YYYY-MM range). 24-hour cache.",
+    priceUsdc: PACIFIC_SEA_LEVEL_PRICE_USDC,
+    payToAddress: PACIFIC_SEA_LEVEL_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nation: "TV", from: "2026-01" },
+      inputSchema: {
+        properties: {
+          station: { type: "string", description: "Station name substring, e.g. Funafuti — optional" },
+          nation: { type: "string", description: "ISO-2 code: WS, FJ, TO, VU, SB, KI, TV, PG — optional" },
+          from: { type: "string", description: "YYYY-MM, inclusive — optional" },
+          to: { type: "string", description: "YYYY-MM, inclusive — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          nation: "TV",
+          country: "Tuvalu",
+          station: "Funafuti",
+          uhslc_id: 25,
+          period: "2026-07",
+          mean_sea_level_mm: 1945.7,
+          days_observed: 29,
+          data_quality: "fast_delivery_preliminary",
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
     path: "/climate/pacific-enso-index",
     description:
       "Pacific ENSO / El Nino index (MEI.v2) — bimonthly values 1979-present, sourced from NOAA PSL's Multivariate ENSO Index v2 (public domain). Positive values indicate El Nino conditions, negative values indicate La Nina. Each record's period approximates its bimonthly season to a single calendar month (e.g. the Dec-Jan DJ season maps to January) — see each record's own season field for the true 2-month window. Optional filters: ?year= (4-digit year), ?from=/?to= (4-digit year range), ?phase= (elnino|lanina|neutral, using the conventional +-0.5 MEI threshold). 24-hour cache. 572 records indexed.",
@@ -1172,11 +1212,11 @@ export const paidRoutes: Array<{
       },
       output: {
         example: {
-          year: 2015,
-          season: "SO",
-          period: "2015-10",
-          value: 2.15,
+          period: "2025-12",
           phase: "elnino",
+          mei_v2: 1.49,
+          anomaly_c: 0.8,
+          season: "2025-12 to 2026-01",
         },
       },
     }),
