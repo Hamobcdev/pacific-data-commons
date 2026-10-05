@@ -127,3 +127,5 @@ export async function cronCryptoPriceFetcher(env: Env): Promise<void> {
   const source = [...rates.values()][0]?.source ?? 'unknown';
   console.info(`[cron_crypto] tick complete — ${rates.size} tokens written (source: ${source})`);
 }
+
+export { cronCryptoPriceFetcher as runCronCryptoPriceFetch };
