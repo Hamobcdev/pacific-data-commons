@@ -154,6 +154,14 @@ const PACIFIC_CORAL_BLEACHING_PRICE_USDC = 0.05;
 // PACIFIC_OCEAN_FORECAST_PAYTO directly above, for the same reason.
 const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// IBTrACS SP cyclone track history — $0.05, PDC_PILOT_EARNINGS_WALLET.
+// Priced at coral-bleaching tier: static reference data with no commercial
+// equivalent for the South Pacific basin. Swiss Re/RMS comparable data costs
+// $0.50-$5.00/location; $0.05 is the early-adopter floor pending institutional
+// buyer validation. Raise on next pricing review (Decision logged below).
+const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.05;
+const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+
 // Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
 // free public API. Tier 1 — a high-volume single-value-per-token price
 // lookup, same tier as the other first-party Tier 1 endpoints above, not
@@ -1045,6 +1053,44 @@ export const paidRoutes: Array<{
           total_sub_payments_usdc: 0.015,
           orchestrated_at: "2026-08-27T00:00:00.000Z",
           run_id: "…",
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/climate/pacific-cyclone-history",
+    description:
+      "Historical tropical cyclone tracks for the South Pacific basin (1960-present), sourced from IBTrACS v04r01 (NOAA/NCEI, public domain). Returns one record per storm with peak wind (kt), minimum pressure (mb), landfall flag, category (TD/C1-C5), and affected Pacific nation codes (FJ, WS, TO, VU, SB, PF, CK, TV, KI). Optional filters: ?season= (4-digit year), ?nation= (ISO-2 code), ?min_category= (td|c1|c2|c3|c4|c5), ?landfall=true, ?limit= (default 100, max 500). 1-hour cache. 851 storms indexed.",
+    priceUsdc: PACIFIC_CYCLONE_HISTORY_PRICE_USDC,
+    payToAddress: PACIFIC_CYCLONE_HISTORY_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nation: "WS", min_category: "c3", limit: 10 },
+      inputSchema: {
+        properties: {
+          season: { type: "number", description: "4-digit season year, e.g. 2024 — optional" },
+          nation: { type: "string", description: "ISO-2 Pacific nation code: FJ, WS, TO, VU, SB, PF, CK, TV, KI — optional" },
+          min_category: { type: "string", description: "Minimum intensity: td | c1 | c2 | c3 | c4 | c5 — optional" },
+          landfall: { type: "string", description: "Pass true to return only storms that made landfall — optional" },
+          limit: { type: "number", description: "Max results, default 100, max 500 — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          id: "2024319S09187",
+          name: "WINSTON",
+          season: 2016,
+          basin: "SP",
+          start: "2016-02-07 06:00:00",
+          end: "2016-02-26 00:00:00",
+          peak_wind_kt: 165,
+          peak_pres_mb: 884,
+          landfall: true,
+          cat: "C5",
+          nations: ["FJ"],
+          points: 74,
         },
       },
     }),
