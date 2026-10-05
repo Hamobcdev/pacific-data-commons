@@ -162,6 +162,12 @@ const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? P
 const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.05;
 const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
 
+// NOAA PSL MEI.v2 static bundle — same tier/payTo reasoning as
+// PACIFIC_CYCLONE_HISTORY_PRICE_USDC directly above: static reference data,
+// no live upstream refetch, same $0.05 early-adopter floor.
+const PACIFIC_ENSO_INDEX_PRICE_USDC = 0.05;
+const PACIFIC_ENSO_INDEX_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+
 // Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
 // free public API. Tier 1 — a high-volume single-value-per-token price
 // lookup, same tier as the other first-party Tier 1 endpoints above, not
@@ -1091,6 +1097,36 @@ export const paidRoutes: Array<{
           cat: "C5",
           nations: ["FJ"],
           points: 74,
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/climate/pacific-enso-index",
+    description:
+      "Pacific ENSO / El Nino index (MEI.v2) — bimonthly values 1979-present, sourced from NOAA PSL's Multivariate ENSO Index v2 (public domain). Positive values indicate El Nino conditions, negative values indicate La Nina. Each record's period approximates its bimonthly season to a single calendar month (e.g. the Dec-Jan DJ season maps to January) — see each record's own season field for the true 2-month window. Optional filters: ?year= (4-digit year), ?from=/?to= (4-digit year range), ?phase= (elnino|lanina|neutral, using the conventional +-0.5 MEI threshold). 24-hour cache. 572 records indexed.",
+    priceUsdc: PACIFIC_ENSO_INDEX_PRICE_USDC,
+    payToAddress: PACIFIC_ENSO_INDEX_PAYTO,
+    discovery: discoveryFor({
+      method: "GET",
+      input: { from: 2015, to: 2016, phase: "elnino" },
+      inputSchema: {
+        properties: {
+          year: { type: "number", description: "4-digit year, e.g. 2015 — optional" },
+          from: { type: "number", description: "4-digit start year, inclusive — optional" },
+          to: { type: "number", description: "4-digit end year, inclusive — optional" },
+          phase: { type: "string", description: "elnino | lanina | neutral — optional" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          year: 2015,
+          season: "SO",
+          period: "2015-10",
+          value: 2.15,
+          phase: "elnino",
         },
       },
     }),
