@@ -217,7 +217,10 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificCoralBleachingRoute);
   app.route("/", pacificCycloneHistoryRoute);
   app.route("/", pacificSeaLevelRoute);
+  app.route("/", pacificEnsoIndexRoute);
   app.route("/", pacificCryptoHistoryRoute);
+  app.route("/", pacificCryptoRatesRoute);
+  app.route("/", pacificDexArbitrageRoute);
   app.route("/", pacificRemittanceRoute);
   app.route("/", pacificBriefRoute);
   app.route("/", pacificEventsRoute);
