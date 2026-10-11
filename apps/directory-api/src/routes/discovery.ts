@@ -28,10 +28,10 @@ async function getActiveEndpointCount(supabase: AppBindings["Variables"]["supaba
  * here can never drift out of sync with what actually gets charged at
  * its direct route. Lists each dataset's own direct GET route (its real
  * priced resource), not the Agent Dataset Gateway's POST
- * /api/v1/datasets/:id/query adapter — that adapter is a single
- * paidRoutes entry shared across every dataset id and is gated by
- * middleware/agentWalletAuth.ts on top of payment, which a generic x402
- * crawler can't satisfy anyway (same reasoning as routeSchemas.ts's own
+ * /api/v1/datasets/<id>/query adapter — even though that adapter now has
+ * its own correctly-priced paidRoutes entry per dataset (Session 4 fix),
+ * every one of those is gated by middleware/agentWalletAuth.ts on top of
+ * payment, which a generic x402 crawler can't satisfy anyway (same reasoning as routeSchemas.ts's own
  * doc comment on that entry).
  */
 function buildPaidEndpoints(directoryApiUrl: string) {

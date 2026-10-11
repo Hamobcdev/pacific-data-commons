@@ -42,7 +42,7 @@ describe("GET /.well-known/x402", () => {
       provider: string;
       network: string;
       caip2: string;
-      endpoints: Array<{ path: string; pay_to: string; category: string }>;
+      endpoints: Array<{ path: string; pay_to: string; category: string; price_usdc: string }>;
       agents: { marketplace_url: string | null; catalogue: Array<{ id: string }> };
       docs: string | null;
     };

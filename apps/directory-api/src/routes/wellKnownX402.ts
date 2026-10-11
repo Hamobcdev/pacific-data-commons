@@ -34,7 +34,10 @@ export const wellKnownX402Route = new Hono<AppBindings>();
  * out of sync with what a dataset's direct route actually charges — see
  * routes/discovery.ts's buildPaidEndpoints() for the identical reasoning
  * (why this lists each dataset's direct GET route, not the Agent Dataset
- * Gateway's single shared-price POST adapter).
+ * Gateway's POST adapter — which now has its own correctly-priced
+ * paidRoutes entry per dataset, Session 4 fix, but every one of those is
+ * gated by requireKnownAgentWallet on top of payment, which a generic
+ * x402 crawler can't satisfy anyway).
  */
 function buildEndpoints(env: AppBindings["Variables"]["env"], publicUrl: string) {
   return [
