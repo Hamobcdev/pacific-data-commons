@@ -292,7 +292,11 @@ class ResumeAction(str, Enum):
     # Layer 2 still run on it before anything else (P9).
     CLAIM_PARTIAL = "CLAIM_PARTIAL"
     RESUME_EXTRACTION = "RESUME_EXTRACTION"  # INGESTED — continue on the existing source
-    ALREADY_PROCESSED = "ALREADY_PROCESSED"  # EXTRACTED or later — nothing to do
+    # DATASET_CREATED or COLLECTION_LINKED — dataset + collection exist; skip all
+    # stages except generate_endpoint (Stage 08). dataset_id and collection_id
+    # are included in the ExistingSource response for the runner to use directly.
+    RESUME_ENDPOINT = "RESUME_ENDPOINT"
+    ALREADY_PROCESSED = "ALREADY_PROCESSED"  # ENDPOINT_GENERATED or later — nothing to do
     SKIPPED_PREVIOUSLY_REJECTED = "SKIPPED_PREVIOUSLY_REJECTED"  # REJECTED / QUARANTINED
     # Ingestion responses only: fresh Layer 2 hash ≠ the source's recorded hash.
     CONTENT_CHANGED = "CONTENT_CHANGED"
@@ -305,6 +309,10 @@ class ExistingSource(_Projection):
     source_id: Optional[UUID] = None
     lifecycle_state: Optional[str] = None
     reason: Optional[str] = None
+    # Populated only for RESUME_ENDPOINT: the existing dataset and collection
+    # IDs the runner passes directly to generate_endpoint (Stage 08).
+    dataset_id: Optional[UUID] = None
+    collection_id: Optional[UUID] = None
 
     @model_validator(mode="after")
     def _source_id_required(self) -> "ExistingSource":
@@ -312,6 +320,10 @@ class ExistingSource(_Projection):
             raise ValueError("CONTENT_CHANGED needs fresh content; it is never a pre-fetch decision")
         if self.action != ResumeAction.NEW and self.source_id is None:
             raise ValueError(f"{self.action.value} requires the existing source_id")
+        if self.action == ResumeAction.RESUME_ENDPOINT and (
+            self.dataset_id is None or self.collection_id is None
+        ):
+            raise ValueError("RESUME_ENDPOINT requires both dataset_id and collection_id")
         return self
 
 

@@ -24,7 +24,12 @@ records LAYER2_FAILED and the source as FAILED_INGESTION.
 Idempotent resume (re-running a corpus needs no DB cleanup):
   1. URL check, before fetching (find_existing_source): the most advanced
      earlier pdqe.sources row for the seed URL decides —
-       EXTRACTED or later   → ALREADY_PROCESSED, nothing fetched
+       ENDPOINT_GENERATED or later → ALREADY_PROCESSED, nothing fetched
+       DATASET_CREATED / COLLECTION_LINKED → RESUME_ENDPOINT: the runner
+                              skips all pipeline stages and calls
+                              generate_endpoint directly, using the
+                              dataset_id and collection_id returned in the
+                              decision; content is never re-fetched
        REJECTED/QUARANTINED → SKIPPED_PREVIOUSLY_REJECTED, nothing fetched
        INGESTED             → resume_ingested on that source: fetch, re-run
                               Layer 1 + Layer 2 (sanitised content is never
@@ -67,6 +72,7 @@ from app.dataset.manager import create_collection, create_dataset, link_dataset_
 from app.dataset.schemas import CollectionCreate
 from app.dataset import supabase_client as dataset_db
 from app.dogfood import supabase_client as db
+from app.endpoint import supabase_client as endpoint_db
 from app.dogfood.fetcher import STRATEGY_DIRECT, FetchResult
 from app.dogfood.schemas import ResumeAction, SeedSource
 from app.endpoint.generator import generate_endpoint
@@ -106,9 +112,12 @@ _SOURCE_TYPES = {
 # pdqe.sources.lifecycle_state groups for idempotent resume.
 _PRE_INGESTED_STATES = frozenset({"DISCOVERED", "SOURCE_REGISTERED", "LICENSE_CHECKED"})
 _INGESTED_STATE = "INGESTED"
+# States where the dataset + collection exist but endpoint generation hasn't run
+# yet (or failed): the runner resumes directly from Stage 08 (generate_endpoint).
+_ENDPOINT_RESUMABLE_STATES = frozenset({"DATASET_CREATED", "COLLECTION_LINKED"})
 _PROCESSED_STATES = frozenset({
     "EXTRACTED", "CLASSIFIED", "QUALIFIED", "VALIDATED", "REVIEW", "APPROVED",
-    "DATASET_CREATED", "COLLECTION_LINKED", "ENDPOINT_GENERATED", "ENDPOINT_VALIDATED",
+    "ENDPOINT_GENERATED", "ENDPOINT_VALIDATED",
     "PROVIDER_APPROVED", "PUBLISHED", "x402_QUERYABLE",
 })
 _REJECTED_STATES = frozenset({"REJECTED", "QUARANTINED"})
@@ -116,10 +125,11 @@ _REJECTED_STATES = frozenset({"REJECTED", "QUARANTINED"})
 # Which earlier row wins when one URL has several (lower = preferred).
 _RESUME_PRIORITY = {
     ResumeAction.ALREADY_PROCESSED: 0,
-    ResumeAction.RESUME_EXTRACTION: 1,
-    ResumeAction.SKIPPED_PREVIOUSLY_REJECTED: 2,
-    ResumeAction.CLAIM_PARTIAL: 3,
-    ResumeAction.NEW: 4,
+    ResumeAction.RESUME_ENDPOINT: 1,
+    ResumeAction.RESUME_EXTRACTION: 2,
+    ResumeAction.SKIPPED_PREVIOUSLY_REJECTED: 3,
+    ResumeAction.CLAIM_PARTIAL: 4,
+    ResumeAction.NEW: 5,
 }
 
 
@@ -134,6 +144,34 @@ def _resume_decision(row: dict) -> dict:
     decision = {"source_id": source_id, "lifecycle_state": state}
     if state in _PROCESSED_STATES:
         return {**decision, "action": ResumeAction.ALREADY_PROCESSED.value}
+    if state in _ENDPOINT_RESUMABLE_STATES:
+        # Dataset + collection exist but endpoint generation hasn't completed.
+        # Look up the dataset and its linked collection so the runner can call
+        # generate_endpoint directly without re-running earlier stages.
+        datasets = dataset_db.list_datasets_for_source(source_id)
+        if not datasets:
+            # No dataset found — treat as ALREADY_PROCESSED (unexpected; Stage 07
+            # may have failed silently). The runner will log the skip.
+            logger.warning(
+                "dogfood: source %s is at %s but has no dataset — treating as ALREADY_PROCESSED",
+                source_id, state,
+            )
+            return {**decision, "action": ResumeAction.ALREADY_PROCESSED.value}
+        dataset_id = str(datasets[0]["dataset_id"])
+        collection_ids = endpoint_db.list_dataset_collection_ids(dataset_id)
+        if not collection_ids:
+            logger.warning(
+                "dogfood: source %s dataset %s is at %s but has no linked collection "
+                "— treating as ALREADY_PROCESSED",
+                source_id, dataset_id, state,
+            )
+            return {**decision, "action": ResumeAction.ALREADY_PROCESSED.value}
+        return {
+            **decision,
+            "action": ResumeAction.RESUME_ENDPOINT.value,
+            "dataset_id": dataset_id,
+            "collection_id": collection_ids[0],
+        }
     if state == _INGESTED_STATE:
         return {**decision, "action": ResumeAction.RESUME_EXTRACTION.value}
     if state in _REJECTED_STATES:
@@ -228,7 +266,18 @@ class DirectPipelineClient:
                 best = decision
         action = ResumeAction(best["action"])
         if action == ResumeAction.ALREADY_PROCESSED:
-            logger.info("dogfood: source already extracted, skipping: %s (%s)", seed.source_url, best["source_id"])
+            logger.info(
+                "dogfood: source at %s, skipping: %s (%s)",
+                best.get("lifecycle_state"), seed.source_url, best["source_id"],
+            )
+        elif action == ResumeAction.RESUME_ENDPOINT:
+            logger.info(
+                "dogfood: source at %s, resuming from endpoint generation "
+                "(dataset=%s collection=%s): %s (%s)",
+                best.get("lifecycle_state"),
+                best.get("dataset_id"), best.get("collection_id"),
+                seed.source_url, best["source_id"],
+            )
         elif action == ResumeAction.RESUME_EXTRACTION:
             logger.info(
                 "dogfood: source already ingested, resuming from extraction: %s (%s)",
