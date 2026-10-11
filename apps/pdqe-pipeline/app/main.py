@@ -14,6 +14,7 @@ Stage history:
   0.10.1 — Stage 10.1: live corpus runner (fetcher, direct pipeline calls,
            DOGFOOD_AUTO_APPROVE guard), /dogfood/review-queue added
   0.10.2 — Stage 02b: Layer 2 content sanitisation implemented (no new routes)
+  0.11.0 — Stage 11 (2/N): external provider registration + source submission
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -40,12 +41,19 @@ Routes:
   POST /dogfood/run                               — Stage 10 corpus run (dry_run=true by default)
   GET  /dogfood/report                            — Stage 10 recent corpus run summaries
   GET  /dogfood/review-queue                      — Stage 10.1 auto-approved sources awaiting human licence review
+  POST /provider/register                         — Stage 11 external provider account (Supabase JWT)
+  POST /ingest/submit                             — Stage 11 external source submission (Supabase JWT)
 
 The /extract, /qualify/*, /validate/*, /review/*, /dataset/*, /collection/*,
 /endpoint/*, /endpoints, /integration/* and /dogfood/* routes require the
 X-PDQE-Review-Key header (see _require_review_key) — they call Claude/Jev,
 expose reviewer evidence, record decisions, and advance a source's lifecycle
 toward publication.
+
+/provider/register and /ingest/submit are called by external providers, not
+SBP operators: they authenticate with the caller's Supabase session
+(Authorization: Bearer <token>, see app.provider.auth) and never take the
+review key.
 """
 
 from __future__ import annotations
@@ -53,9 +61,10 @@ from __future__ import annotations
 import hmac
 import os
 from contextlib import contextmanager
+from typing import Any
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from app.dogfood.runner import (
@@ -101,6 +110,16 @@ from app.integration.schemas import (
     SourceRefInput,
     X402RegistrationResult,
 )
+from app.provider.auth import AuthenticatedUser, require_supabase_user
+from app.provider.errors import ProviderAPIError, provider_api_error_handler
+from app.provider.schemas import (
+    ProviderRegisterRequest,
+    ProviderRegisterResponse,
+    ProviderSourceSubmission,
+    ProviderSourceSubmissionResponse,
+    parse_body,
+)
+from app.provider.service import register_provider, submit_source
 from app.qualification.qualifier import qualify
 from app.qualification.schemas import JevAssessmentOutput
 from app.review.queue import (
@@ -121,7 +140,8 @@ from app.security.layer3_prompt import PromptPayload
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.10.3")
+app = FastAPI(title="PDQE Pipeline", version="0.11.0")
+app.add_exception_handler(ProviderAPIError, provider_api_error_handler)
 
 
 # ── Auth ────────────────────────────────────────────────────────────────────────
@@ -146,7 +166,7 @@ def _require_review_key(x_pdqe_review_key: str | None = Header(default=None)) ->
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "02b-layer2-sanitisation", "version": "0.10.2"}
+    return {"status": "ok", "stage": "11-provider-upload", "version": "0.11.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -844,3 +864,45 @@ def dogfood_review_queue_endpoint() -> list[ReviewQueueEntry]:
         return list_review_queue()
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ── Stage 11 — External providers ──────────────────────────────────────────────
+# Bodies are taken raw and validated by parse_body so a malformed field is a
+# 400 naming that field (an unknown domain is a 422), rather than FastAPI's
+# blanket 422. Errors use the {"error", "message", "field"} shape.
+
+@app.post("/provider/register", response_model=ProviderRegisterResponse)
+def provider_register_endpoint(
+    payload: Any = Body(default=None),
+    user: AuthenticatedUser = Depends(require_supabase_user),
+) -> ProviderRegisterResponse:
+    """
+    Stage 11: create the caller's pdqe.provider_accounts row (plan standard,
+    active). Body: {"verified_wallet": "<58-char Algorand address>"}.
+    provider_id stays NULL until SBP links it after Bronze verification.
+
+    400 invalid wallet · 401 missing/invalid JWT · 409 account already
+    exists for this user · 500 DB error.
+    """
+    return register_provider(user.user_id, parse_body(ProviderRegisterRequest, payload))
+
+
+@app.post("/ingest/submit", response_model=ProviderSourceSubmissionResponse)
+def ingest_submit_endpoint(
+    payload: Any = Body(default=None),
+    user: AuthenticatedUser = Depends(require_supabase_user),
+) -> ProviderSourceSubmissionResponse:
+    """
+    Stage 11: an external provider submits a source. Body: {"source_name",
+    "source_url" (https), "domain", "licence_url"?, "description"?,
+    "file_type"?}. Requires an active pdqe.provider_accounts row.
+
+    The source is registered (internal_pipeline=false, scoped to the
+    caller's provider account) and stops at SOURCE_REGISTERED. The pipeline
+    is NOT triggered: SBP starts Stage 02 by hand from the review queue
+    (P9, Decision 58).
+
+    400 validation failure (names the field) · 401 missing/invalid JWT ·
+    403 no active provider account · 422 unknown domain · 500 DB error.
+    """
+    return submit_source(user.user_id, parse_body(ProviderSourceSubmission, payload))
