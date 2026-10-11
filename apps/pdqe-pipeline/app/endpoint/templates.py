@@ -109,6 +109,11 @@ _DOMAIN_PARAMETERS: dict[DomainClassification, list[dict]] = {
         _YEAR, _COUNTRY,
         _string("topic", "Governance or policy topic."),
     ],
+    DomainClassification.TOURISM: [
+        _YEAR, _COUNTRY,
+        _string("indicator", "Tourism indicator (e.g. visitor_arrivals, tourism_earnings)."),
+        _string("market", "Source market: visitors' country of residence."),
+    ],
 }
 
 _DEFAULT_PARAMETERS: list[dict] = [_YEAR, _COUNTRY]
@@ -164,6 +169,10 @@ _RECORD_FIELDS: dict[DomainClassification, dict[str, dict]] = {
         "source": {"type": "string"},
     },
     DomainClassification.GOVERNANCE: {"topic": {"type": "string"}},
+    DomainClassification.TOURISM: {
+        "indicator": {"type": "string"},
+        "market": {"type": ["string", "null"]},
+    },
 }
 
 _COMMON_RECORD_FIELDS: dict[str, dict] = {

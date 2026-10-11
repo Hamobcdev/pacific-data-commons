@@ -11,6 +11,8 @@ Stage history:
   0.8.0 — Stage 08: endpoint generation endpoints added
   0.9.0 — Stage 09: PDC integration endpoints added
   0.10.0 — Stage 10: internal dogfooding corpus runner endpoints added
+  0.10.1 — Stage 10.1: live corpus runner (fetcher, direct pipeline calls,
+           DOGFOOD_AUTO_APPROVE guard), /dogfood/review-queue added
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -36,6 +38,7 @@ Routes:
   POST /integration/pipeline/{endpoint_id}        — Stage 09 full pipeline (testing; off by default)
   POST /dogfood/run                               — Stage 10 corpus run (dry_run=true by default)
   GET  /dogfood/report                            — Stage 10 recent corpus run summaries
+  GET  /dogfood/review-queue                      — Stage 10.1 auto-approved sources awaiting human licence review
 
 The /review/*, /dataset/*, /collection/*, /endpoint/*, /endpoints and
 /integration/* and /dogfood/* routes require the X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
@@ -53,8 +56,19 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel
 
-from app.dogfood.runner import LiveRunUnavailableError, get_live_pipeline_client, run_corpus
-from app.dogfood.schemas import DogfoodRunInput, DogfoodRunReport, DogfoodRunSummary, resolve_corpus
+from app.dogfood.runner import (
+    LiveRunUnavailableError,
+    get_live_pipeline_client,
+    list_review_queue,
+    run_corpus,
+)
+from app.dogfood.schemas import (
+    DogfoodRunInput,
+    DogfoodRunReport,
+    DogfoodRunSummary,
+    ReviewQueueEntry,
+    resolve_corpus,
+)
 from app.dogfood.supabase_client import MAX_REPORT_PAGE, list_runs
 from app.dataset.manager import (
     create_collection,
@@ -103,14 +117,14 @@ from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.10.0")
+app = FastAPI(title="PDQE Pipeline", version="0.10.1")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "10-internal-dogfooding", "version": "0.10.0"}
+    return {"status": "ok", "stage": "10.1-live-runner", "version": "0.10.1"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -710,8 +724,15 @@ def dogfood_run_endpoint(payload: DogfoodRunInput) -> DogfoodRunReport:
     dry_run defaults to true: seed definitions and the licence gate are
     checked and no pipeline rows are written. The report is recorded in
     pdqe.dogfood_runs only when record_run=true. A live run (dry_run=false)
-    returns HTTP 501 until Stage 01/02 intake routes exist — it never runs
-    Stage 09, so provider approval and publication stay manual gates.
+    fetches each source at runtime and calls Stages 01–08 in-process; it
+    returns HTTP 501 if PDQE_DOGFOOD_OPERATOR_ID is not configured, and HTTP
+    400 if DOGFOOD_AUTO_APPROVE=true outside development/staging. It never
+    runs Stage 09, so provider approval and publication stay manual gates.
+
+    Render env (documentation only — never committed as true):
+      DOGFOOD_AUTO_APPROVE=false      dev-only human-review bypass
+      PDQE_ENVIRONMENT=production     auto-approve honoured only for development/staging
+      PDQE_DOGFOOD_OPERATOR_ID=<uuid> auth.users id recorded as registered_by
 
     An unknown domain is rejected with 422 by DogfoodRunInput.
     """
@@ -749,5 +770,23 @@ def dogfood_report_endpoint(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
         return [DogfoodRunSummary.model_validate(row) for row in list_runs(corpus, limit)]
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get(
+    "/dogfood/review-queue",
+    response_model=list[ReviewQueueEntry],
+    dependencies=[Depends(_require_review_key)],
+)
+def dogfood_review_queue_endpoint() -> list[ReviewQueueEntry]:
+    """
+    Stage 10.1: auto-approved sources (DOGFOOD_AUTO_APPROVE) across all
+    recorded live runs whose licence has not yet been confirmed by a human,
+    newest run first. Each one bypassed human review and needs attention
+    before any of its endpoints can be published.
+    """
+    try:
+        return list_review_queue()
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

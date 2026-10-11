@@ -69,7 +69,7 @@ Return a JSON object with EXACTLY these top-level keys (no others):
 "WEB_PAGE" | "DATABASE_EXPORT" | "OTHER",
   "candidate_domains": array of one or more of "FISHERIES" | "CLIMATE" | \
 "TRADE" | "AGRICULTURE" | "OCEAN" | "ENVIRONMENT" | "ECONOMICS" | \
-"GOVERNANCE" | "HEALTH" | "OTHER",
+"GOVERNANCE" | "HEALTH" | "TOURISM" | "OTHER",
   "geographic_scope": array of strings (country names, regions, ocean areas \
 covered; may be empty []),
 

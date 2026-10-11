@@ -15,6 +15,7 @@ links) — the checks here exist for clear error messages, not enforcement.
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from postgrest import APIError
 
@@ -253,3 +254,16 @@ def call_transition(rpc_name: str, source_id: str, dataset_id: str) -> None:
     except APIError as exc:
         raise ValueError(f"{rpc_name} refused for source {source_id}: {exc}") from exc
     logger.info("%s: source %s dataset %s", rpc_name, source_id, dataset_id)
+
+
+def find_collection_by_name(name: str) -> Optional[dict]:
+    """A pdqe.collections row by its (UNIQUE) name, or None."""
+    client = _get_client()
+    try:
+        response = (
+            client.schema("pdqe").table("collections").select(_COLLECTION_COLUMNS)
+            .eq("name", name).limit(1).execute()
+        )
+    except APIError as exc:
+        raise ValueError(f"Collection {name!r} could not be looked up: {exc}") from exc
+    return response.data[0] if response.data else None
