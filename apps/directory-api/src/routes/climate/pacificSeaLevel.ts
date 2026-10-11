@@ -1,6 +1,6 @@
 import { Hono } from "hono";
+import { querySeaLevel } from "../../services/pacificSeaLevelService.js";
 import type { AppBindings } from "../../types.js";
-import seaLevelData from "../../data/pacific-sea-level-processed.json";
 
 // UHSLC (University of Hawaii Sea Level Center) tide gauge data, NOAA/NCEI
 // co-sponsored — public domain / free-use license. Used instead of BoM
@@ -23,59 +23,21 @@ import seaLevelData from "../../data/pacific-sea-level-processed.json";
 //   nation   — ISO-2 code, e.g. WS, FJ, TO, VU, SB, KI, TV, PG
 //   from     — YYYY-MM, inclusive
 //   to       — YYYY-MM, inclusive
+//
+// Filtering logic lives in services/pacificSeaLevelService.ts so the
+// Agent Dataset Gateway's query adapter can reuse it without a second
+// in-process HTTP round-trip.
 
 export const pacificSeaLevelRoute = new Hono<AppBindings>();
 
-interface SeaLevelRecord {
-  nation: string;
-  country: string;
-  station: string;
-  uhslc_id: number;
-  period: string;
-  mean_sea_level_mm: number;
-  days_observed: number;
-  data_quality: string;
-}
-
 pacificSeaLevelRoute.get("/climate/pacific-sea-level", async (c) => {
-  const station = c.req.query("station")?.toLowerCase();
-  const nation  = c.req.query("nation")?.toUpperCase();
-  const from    = c.req.query("from");
-  const to      = c.req.query("to");
-
-  let records: SeaLevelRecord[] = (seaLevelData as { records: SeaLevelRecord[] }).records;
-
-  if (station) {
-    records = records.filter((r) => r.station.toLowerCase().includes(station));
-  }
-  if (nation) {
-    records = records.filter((r) => r.nation === nation);
-  }
-  if (from) {
-    records = records.filter((r) => r.period >= from);
-  }
-  if (to) {
-    records = records.filter((r) => r.period <= to);
-  }
+  const result = querySeaLevel({
+    station: c.req.query("station"),
+    nation: c.req.query("nation"),
+    from: c.req.query("from"),
+    to: c.req.query("to"),
+  });
 
   c.header("Cache-Control", "public, max-age=86400");
-
-  return c.json({
-    data: records,
-    meta: {
-      total_matching: records.length,
-      source: (seaLevelData as { meta: { source: string } }).meta.source,
-      license: (seaLevelData as { meta: { license: string } }).meta.license,
-      url: (seaLevelData as { meta: { url: string } }).meta.url,
-      note: (seaLevelData as { meta: { note: string } }).meta.note,
-      station_coverage: (seaLevelData as { meta: { station_coverage: string[] } }).meta.station_coverage,
-      data_currency: "monthly",
-      filters_applied: {
-        station: station ?? null,
-        nation:  nation  ?? null,
-        from:    from    ?? null,
-        to:      to      ?? null,
-      },
-    },
-  });
+  return c.json(result);
 });
