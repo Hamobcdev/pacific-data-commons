@@ -37,9 +37,16 @@ from app.endpoint.schemas import (
     EndpointRecord,
     EndpointSpec,
     EndpointStatus,
+    ParameterDefinition,
     PricingTier,
 )
-from app.endpoint.templates import assign_pricing_tier, get_path_template
+from app.endpoint.templates import (
+    assign_pricing_tier,
+    build_query_examples,
+    get_default_parameters,
+    get_default_response_schema,
+    get_path_template,
+)
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -188,6 +195,48 @@ def test_path_starts_with_pacific():
 def test_path_includes_domain_and_slug():
     assert get_path_template("FISHERIES", "samoa-tuna-catch") == "/pacific/fisheries/samoa-tuna-catch"
     assert get_path_template("NONE_OF_THE_ABOVE", "misc-data") == "/pacific/none-of-the-above/misc-data"
+
+
+def test_health_path_template():
+    assert get_path_template("HEALTH", "samoa-immunisation") == "/pacific/health/samoa-immunisation"
+
+
+def test_health_default_parameters_validate():
+    params = get_default_parameters("HEALTH")
+    by_name = {p["name"]: p for p in params}
+    assert by_name["year"]["type"] == "string" and by_name["year"]["required"] is True
+    assert by_name["country"]["type"] == "string" and by_name["country"]["required"] is True
+    assert by_name["indicator_type"]["enum_values"] == [
+        "immunisation", "ncd_prevalence", "maternal_mortality", "hospital_capacity", "other",
+    ]
+    for p in params:
+        ParameterDefinition(**p)
+
+
+def test_health_response_record_shape():
+    record = get_default_response_schema("HEALTH")["properties"]["data"]["items"]["properties"]
+    assert record == {
+        "country": {"type": "string"},
+        "year": {"type": "integer"},
+        "indicator": {"type": "string"},
+        "value": {"type": "number"},
+        "unit": {"type": "string"},
+        "source": {"type": "string"},
+    }
+
+
+def test_health_query_examples_respect_required_params():
+    path = "/pacific/health/samoa-immunisation"
+    params = get_default_parameters("HEALTH")
+    examples = build_query_examples(
+        path, params, {"time_period_end": "2023", "geography_scope": ["Samoa"]}
+    )
+    assert examples == [
+        {"description": "Filtered by country, year", "path": path,
+         "params": {"year": "2023", "country": "Samoa"}},
+    ]
+    # Without a year or geography no example can satisfy the required params.
+    assert build_query_examples(path, params, {}) == []
 
 
 # ── Group 2 — Pricing tier assignment ─────────────────────────────────────────

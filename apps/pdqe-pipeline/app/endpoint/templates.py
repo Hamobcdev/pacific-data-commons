@@ -82,8 +82,28 @@ _DOMAIN_PARAMETERS: dict[DomainClassification, list[dict]] = {
         _string("indicator", "Environmental indicator code or name."),
     ],
     DomainClassification.HEALTH: [
-        _YEAR, _COUNTRY,
-        _string("indicator", "Health indicator code or name."),
+        {
+            "name": "year",
+            "type": "string",
+            "description": "Reporting year (four digits, e.g. \"2024\").",
+            "required": True,
+        },
+        {
+            "name": "country",
+            "type": "string",
+            "description": "Country or territory name, or ISO 3166-1 alpha-2 code, within the dataset's geography scope.",
+            "required": True,
+        },
+        {
+            "name": "indicator_type",
+            "type": "enum",
+            "description": "Health indicator family.",
+            "required": False,
+            "enum_values": [
+                "immunisation", "ncd_prevalence", "maternal_mortality",
+                "hospital_capacity", "other",
+            ],
+        },
     ],
     DomainClassification.GOVERNANCE: [
         _YEAR, _COUNTRY,
@@ -134,7 +154,15 @@ _RECORD_FIELDS: dict[DomainClassification, dict[str, dict]] = {
     DomainClassification.AGRICULTURE: {"commodity": {"type": "string"}},
     DomainClassification.ECONOMICS: {"indicator": {"type": "string"}},
     DomainClassification.ENVIRONMENT: {"indicator": {"type": "string"}},
-    DomainClassification.HEALTH: {"indicator": {"type": "string"}},
+    # HEALTH pins the full record shape: these override _COMMON_RECORD_FIELDS.
+    DomainClassification.HEALTH: {
+        "country": {"type": "string"},
+        "year": {"type": "integer"},
+        "indicator": {"type": "string"},
+        "value": {"type": "number"},
+        "unit": {"type": "string"},
+        "source": {"type": "string"},
+    },
     DomainClassification.GOVERNANCE: {"topic": {"type": "string"}},
 }
 
@@ -211,17 +239,21 @@ def build_query_examples(path: str, parameters: list[dict], dataset: dict) -> li
     Deterministic query examples from the parameter list and the dataset's
     own (human-approved) geography and time period. No free text is invented.
     """
-    names = {p["name"] for p in parameters}
-    examples: list[dict] = [{"description": "All records", "path": path, "params": {}}]
+    by_name = {p["name"]: p for p in parameters}
+    required = {name for name, p in by_name.items() if p.get("required")}
+    examples: list[dict] = []
+    # An unfiltered call is only a valid example when no parameter is required.
+    if not required:
+        examples.append({"description": "All records", "path": path, "params": {}})
 
     params: dict[str, Any] = {}
     year = _year_from(dataset.get("time_period_end")) or _year_from(dataset.get("time_period_start"))
-    if year is not None and "year" in names:
-        params["year"] = year
+    if year is not None and "year" in by_name:
+        params["year"] = str(year) if by_name["year"]["type"] == "string" else year
     geography = dataset.get("geography_scope") or []
-    if geography and "country" in names:
+    if geography and "country" in by_name:
         params["country"] = geography[0]
-    if params:
+    if params and required <= params.keys():
         examples.append({"description": "Filtered by " + ", ".join(sorted(params)), "path": path, "params": params})
     return examples
 
