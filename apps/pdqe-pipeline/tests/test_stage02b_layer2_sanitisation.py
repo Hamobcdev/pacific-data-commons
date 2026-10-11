@@ -12,6 +12,7 @@ Groups:
   8. PDF sanitisation
   9. content_hash
  10. Unknown extension and Layer2Result contract
+ 11. smart_sample — extraction excerpt
 
 Every fixture file is built in memory — no binary fixtures are committed.
 """
@@ -107,9 +108,15 @@ def test_oversized_content_rejected():
 
 
 def test_max_size_boundary_accepted():
-    result = run_layer2(b"a" * MAX_BYTES, "txt")
+    import hashlib as _hashlib
+    raw = b"a" * MAX_BYTES
+    result = run_layer2(raw, "txt")
     assert result.passed
-    assert len(result.sanitised_content) == MAX_BYTES
+    # sanitised_content may be sampled (smart_sample applies MAX_EXTRACTION_CHARS
+    # cap to txt); the result still passes and content_hash is of the FULL content.
+    expected_hash = _hashlib.sha256(raw).hexdigest()
+    assert result.content_hash == expected_hash
+    assert len(result.sanitised_content) <= MAX_BYTES
 
 
 # ── 2. CSV ────────────────────────────────────────────────────────────────────
@@ -344,3 +351,118 @@ def test_passed_false_always_has_rejection_reason(monkeypatch):
         assert not result.passed
         assert isinstance(result.rejection_reason, str) and result.rejection_reason.strip()
         assert result.content_hash is None and result.sanitised_content is None
+
+
+# ── 11. smart_sample ──────────────────────────────────────────────────────────
+
+from app.security.layer2_sanitisation import (
+    smart_sample,
+    _JSON_SAMPLE_ROWS,
+    _CSV_SAMPLE_ROWS,
+    MAX_EXTRACTION_CHARS,
+)
+
+
+def test_json_odata_large_array_is_sampled():
+    """OData-style JSON with >20 value items is sampled to first 20."""
+    records = [{"Id": i, "Value": i * 1.5} for i in range(100)]
+    payload = {"@odata.context": "...", "@odata.count": 100, "value": records}
+    text = json.dumps(payload)
+    excerpt, was_sampled, full_count = smart_sample(text, "json")
+    assert was_sampled is True
+    assert full_count == 100
+    parsed = json.loads(excerpt.split("\n\n", 1)[1])
+    assert len(parsed["value"]) == _JSON_SAMPLE_ROWS
+    assert "[PDQE SAMPLE:" in excerpt
+    assert "100 records" in excerpt
+
+
+def test_json_small_array_not_sampled():
+    """JSON with <=20 items in an array is returned unchanged."""
+    payload = {"value": [{"Id": i} for i in range(5)]}
+    text = json.dumps(payload)
+    excerpt, was_sampled, full_count = smart_sample(text, "json")
+    assert was_sampled is False
+    assert full_count is None
+    assert excerpt == text
+
+
+def test_content_hash_is_of_full_content_not_sampled():
+    """
+    P9 guard: content_hash must be SHA-256 of full sanitised bytes, computed
+    BEFORE smart_sample(). run_layer2() must preserve this invariant even when
+    the returned sanitised_content is a sample.
+    """
+    records = [{"Id": i, "Country": "WSM", "Value": float(i)} for i in range(200)]
+    payload = {"@odata.count": 200, "value": records}
+    raw_json = json.dumps(payload).encode("utf-8")
+
+    result = run_layer2(raw_json, "json")
+    assert result.passed
+    assert result.was_sampled is True
+    assert result.full_record_count == 200
+
+    # The hash stored on the result must equal SHA-256 of the FULL sanitised
+    # content (canonical JSON), not of the sampled excerpt.
+    import hashlib
+    # Re-derive canonical sanitised bytes (sorted keys, no whitespace)
+    canonical = json.dumps(
+        json.loads(raw_json), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).replace("\x00", "").encode("utf-8", errors="replace")
+    expected_hash = hashlib.sha256(canonical).hexdigest()
+    assert result.content_hash == expected_hash, (
+        "content_hash must be of FULL sanitised content, not sampled excerpt"
+    )
+    # Confirm the returned sanitised_content (the sample) is shorter
+    assert len(result.sanitised_content) < len(canonical)
+
+
+def test_csv_large_file_is_sampled():
+    """CSV with >20 data rows is sampled to header + 20 rows."""
+    header = "country,year,value"
+    rows = [f"WSM,{2000 + i},{i * 1.1}" for i in range(100)]
+    text = header + "\n" + "\n".join(rows) + "\n"
+    excerpt, was_sampled, full_count = smart_sample(text, "csv")
+    assert was_sampled is True
+    assert full_count == 100
+    lines = [l for l in excerpt.splitlines() if not l.startswith("#")]
+    # header + _CSV_SAMPLE_ROWS data rows
+    assert len(lines) == 1 + _CSV_SAMPLE_ROWS
+    assert "country" in lines[0]
+    assert "100 data rows" in excerpt
+
+
+def test_csv_small_file_not_sampled():
+    """CSV with <=20 data rows is returned unchanged."""
+    text = "a,b\n1,2\n3,4\n"
+    excerpt, was_sampled, full_count = smart_sample(text, "csv")
+    assert was_sampled is False
+    assert full_count is None
+    assert excerpt == text
+
+
+def test_other_type_hard_cap_applied():
+    """Non-JSON/CSV content exceeding MAX_EXTRACTION_CHARS is hard-capped."""
+    long_text = "x" * (MAX_EXTRACTION_CHARS + 1000)
+    excerpt, was_sampled, full_count = smart_sample(long_text, "txt")
+    assert was_sampled is True
+    assert len(excerpt) == MAX_EXTRACTION_CHARS
+    assert full_count is None
+
+
+def test_other_type_under_cap_not_sampled():
+    """Non-JSON/CSV content under MAX_EXTRACTION_CHARS is returned unchanged."""
+    short_text = "Pacific fisheries data 2024."
+    excerpt, was_sampled, full_count = smart_sample(short_text, "txt")
+    assert was_sampled is False
+    assert full_count is None
+    assert excerpt == short_text
+
+
+def test_smart_sample_never_raises_on_bad_json():
+    """smart_sample must not raise even if text is not valid JSON."""
+    text = "this is not json at all"
+    excerpt, was_sampled, full_count = smart_sample(text, "json")
+    # Falls through to hard cap — since text < MAX_EXTRACTION_CHARS, unchanged
+    assert excerpt == text
+    assert was_sampled is False

@@ -38,10 +38,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "claude-sonnet-4-6"
 
 # Token budget for extraction output.
-# Structured JSON for a Pacific data document fits comfortably in 2 048 tokens.
-# This cap prevents runaway costs from adversarially large documents that
-# somehow passed Layer 1/2 (belt-and-suspenders cost guard).
-MAX_TOKENS = 2048
+# Large API datasets (e.g. WHO GHO OData responses) can produce extraction
+# schemas with many variables and table entries. 4 096 tokens comfortably fits
+# the full ExtractionOutput JSON even for rich multi-variable datasets.
+# Layer 2 now applies smart_sample() before passing content to Stage 03, so
+# the *input* token cost is bounded; this cap guards *output* cost only.
+MAX_TOKENS = 4096
 
 
 @dataclass(frozen=True)

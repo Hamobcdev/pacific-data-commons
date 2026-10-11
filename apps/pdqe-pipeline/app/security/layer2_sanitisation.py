@@ -61,6 +61,15 @@ MAX_ZIP_MEMBERS = 10_000
 
 EMPTY_REASON = "sanitised content is empty — nothing extractable"
 
+# Maximum characters passed to Claude for extraction.
+# Stage 03 needs schema + a sample of records, not entire datasets.
+# For JSON/CSV, smart_sample() produces a structured excerpt; for all other
+# types a hard character cap applies as a safety net only.
+# content_hash is ALWAYS computed from the full sanitised bytes (below).
+MAX_EXTRACTION_CHARS = 80_000
+_JSON_SAMPLE_ROWS = 20
+_CSV_SAMPLE_ROWS = 20
+
 # Characters a spreadsheet application treats as the start of a formula (OWASP
 # CSV injection list: = + - @, plus tab and carriage return).
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
@@ -79,6 +88,10 @@ class Layer2Result:
     content_hash: str | None
     sanitised_content: bytes | None
     rejection_reason: str | None = None
+    # Sampling metadata — populated when smart_sample() truncated the content
+    # for extraction. content_hash is ALWAYS of the full sanitised bytes.
+    was_sampled: bool = False
+    full_record_count: int | None = None
 
 
 class _Rejected(Exception):
@@ -298,6 +311,100 @@ def _sanitise_pdf(raw: bytes) -> str:
     )
 
 
+# ── Smart sampler ─────────────────────────────────────────────────────────────
+# Produces a compact, schema-preserving excerpt for Claude extraction.
+# INVARIANT: content_hash must be computed from the FULL sanitised bytes
+# BEFORE this function is called. This function only affects what Claude sees.
+
+def smart_sample(
+    sanitised_text: str, file_extension: str
+) -> tuple[str, bool, int | None]:
+    """
+    Return (excerpt, was_sampled, full_record_count).
+
+    For JSON: preserve top-level structure; truncate each top-level array to
+    _JSON_SAMPLE_ROWS items; record the full item count (from @odata.count or
+    by counting the array). For CSV: keep header + _CSV_SAMPLE_ROWS data rows;
+    record total row count. For all other types: apply MAX_EXTRACTION_CHARS
+    hard cap only (was_sampled=True if truncated, count=None).
+
+    Never raises — returns the full text unchanged on any parse error so that
+    Stage 03 still receives valid content.
+    """
+    ext = file_extension.strip().lower().lstrip(".")
+
+    if ext == "json":
+        try:
+            value = json.loads(sanitised_text)
+        except (ValueError, TypeError):
+            # Shouldn't happen — Layer 2 already validated JSON — but be safe.
+            pass
+        else:
+            if isinstance(value, dict):
+                # Count items in the first large array we find (OData pattern).
+                full_count: int | None = None
+                sampled = False
+                result = {}
+                for key, val in value.items():
+                    if isinstance(val, list) and len(val) > _JSON_SAMPLE_ROWS:
+                        full_count = (
+                            value.get("@odata.count")
+                            or value.get("count")
+                            or len(val)
+                        )
+                        result[key] = val[:_JSON_SAMPLE_ROWS]
+                        sampled = True
+                    else:
+                        result[key] = val
+                if sampled:
+                    preamble = (
+                        f"[PDQE SAMPLE: dataset contains {full_count} records. "
+                        f"Schema and first {_JSON_SAMPLE_ROWS} records shown "
+                        f"for extraction. Full dataset reference preserved by "
+                        f"content_hash.]\n\n"
+                    )
+                    excerpt = preamble + json.dumps(
+                        result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                    )
+                    return excerpt, True, int(full_count) if full_count is not None else None
+            elif isinstance(value, list) and len(value) > _JSON_SAMPLE_ROWS:
+                full_count = len(value)
+                preamble = (
+                    f"[PDQE SAMPLE: dataset contains {full_count} records. "
+                    f"First {_JSON_SAMPLE_ROWS} shown for extraction.]\n\n"
+                )
+                excerpt = preamble + json.dumps(
+                    value[:_JSON_SAMPLE_ROWS],
+                    sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                )
+                return excerpt, True, full_count
+
+    elif ext == "csv":
+        try:
+            reader = csv.reader(io.StringIO(sanitised_text, newline=""))
+            rows = list(reader)
+        except Exception:  # noqa: BLE001
+            rows = []
+        if rows:
+            total_rows = len(rows) - 1  # subtract header
+            if total_rows > _CSV_SAMPLE_ROWS:
+                sample_rows = rows[:1 + _CSV_SAMPLE_ROWS]  # header + N data rows
+                out = _CsvOut()
+                out.line(
+                    f"# [PDQE SAMPLE: {total_rows} data rows total; "
+                    f"header + first {_CSV_SAMPLE_ROWS} rows shown for extraction]"
+                )
+                for row in sample_rows:
+                    out.row(row)
+                return out.text(), True, total_rows
+
+    # Safety net for all other types: hard character cap.
+    if len(sanitised_text) > MAX_EXTRACTION_CHARS:
+        return sanitised_text[:MAX_EXTRACTION_CHARS], True, None
+
+    return sanitised_text, False, None
+
+
 _SANITISERS: dict[str, Callable[[bytes], str]] = {
     "csv": _sanitise_csv,
     "json": _sanitise_json,
@@ -350,6 +457,31 @@ def run_layer2(raw_content: bytes, file_extension: str) -> Layer2Result:
         logger.warning("layer2: .%s content could not be parsed: %s: %s", ext, type(exc).__name__, exc)
         return _reject(f"could not parse .{ext} content ({type(exc).__name__}): {str(exc)[:200]}")
 
+    # INVARIANT: content_hash is always SHA-256 of the FULL sanitised bytes.
+    # smart_sample() runs AFTER this — it only affects what Claude sees at
+    # Stage 03. The deduplication key is never derived from truncated content.
     content_hash = _sha256_hex(sanitised)
-    logger.info("layer2: passed .%s content (%d → %d bytes, sha256 %s)", ext, len(raw), len(sanitised), content_hash)
-    return Layer2Result(passed=True, content_hash=content_hash, sanitised_content=sanitised)
+    assert content_hash == _sha256_hex(sanitised), (  # belt-and-suspenders
+        "content_hash must be SHA-256 of full sanitised bytes"
+    )
+
+    sanitised_text = sanitised.decode("utf-8", errors="replace")
+    sampled_text, was_sampled, full_record_count = smart_sample(sanitised_text, ext)
+    sampled_bytes = _encode(sampled_text)
+
+    if was_sampled:
+        logger.info(
+            "layer2: smart_sample applied to .%s content "
+            "(%d → %d chars for extraction, full_record_count=%s, sha256 %s)",
+            ext, len(sanitised_text), len(sampled_text), full_record_count, content_hash,
+        )
+    else:
+        logger.info("layer2: passed .%s content (%d → %d bytes, sha256 %s)", ext, len(raw), len(sanitised), content_hash)
+
+    return Layer2Result(
+        passed=True,
+        content_hash=content_hash,
+        sanitised_content=sampled_bytes,
+        was_sampled=was_sampled,
+        full_record_count=full_record_count,
+    )
