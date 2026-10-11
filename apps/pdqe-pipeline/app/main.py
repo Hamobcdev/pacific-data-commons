@@ -5,12 +5,14 @@ Stage history:
   0.2.0 — Stage 02: secure ingestion, Layer 1 pre-check endpoint
   0.3.0 — Stage 03: Claude extraction endpoint added
   0.4.0 — Stage 04: Jev qualification endpoint added
+  0.5.0 — Stage 05: deterministic validation endpoint added
 
 Routes:
   GET  /health              — health check (reports current stage)
   POST /ingest/validate     — Layer 1 pre-check (Stage 02)
   POST /extract             — Stage 03 extraction (Layer 3 → Claude → Layer 4 → Supabase)
   POST /qualify/{source_id} — Stage 04 qualification (Jev → thresholds → Supabase)
+  POST /validate/{source_id} — Stage 05 deterministic validation (validators → routing → Supabase)
 """
 
 from __future__ import annotations
@@ -23,15 +25,17 @@ from app.extraction.extractor import ExtractionRunResult, run_extraction
 from app.qualification.qualifier import qualify
 from app.qualification.schemas import JevAssessmentOutput
 from app.security.layer1_whitelist import Layer1Result, check_layer1
+from app.validation.orchestrator import run_validation
+from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.4.0")
+app = FastAPI(title="PDQE Pipeline", version="0.5.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "04-jev-qualification", "version": "0.4.0"}
+    return {"status": "ok", "stage": "05-deterministic-validation", "version": "0.5.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -211,4 +215,38 @@ async def qualify_endpoint(source_id: str, payload: QualifyRequest) -> JevAssess
         raise HTTPException(
             status_code=500,
             detail=f"Qualification pipeline encountered an unexpected error: {exc}",
+        ) from exc
+
+
+# ── Stage 05 — Deterministic Validation ─────────────────────────────────────────
+
+@app.post("/validate/{source_id}", response_model=ValidationOutput)
+def validate_endpoint(source_id: str) -> ValidationOutput:
+    """
+    Run Stage 05 deterministic validation for a QUALIFIED source.
+
+    Applies the deterministic validators to the source's latest Jev
+    assessment + extraction and advances the lifecycle
+    QUALIFIED → VALIDATED | REVIEW | REJECTED. No model is called.
+
+    Sync handler on purpose: the Supabase client is blocking, so FastAPI runs
+    it in its threadpool instead of on the event loop.
+
+    Raises HTTP 400 if source_id is not a UUID, or the source/assessment/
+    extraction is missing, mismatched, or the source is not QUALIFIED.
+    Raises HTTP 500 on an unexpected validation or DB error.
+    """
+    try:
+        sid = UUID(source_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"source_id is not a valid UUID: {exc}") from exc
+
+    try:
+        return run_validation(sid)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Validation pipeline encountered an unexpected error: {exc}",
         ) from exc
