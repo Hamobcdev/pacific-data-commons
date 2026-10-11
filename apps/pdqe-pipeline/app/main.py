@@ -114,11 +114,13 @@ from app.review.schemas import (
     ReviewQueueItem,
     ReviewRecord,
 )
+from app.extraction.claude_client import call_claude_extraction, ExtractionClientError, ExtractionOutputParseError, get_model
 from app.security.layer1_whitelist import Layer1Result, check_layer1
+from app.security.layer3_prompt import PromptPayload
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.10.2")
+app = FastAPI(title="PDQE Pipeline", version="0.10.3")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
@@ -357,6 +359,45 @@ def _require_review_key(x_pdqe_review_key: str | None = Header(default=None)) ->
         x_pdqe_review_key.encode(), expected.encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid or missing review API key")
+
+
+@app.get(
+    "/debug/claude-ping",
+    dependencies=[Depends(_require_review_key)],
+)
+def debug_claude_ping() -> dict:
+    """
+    Diagnostic: minimal Claude API call returning stop_reason, token counts,
+    model id and response preview. Confirms API key + model are functional on
+    this Render instance. Gated behind X-PDQE-Review-Key. Remove after diagnosis.
+    """
+    ping_prompt = PromptPayload(
+        system_prompt="Return only valid JSON. No prose.",
+        user_prompt='Return exactly this JSON and nothing else: {"ping": "pong"}',
+        template_version="debug-ping-v1",
+    )
+    try:
+        result = call_claude_extraction(ping_prompt)
+        return {
+            "ok": True,
+            "model_id": result.model_id,
+            "stop_reason": result.stop_reason,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
+            "raw_output_preview": str(result.raw_output)[:200],
+        }
+    except ExtractionClientError as exc:
+        return {"ok": False, "error_type": "api_error", "detail": str(exc), "model_configured": get_model()}
+    except ExtractionOutputParseError as exc:
+        return {
+            "ok": False,
+            "error_type": "parse_error",
+            "detail": str(exc),
+            "raw_text_preview": exc.raw_text[:200],
+            "model_configured": get_model(),
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error_type": "unexpected", "detail": str(exc), "model_configured": get_model()}
 
 
 @app.post(
