@@ -7,6 +7,7 @@ Stage history:
   0.4.0 — Stage 04: Jev qualification endpoint added
   0.5.0 — Stage 05: deterministic validation endpoint added
   0.6.0 — Stage 06: human review queue endpoints added
+  0.7.0 — Stage 07: dataset and collection model endpoints added
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -17,10 +18,16 @@ Routes:
   POST /review/enqueue/{source_id} — Stage 06 queue a REVIEW-state source for human review
   POST /review/decide       — Stage 06 record an APPROVED/REJECTED decision (mandatory reason)
   GET  /review/pending      — Stage 06 pending reviews for the reviewer dashboard
+  POST /dataset/create/{source_id}                — Stage 07 dataset from an APPROVED source
+  POST /collection/create                         — Stage 07 create a thematic collection
+  POST /dataset/{dataset_id}/link/{collection_id} — Stage 07 link dataset to collection
+  GET  /dataset/{dataset_id}                      — Stage 07 dataset record
+  GET  /collection/{collection_id}/datasets       — Stage 07 datasets in a collection
 
-The /review/* routes require the X-PDQE-Review-Key header (see
-_require_review_key) — they expose reviewer evidence and record decisions
-that advance a source toward publication.
+The /review/*, /dataset/* and /collection/* routes require the
+X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
+evidence, record decisions, and create the post-approval records that
+advance a source toward publication.
 """
 
 from __future__ import annotations
@@ -32,6 +39,20 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel
 
+from app.dataset.manager import (
+    create_collection,
+    create_dataset,
+    get_dataset,
+    link_dataset_to_collection,
+    list_collection_datasets,
+)
+from app.dataset.schemas import (
+    CollectionCreate,
+    CollectionRecord,
+    DatasetCollectionLink,
+    DatasetCreate,
+    DatasetRecord,
+)
 from app.extraction.extractor import ExtractionRunResult, run_extraction
 from app.qualification.qualifier import qualify
 from app.qualification.schemas import JevAssessmentOutput
@@ -51,14 +72,14 @@ from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.6.0")
+app = FastAPI(title="PDQE Pipeline", version="0.7.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "06-human-review", "version": "0.6.0"}
+    return {"status": "ok", "stage": "07-dataset-collection", "version": "0.7.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -362,3 +383,114 @@ def list_pending_endpoint(
         return list_pending_reviews(limit)
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ── Stage 07 — Dataset and Collection Model ────────────────────────────────────
+
+def _parse_uuid(value: str, name: str) -> UUID:
+    try:
+        return UUID(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"{name} is not a valid UUID: {exc}") from exc
+
+
+@app.post(
+    "/dataset/create/{source_id}",
+    response_model=DatasetRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def create_dataset_endpoint(
+    source_id: str, payload: DatasetCreate | None = None
+) -> DatasetRecord:
+    """
+    Stage 07: create a dataset from an APPROVED source and advance it to
+    DATASET_CREATED.
+
+    Body is optional. Without one, every field is derived from the source,
+    its approving validation, Jev assessment and extraction. With one
+    (DatasetCreate), its descriptive fields replace the derived ones; its
+    source_id must match the path. Provenance (source_ids, extraction_ids,
+    domain, licence_status) is always derived, never taken from the body.
+
+    Raises HTTP 400 if the source is missing or not APPROVED, its licence is
+    UNKNOWN/EXCLUDED, or the provenance chain is incomplete.
+    """
+    sid = _parse_uuid(source_id, "source_id")
+    try:
+        return create_dataset(sid, overrides=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Dataset creation encountered an unexpected error: {exc}",
+        ) from exc
+
+
+@app.post(
+    "/collection/create",
+    response_model=CollectionRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def create_collection_endpoint(payload: CollectionCreate) -> CollectionRecord:
+    """Stage 07: create a thematic collection. HTTP 400 on a duplicate name."""
+    try:
+        return create_collection(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Collection creation encountered an unexpected error: {exc}",
+        ) from exc
+
+
+@app.post(
+    "/dataset/{dataset_id}/link/{collection_id}",
+    response_model=DatasetCollectionLink,
+    dependencies=[Depends(_require_review_key)],
+)
+def link_dataset_endpoint(dataset_id: str, collection_id: str) -> DatasetCollectionLink:
+    """
+    Stage 07: link a dataset to a collection (idempotent). The first link
+    advances the source DATASET_CREATED → COLLECTION_LINKED.
+    """
+    did = _parse_uuid(dataset_id, "dataset_id")
+    cid = _parse_uuid(collection_id, "collection_id")
+    try:
+        return link_dataset_to_collection(did, cid)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Dataset linking encountered an unexpected error: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/dataset/{dataset_id}",
+    response_model=DatasetRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def get_dataset_endpoint(dataset_id: str) -> DatasetRecord:
+    """Stage 07: one dataset record. HTTP 404 if it does not exist."""
+    did = _parse_uuid(dataset_id, "dataset_id")
+    try:
+        return get_dataset(did)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get(
+    "/collection/{collection_id}/datasets",
+    response_model=list[DatasetRecord],
+    dependencies=[Depends(_require_review_key)],
+)
+def list_collection_datasets_endpoint(collection_id: str) -> list[DatasetRecord]:
+    """Stage 07: datasets linked to a collection. HTTP 404 if the collection does not exist."""
+    cid = _parse_uuid(collection_id, "collection_id")
+    try:
+        return list_collection_datasets(cid)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
