@@ -24,6 +24,7 @@ from pydantic import ValidationError
 from app.endpoint.generator import compute_endpoint_hash
 from app.endpoint.schemas import TIER_PRICES, EndpointRecord, EndpointStatus
 from app.integration import supabase_client as db
+from app.integration.auto_canary import schedule_auto_canary
 from app.integration.schemas import ProviderApprovalInput
 
 logger = logging.getLogger(__name__)
@@ -133,4 +134,12 @@ def publish_endpoint(
     if updated.status != EndpointStatus.PUBLISHED:
         raise RuntimeError(f"Endpoint {endpoint_id} read back as {updated.status.value}, expected PUBLISHED")
     logger.info("Endpoint %s published at %s", endpoint_id, updated.path)
+
+    # Stage 11: best-effort canary payment so GoPlausible lists the endpoint
+    # on first settlement. Publication is already committed; this must never
+    # block or fail it.
+    try:
+        schedule_auto_canary(updated)
+    except Exception:  # noqa: BLE001
+        logger.warning("Auto-canary scheduling failed for endpoint %s", endpoint_id, exc_info=True)
     return updated
