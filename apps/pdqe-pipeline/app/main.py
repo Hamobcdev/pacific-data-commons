@@ -41,10 +41,11 @@ Routes:
   GET  /dogfood/report                            — Stage 10 recent corpus run summaries
   GET  /dogfood/review-queue                      — Stage 10.1 auto-approved sources awaiting human licence review
 
-The /review/*, /dataset/*, /collection/*, /endpoint/*, /endpoints and
-/integration/* and /dogfood/* routes require the X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
-evidence, record decisions, and create the post-approval records that
-advance a source toward publication.
+The /extract, /qualify/*, /validate/*, /review/*, /dataset/*, /collection/*,
+/endpoint/*, /endpoints, /integration/* and /dogfood/* routes require the
+X-PDQE-Review-Key header (see _require_review_key) — they call Claude/Jev,
+expose reviewer evidence, record decisions, and advance a source's lifecycle
+toward publication.
 """
 
 from __future__ import annotations
@@ -121,6 +122,24 @@ from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
 app = FastAPI(title="PDQE Pipeline", version="0.10.3")
+
+
+# ── Auth ────────────────────────────────────────────────────────────────────────
+
+def _require_review_key(x_pdqe_review_key: str | None = Header(default=None)) -> None:
+    """
+    Shared-secret guard for every state-changing or evidence-exposing route
+    (all but /health and /ingest/validate). Fails closed: if
+    PDQE_REVIEW_API_KEY is not configured the routes return 503 rather than
+    running unauthenticated. Constant-time comparison.
+    """
+    expected = os.environ.get("PDQE_REVIEW_API_KEY")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Review API is not configured")
+    if not x_pdqe_review_key or not hmac.compare_digest(
+        x_pdqe_review_key.encode(), expected.encode()
+    ):
+        raise HTTPException(status_code=401, detail="Invalid or missing review API key")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
@@ -230,7 +249,7 @@ def _build_status(result: ExtractionRunResult) -> str:
     return "VALIDATED" if result.validation_result.passed else "REJECTED"
 
 
-@app.post("/extract", response_model=ExtractResponse)
+@app.post("/extract", response_model=ExtractResponse, dependencies=[Depends(_require_review_key)])
 def extract(payload: ExtractRequest) -> ExtractResponse:
     """
     Run Stage 03 extraction for one ingestion event.
@@ -280,7 +299,11 @@ class QualifyRequest(BaseModel):
     extraction_id: str
 
 
-@app.post("/qualify/{source_id}", response_model=JevAssessmentOutput)
+@app.post(
+    "/qualify/{source_id}",
+    response_model=JevAssessmentOutput,
+    dependencies=[Depends(_require_review_key)],
+)
 async def qualify_endpoint(source_id: str, payload: QualifyRequest) -> JevAssessmentOutput:
     """
     Run Stage 04 Jev qualification for a validated extraction.
@@ -312,7 +335,11 @@ async def qualify_endpoint(source_id: str, payload: QualifyRequest) -> JevAssess
 
 # ── Stage 05 — Deterministic Validation ─────────────────────────────────────────
 
-@app.post("/validate/{source_id}", response_model=ValidationOutput)
+@app.post(
+    "/validate/{source_id}",
+    response_model=ValidationOutput,
+    dependencies=[Depends(_require_review_key)],
+)
 def validate_endpoint(source_id: str) -> ValidationOutput:
     """
     Run Stage 05 deterministic validation for a QUALIFIED source.
@@ -345,21 +372,6 @@ def validate_endpoint(source_id: str) -> ValidationOutput:
 
 
 # ── Stage 06 — Human Review ─────────────────────────────────────────────────────
-
-def _require_review_key(x_pdqe_review_key: str | None = Header(default=None)) -> None:
-    """
-    Shared-secret guard for the /review/* routes. Fails closed: if
-    PDQE_REVIEW_API_KEY is not configured the routes return 503 rather than
-    running unauthenticated. Constant-time comparison.
-    """
-    expected = os.environ.get("PDQE_REVIEW_API_KEY")
-    if not expected:
-        raise HTTPException(status_code=503, detail="Review API is not configured")
-    if not x_pdqe_review_key or not hmac.compare_digest(
-        x_pdqe_review_key.encode(), expected.encode()
-    ):
-        raise HTTPException(status_code=401, detail="Invalid or missing review API key")
-
 
 @app.get(
     "/debug/claude-ping",
