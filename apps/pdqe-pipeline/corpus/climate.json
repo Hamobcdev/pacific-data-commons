@@ -1,0 +1,88 @@
+[
+  {
+    "source_url": "https://www.pacificclimatechange.net/",
+    "title": "SPREP Pacific Climate Change Portal",
+    "description": "SPREP-hosted portal of Pacific climate change projects, data and country resources.",
+    "domain": "CLIMATE",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Regional climate knowledge hub. Hosts third-party material with mixed rights; no single portal-wide licence confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "http://www.bom.gov.au/climate/pccsp/",
+    "title": "Pacific Climate Change Science and Adaptation Planning (PCCSP) Climate Projections",
+    "description": "Country-level climate projections and observed trends for Pacific partner countries.",
+    "domain": "CLIMATE",
+    "geography_scope": [
+      "FJI",
+      "WSM",
+      "TON",
+      "VUT",
+      "PNG",
+      "SLB",
+      "KIR",
+      "TUV",
+      "NRU",
+      "PLW",
+      "FSM",
+      "MHL",
+      "COK",
+      "NIU",
+      "TLS"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Authoritative projection set for Pacific adaptation planning. Australian Government copyright; reuse terms not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "http://www.bom.gov.au/oceanography/projects/spslcmp/",
+    "title": "Pacific Sea Level and Geodetic Monitoring (SEAFRAME) Tide Gauge Network",
+    "description": "Hourly and monthly sea level, air/water temperature and pressure from SEAFRAME stations across Pacific Island countries.",
+    "domain": "CLIMATE",
+    "geography_scope": [
+      "FJI",
+      "WSM",
+      "TON",
+      "VUT",
+      "PNG",
+      "SLB",
+      "KIR",
+      "TUV",
+      "NRU",
+      "FSM",
+      "MHL",
+      "COK"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Long-running Pacific sea level record; complements the existing /pacific sea level endpoint. Reuse terms not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://oscar.wmo.int/surface/",
+    "title": "WMO OSCAR/Surface — Pacific Observing Station Metadata",
+    "description": "WMO station registry metadata for Pacific Island synoptic and climate stations.",
+    "domain": "CLIMATE",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Station metadata layer for WMO Pacific station data. WMO data policy (Resolution 1) governs exchange, not commercial resale. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php",
+    "title": "NOAA Oceanic Niño Index (ONI)",
+    "description": "Three-month running mean SST anomalies in the Niño 3.4 region, the operational ENSO index.",
+    "domain": "CLIMATE",
+    "geography_scope": [
+      "GLOBAL",
+      "PACIFIC"
+    ],
+    "licence_status": "CLEAR",
+    "licence_url": "https://www.weather.gov/disclaimer",
+    "notes": "US federal government work (public domain). Control case for a CLEAR licence path; already wrapped by the /pacific ENSO endpoint. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  }
+]

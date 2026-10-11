@@ -1,0 +1,83 @@
+[
+  {
+    "source_url": "https://www.wcpfc.int/public-domain",
+    "title": "WCPFC Public Domain Catch and Effort Data",
+    "description": "Aggregated tuna catch and effort data for the Western and Central Pacific Ocean, published by the Western and Central Pacific Fisheries Commission.",
+    "domain": "FISHERIES",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "REVIEW_REQUIRED",
+    "licence_url": "https://www.wcpfc.int/public-domain",
+    "notes": "Core regional tuna dataset. Release is governed by WCPFC's Rules for Public Domain Data (aggregation and attribution conditions), so commercial reuse needs human sign-off. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://oceanfish.spc.int/",
+    "title": "SPC Oceanic Fisheries Programme — Tuna Fishery Yearbook and Stock Assessments",
+    "description": "SPC Oceanic Fisheries Programme statistics and stock assessment outputs for skipjack, yellowfin, bigeye and albacore.",
+    "domain": "FISHERIES",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Primary scientific provider for WCPO tuna. No explicit reuse licence identified for the data products. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.ffa.int/",
+    "title": "FFA Tuna Economic and Development Indicators",
+    "description": "Pacific Islands Forum Fisheries Agency indicators on tuna catch value, licence revenue, employment and onshore processing for member states.",
+    "domain": "FISHERIES",
+    "geography_scope": [
+      "FJI",
+      "WSM",
+      "TON",
+      "VUT",
+      "PNG",
+      "SLB",
+      "KIR",
+      "FSM",
+      "MHL",
+      "TUV",
+      "NRU",
+      "PLW",
+      "COK",
+      "NIU",
+      "TKL"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Economic dimension of the fishery that SPC catch data lacks. Reuse rights not explicitly stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://fame.spc.int/",
+    "title": "SPC FAME Coastal Fisheries Data",
+    "description": "SPC Fisheries, Aquaculture and Marine Ecosystems division coastal and reef fisheries monitoring data and reports.",
+    "domain": "FISHERIES",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Coastal fisheries are the food-security half of Pacific fisheries. Check any community-sourced survey data for customary-rights content (would be EXCLUDED). URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.fao.org/fishery/en/statistics",
+    "title": "FAO Global Fishery and Aquaculture Production Statistics — Pacific Members",
+    "description": "FAO FishStat capture and aquaculture production series, filtered to Pacific Island member countries.",
+    "domain": "FISHERIES",
+    "geography_scope": [
+      "FJI",
+      "WSM",
+      "TON",
+      "VUT",
+      "PNG",
+      "SLB",
+      "KIR",
+      "FSM"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": "https://www.fao.org/contact-us/terms/db-terms-of-use/en",
+    "notes": "Global baseline for cross-checking regional series. FAO database terms of use apply; licence not confirmed for commercial resale, so left UNKNOWN. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  }
+]

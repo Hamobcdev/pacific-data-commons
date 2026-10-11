@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "Corpus": {
+      "enum": [
+        "FISHERIES",
+        "CLIMATE",
+        "TRADE",
+        "TOURISM",
+        "HEALTH"
+      ],
+      "title": "Corpus",
+      "type": "string"
+    },
+    "DomainClassification": {
+      "enum": [
+        "FISHERIES",
+        "CLIMATE",
+        "TRADE",
+        "AGRICULTURE",
+        "OCEAN",
+        "ENVIRONMENT",
+        "ECONOMICS",
+        "GOVERNANCE",
+        "HEALTH",
+        "OTHER",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "DomainClassification",
+      "type": "string"
+    },
+    "LicenceStatus": {
+      "description": "Mirrors pdqe.licence_status in the live DB (no COMMERCIAL value exists).",
+      "enum": [
+        "UNKNOWN",
+        "CLEAR",
+        "REVIEW_REQUIRED",
+        "RESTRICTED",
+        "EXCLUDED"
+      ],
+      "title": "LicenceStatus",
+      "type": "string"
+    },
+    "RunOutcome": {
+      "enum": [
+        "SUCCESS",
+        "FAILED_INGESTION",
+        "FAILED_EXTRACTION",
+        "FAILED_QUALIFICATION",
+        "FAILED_VALIDATION",
+        "FAILED_DATASET",
+        "FAILED_ENDPOINT",
+        "ROUTED_TO_REVIEW",
+        "LICENCE_BLOCKED",
+        "DRY_RUN_PASS"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    },
+    "SourceRunResult": {
+      "additionalProperties": false,
+      "properties": {
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "domain": {
+          "$ref": "#/$defs/DomainClassification"
+        },
+        "outcome": {
+          "$ref": "#/$defs/RunOutcome"
+        },
+        "stage_reached": {
+          "title": "Stage Reached",
+          "type": "string"
+        },
+        "licence_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LicenceStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        }
+      },
+      "required": [
+        "source_url",
+        "title",
+        "domain",
+        "outcome",
+        "stage_reached"
+      ],
+      "title": "SourceRunResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "run_label": {
+      "title": "Run Label",
+      "type": "string"
+    },
+    "domain": {
+      "title": "Domain",
+      "type": "string"
+    },
+    "corpus": {
+      "$ref": "#/$defs/Corpus"
+    },
+    "dry_run": {
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "sources_attempted": {
+      "minimum": 0,
+      "title": "Sources Attempted",
+      "type": "integer"
+    },
+    "sources_succeeded": {
+      "minimum": 0,
+      "title": "Sources Succeeded",
+      "type": "integer"
+    },
+    "sources_failed": {
+      "minimum": 0,
+      "title": "Sources Failed",
+      "type": "integer"
+    },
+    "sources_routed_to_review": {
+      "minimum": 0,
+      "title": "Sources Routed To Review",
+      "type": "integer"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/SourceRunResult"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "failure_modes": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Failure Modes",
+      "type": "array"
+    },
+    "licence_outcomes": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Licence Outcomes",
+      "type": "object"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Completed At"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    }
+  },
+  "required": [
+    "run_label",
+    "domain",
+    "corpus",
+    "dry_run",
+    "sources_attempted",
+    "sources_succeeded",
+    "sources_failed",
+    "sources_routed_to_review",
+    "results",
+    "failure_modes",
+    "licence_outcomes",
+    "started_at"
+  ],
+  "title": "DogfoodRunReport",
+  "type": "object"
+}
