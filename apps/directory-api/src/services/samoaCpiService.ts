@@ -22,6 +22,8 @@
 // fallback numbers for real economic data — unlike fxRateService's static
 // fallback rates, a wrong CPI figure is not an acceptable degradation).
 
+import { ValidationError } from "../lib/errors.js";
+
 const FETCH_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -119,6 +121,21 @@ async function fetchFreshCpi(years: number): Promise<SamoaCpiResult> {
     fetched_at: new Date().toISOString(),
     attribution: SOURCE_ATTRIBUTION,
   };
+}
+
+/**
+ * Shared bounds check for the `years` input, used by both samoaCpiRoute
+ * (query string) and the Agent Dataset Gateway's /api/v1/datasets/samoa-cpi/query
+ * adapter (request body) — one place to keep the 1-60 bound in sync across
+ * both callers.
+ */
+export function parseYearsParam(raw: string | number | undefined): number {
+  if (raw === undefined) return 15;
+  const years = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isInteger(years) || years < 1 || years > 60) {
+    throw new ValidationError("years must be an integer between 1 and 60");
+  }
+  return years;
 }
 
 /** years: how many most-recent non-empty observations to return (World Bank's own mrnev param). Default 15 — enough for a useful trend without an unbounded payload. */

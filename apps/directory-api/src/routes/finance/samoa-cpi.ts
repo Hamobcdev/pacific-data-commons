@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import { getSamoaCpi } from "../../services/samoaCpiService.js";
-import { ValidationError } from "../../lib/errors.js";
+import { getSamoaCpi, parseYearsParam } from "../../services/samoaCpiService.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 1 / $0.01, Decisions 59/60 — a
@@ -10,14 +9,7 @@ import type { AppBindings } from "../../types.js";
 export const samoaCpiRoute = new Hono<AppBindings>();
 
 samoaCpiRoute.get("/finance/samoa-cpi", async (c) => {
-  const yearsParam = c.req.query("years");
-  let years = 15;
-  if (yearsParam !== undefined) {
-    years = Number(yearsParam);
-    if (!Number.isInteger(years) || years < 1 || years > 60) {
-      throw new ValidationError("years must be an integer between 1 and 60");
-    }
-  }
+  const years = parseYearsParam(c.req.query("years"));
 
   const result = await getSamoaCpi(years);
 

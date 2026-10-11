@@ -46,6 +46,7 @@ import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
 import { pacificTravelRoute } from "./routes/intelligence/pacific-travel.js";
+import { agentDatasetGatewayRoute } from "./routes/agentDatasetGateway.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
@@ -226,6 +227,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);
   app.route("/", pacificTravelRoute);
+  app.route("/", agentDatasetGatewayRoute);
 
   // /api/data/* -> canonical route aliases — see API_DATA_ROUTE_ALIASES'
   // doc comment above for why this is a redirect, not a route alias

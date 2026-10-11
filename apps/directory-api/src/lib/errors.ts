@@ -22,3 +22,15 @@ export class ValidationError extends AppError {
     super(400, "invalid_request", message);
   }
 }
+
+export class ForbiddenError extends AppError {
+  constructor(message = "Forbidden") {
+    super(403, "forbidden", message);
+  }
+}
+
+export class NotImplementedError extends AppError {
+  constructor(message = "Not implemented") {
+    super(501, "not_implemented", message);
+  }
+}
