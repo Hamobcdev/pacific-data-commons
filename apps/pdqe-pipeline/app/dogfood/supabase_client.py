@@ -210,7 +210,7 @@ def set_source_content_hash(source_id: str, content_hash: str) -> None:
 
 # ── Stage 10.1 — idempotent resume lookups ────────────────────────────────────
 
-_SOURCE_STATE_COLUMNS = "source_id, lifecycle_state, content_hash, created_at"
+_SOURCE_STATE_COLUMNS = "source_id, source_url, lifecycle_state, content_hash, created_at"
 
 
 def find_sources_by_url(source_url: str) -> list[dict]:

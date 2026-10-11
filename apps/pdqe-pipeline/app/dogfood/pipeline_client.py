@@ -30,10 +30,20 @@ Idempotent resume (re-running a corpus needs no DB cleanup):
                               Layer 1 + Layer 2 (sanitised content is never
                               persisted, so it cannot be read back), require the
                               same content hash, then extract
-       pre-INGESTED partial → ignored; normal register + ingest path
+       pre-INGESTED partial → claim_partial on that row (claim-and-continue):
+                              fetch, re-run Layer 1 + Layer 2 on it, and if it
+                              already recorded a hash require the same one;
+                              then INGESTED and extract on the claimed row
+     Whenever a fresh Layer 2 hash differs from the hash a source recorded,
+     the result is CONTENT_CHANGED (a declared dataset update is needed).
   2. content_hash check, after Layer 2 (ingest): a UNIQUE violation on
      pdqe.sources.content_hash marks this run's new registration REJECTED as
-     a duplicate and resumes the source that owns the hash, by the same rules.
+     a duplicate and continues with the source that owns the hash, by the
+     same rules. A pre-INGESTED owner of the same URL is a retry and is
+     claimed; one of a different URL is genuinely identical content from
+     another source → ALREADY_PROCESSED.
+
+Layer 2 is never skipped on any path that reaches extraction (P9).
 
 The DB still refuses LICENSE_CHECKED → INGESTED for an UNKNOWN licence and any advance for an
 EXCLUDED one — this module relies on those rules rather than re-deciding them.
@@ -108,7 +118,8 @@ _RESUME_PRIORITY = {
     ResumeAction.ALREADY_PROCESSED: 0,
     ResumeAction.RESUME_EXTRACTION: 1,
     ResumeAction.SKIPPED_PREVIOUSLY_REJECTED: 2,
-    ResumeAction.NEW: 3,
+    ResumeAction.CLAIM_PARTIAL: 3,
+    ResumeAction.NEW: 4,
 }
 
 
@@ -130,9 +141,9 @@ def _resume_decision(row: dict) -> dict:
         return {**decision, "action": ResumeAction.SKIPPED_PREVIOUSLY_REJECTED.value, "reason": reason[:500]}
     if state in _PRE_INGESTED_STATES:
         # P9: never skip Layer 2 on a partial ingestion. Layer 2 never completed
-        # for this row, so nothing about it is reused; the content goes through
-        # fetch → Layer 1 → Layer 2 again before anything else.
-        return {**decision, "action": ResumeAction.NEW.value}
+        # for this row, so only the row itself is reused (claimed); its content
+        # goes through fetch → Layer 1 → Layer 2 again before anything else.
+        return {**decision, "action": ResumeAction.CLAIM_PARTIAL.value}
     raise ValueError(f"source {source_id} has unrecognised lifecycle_state {state!r}")
 
 
@@ -225,6 +236,11 @@ class DirectPipelineClient:
             )
         elif action == ResumeAction.SKIPPED_PREVIOUSLY_REJECTED:
             logger.info("dogfood: source previously rejected: %s (%s): %s", seed.source_url, best["source_id"], best["reason"])
+        elif action == ResumeAction.CLAIM_PARTIAL:
+            logger.info(
+                "dogfood: partial ingestion found (%s), claiming it; Layer 2 will re-run: %s (%s)",
+                best["lifecycle_state"], seed.source_url, best["source_id"],
+            )
         return best
 
     def resume_ingested(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict:
@@ -241,34 +257,97 @@ class DirectPipelineClient:
             raise IngestionRefused(f"source {sid} is not an INGESTED source with a recorded content_hash")
         ingestion_id, content_hash, text = self._run_layers(sid, seed, fetch)
         if content_hash != row["content_hash"]:
-            reason = (
-                f"upstream content changed since source {sid} was ingested "
-                f"({row['content_hash']} → {content_hash}); declare a dataset update instead of resuming"
-            )
-            db.update_ingestion_event(ingestion_id, {"status": "REJECTED", "rejection_reason": reason[:500]})
-            raise IngestionRefused(reason)
+            return self._content_changed(sid, _INGESTED_STATE, ingestion_id, row["content_hash"], content_hash)
         db.update_ingestion_event(ingestion_id, {"status": "LAYER3_PROMPT_READY", "content_hash": content_hash})
         self._sanitised[ingestion_id] = text
         return {"ingestion_id": ingestion_id}
+
+    def claim_partial(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict:
+        """
+        Claim-and-continue for a pre-INGESTED source of this URL: reuse its
+        source_id instead of registering a new row. The claimed row's content
+        always goes through Layer 1 and Layer 2 here — that run IS the Layer 2
+        run its earlier ingestion never completed. If the row already recorded
+        a content hash, the fresh hash must match it (else CONTENT_CHANGED).
+        """
+        sid = str(source_id)
+        row = next((r for r in db.find_sources_by_url(seed.source_url) if str(r["source_id"]) == sid), None)
+        state = row.get("lifecycle_state") if row else None
+        if state not in _PRE_INGESTED_STATES:
+            raise IngestionRefused(f"source {sid} is not a pre-INGESTED source of {seed.source_url}")
+        self._advance_to_license_checked(sid, state)
+        # P9: never skip Layer 2 on a partial ingestion.
+        ingestion_id, content_hash, text = self._run_layers(sid, seed, fetch)
+        stored_hash = row.get("content_hash")
+        if stored_hash and stored_hash != content_hash:
+            return self._content_changed(sid, "LICENSE_CHECKED", ingestion_id, stored_hash, content_hash)
+        logger.info("dogfood: claimed partial source %s (%s); Layer 2 passed, continuing", sid, state)
+        return self._complete_ingestion(sid, ingestion_id, content_hash, text, seed, fetch, claimed=True)
+
+    def _advance_to_license_checked(self, sid: str, state: str) -> None:
+        """Re-walk a claimed partial row's missing Stage 01 transitions."""
+        if state == "DISCOVERED":
+            db.transition_source(sid, "SOURCE_REGISTERED", "Stage 10.1 dogfood: claimed partial registration")
+            state = "SOURCE_REGISTERED"
+        if state == "SOURCE_REGISTERED":
+            db.transition_source(sid, "LICENSE_CHECKED", "Stage 10.1 dogfood: claimed partial registration")
+
+    def _content_changed(
+        self, sid: str, state: str, ingestion_id: str, stored_hash: str, content_hash: str
+    ) -> dict:
+        """The URL's content no longer matches source sid: route to a declared update, never resume."""
+        reason = (
+            f"upstream content changed since source {sid} recorded content_hash {stored_hash} "
+            f"(now {content_hash}); a declared dataset update is required"
+        )
+        db.update_ingestion_event(ingestion_id, {"status": "REJECTED", "rejection_reason": reason[:500]})
+        logger.warning(
+            "dogfood: CONTENT_CHANGED — routing to declared-update flow",
+            extra={"source_id": sid, "stored_hash": stored_hash, "content_hash": content_hash},
+        )
+        return {
+            "ingestion_id": ingestion_id,
+            "resume": ResumeAction.CONTENT_CHANGED.value,
+            "source_id": sid,
+            "lifecycle_state": state,
+            "reason": reason[:500],
+        }
 
     # ── Stage 02 ──────────────────────────────────────────────────────────────
     def ingest(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict:
         sid = str(source_id)
         ingestion_id, content_hash, text = self._run_layers(sid, seed, fetch)
+        return self._complete_ingestion(sid, ingestion_id, content_hash, text, seed, fetch)
+
+    def _complete_ingestion(
+        self, sid: str, ingestion_id: str, content_hash: str, text: str,
+        seed: SeedSource, fetch: FetchResult, claimed: bool = False,
+    ) -> dict:
+        """Record the Layer 2 hash and advance sid to INGESTED (Layer 2 has just passed)."""
         # UNIQUE on pdqe.sources.content_hash: duplicate content is refused here,
         # before the ingestion event is marked ready for Layer 3.
         try:
             db.set_source_content_hash(sid, content_hash)
         except db.DuplicateContentHash:
-            return self._resume_duplicate(sid, ingestion_id, content_hash, text)
+            return self._resume_duplicate(sid, ingestion_id, content_hash, text, seed, fetch)
         db.update_ingestion_event(
             ingestion_id, {"status": "LAYER3_PROMPT_READY", "content_hash": content_hash}
         )
         db.transition_source(sid, "INGESTED", "Layer 1 and Layer 2 passed", input_hash=content_hash)
         self._sanitised[ingestion_id] = text
+        if claimed:
+            return {
+                "ingestion_id": ingestion_id,
+                "resume": ResumeAction.CLAIM_PARTIAL.value,
+                "source_id": sid,
+                "lifecycle_state": _INGESTED_STATE,
+            }
         return {"ingestion_id": ingestion_id}
 
-    def _resume_duplicate(self, dup_sid: str, ingestion_id: str, content_hash: str, text: str) -> dict:
+    def _resume_duplicate(
+        self, dup_sid: str, ingestion_id: str, content_hash: str, text: str,
+        seed: SeedSource, fetch: FetchResult,
+    ) -> dict:
         """
         Idempotent resume, content_hash check: this run's Layer 2 output already
         belongs to another source. Close out the new registration as a
@@ -284,20 +363,29 @@ class DirectPipelineClient:
             ingestion_id,
             {"status": "REJECTED", "rejection_reason": f"duplicate content of source {owner_sid}"},
         )
-        if action == ResumeAction.NEW:
-            # P9: never skip Layer 2 on a partial ingestion. The owner holds the
-            # hash but never reached INGESTED, so it cannot be resumed; leave
-            # both rows for an operator rather than guessing.
-            raise IngestionRefused(
-                f"content duplicates source {owner_sid}, whose ingestion never completed "
-                f"(lifecycle_state {decision['lifecycle_state']}); manual cleanup required"
-            )
         db.transition_source(
             dup_sid, "REJECTED",
             f"Duplicate content: content_hash {content_hash} already belongs to source {owner_sid}",
             input_hash=content_hash,
         )
-        result = {"ingestion_id": ingestion_id, "resume": action.value, **decision}
+        if action == ResumeAction.CLAIM_PARTIAL:
+            if owner.get("source_url") == seed.source_url:
+                # A retry of the same URL whose earlier ingestion never reached
+                # INGESTED: claim that row. P9: claim_partial re-runs Layer 1 and
+                # Layer 2 on it under its own ingestion event — never skipped.
+                logger.info("dogfood: duplicate content is a retry of partial source %s; claiming it", owner_sid)
+                return self.claim_partial(UUID(owner_sid), seed, fetch)
+            # Genuinely identical content registered from a different URL.
+            decision = {
+                **decision,
+                "reason": (
+                    f"identical content already registered as source {owner_sid} from "
+                    f"{owner.get('source_url')} (lifecycle_state {decision['lifecycle_state']})"
+                )[:500],
+            }
+            action = ResumeAction.ALREADY_PROCESSED
+        result = {**decision, "ingestion_id": ingestion_id, "resume": action.value}
+        result.pop("action", None)
         if action == ResumeAction.RESUME_EXTRACTION:
             owner_ingestion = db.find_ready_ingestion(owner_sid, content_hash)
             if owner_ingestion is None:
@@ -309,7 +397,6 @@ class DirectPipelineClient:
             logger.info("dogfood: duplicate content, resuming source %s from extraction", owner_sid)
         else:
             logger.info("dogfood: duplicate content of source %s (%s), not resuming", owner_sid, action.value)
-        result.pop("action", None)
         return result
 
     def _run_layers(self, sid: str, seed: SeedSource, fetch: FetchResult) -> tuple[str, str, str]:

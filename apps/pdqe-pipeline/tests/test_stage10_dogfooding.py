@@ -75,6 +75,9 @@ class FakePipelineClient:
     def resume_ingested(self, source_id, seed, fetch):
         return self._call("resume_ingested", {"ingestion_id": str(uuid4())})
 
+    def claim_partial(self, source_id, seed, fetch):
+        return self._call("claim_partial", {"ingestion_id": str(uuid4())})
+
     def register_source(self, seed, fetch=None):
         return self._call("register_source", {"source_id": str(uuid4())})
 

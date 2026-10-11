@@ -88,7 +88,8 @@
         "LICENCE_BLOCKED",
         "DRY_RUN_PASS",
         "ALREADY_PROCESSED",
-        "SKIPPED_PREVIOUSLY_REJECTED"
+        "SKIPPED_PREVIOUSLY_REJECTED",
+        "CONTENT_CHANGED"
       ],
       "title": "RunOutcome",
       "type": "string"

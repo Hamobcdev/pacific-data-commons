@@ -30,7 +30,9 @@ Re-runs are idempotent (pipeline_client.py): a source an earlier run already
 took to EXTRACTED or later is ALREADY_PROCESSED, one that was REJECTED or
 QUARANTINED is SKIPPED_PREVIOUSLY_REJECTED. Both are counted separately in the
 report — neither successes nor failures. An INGESTED source resumes from
-extraction; Layer 2 is never skipped for a partial ingestion (P9).
+extraction and a partial one is claimed; either way Layer 2 re-runs (P9). If
+the URL's content no longer matches its recorded hash the outcome is
+CONTENT_CHANGED, counted with routed-to-review (a declared update is needed).
 
 DOGFOOD_AUTO_APPROVE is a development tool only. It takes effect only when
 PDQE_ENVIRONMENT is "development" or "staging"; set anywhere else (including
@@ -104,6 +106,7 @@ class PipelineClient(Protocol):
     def register_source(self, seed: SeedSource, fetch: Optional[FetchResult] = None) -> dict: ...  # Stage 01
     def ingest(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict: ...  # Stage 02
     def resume_ingested(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict: ...  # Stage 02 (resume)
+    def claim_partial(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict: ...  # Stage 02 (claim)
     def extract(self, source_id: UUID, ingestion_id: UUID, seed: SeedSource) -> dict: ...  # Stage 03
     def qualify(self, source_id: UUID, extraction_id: UUID) -> dict: ...  # Stage 04
     def validate(self, source_id: UUID) -> dict: ...  # Stage 05
@@ -271,7 +274,7 @@ def _skipped_result(
 ) -> SourceRunResult:
     """A source an earlier run already handled (idempotent resume)."""
     if action == ResumeAction.ALREADY_PROCESSED:
-        detail = f"already processed in an earlier run (lifecycle_state {lifecycle_state})"
+        detail = reason or f"already processed in an earlier run (lifecycle_state {lifecycle_state})"
     else:
         detail = f"previously rejected: {reason or lifecycle_state}"
     return _result(seed, _SKIP_OUTCOME[action], lifecycle_state or "NONE", _short(detail), source_id)
@@ -361,6 +364,16 @@ def _live_run_source(seed: SeedSource, ctx: _LiveContext) -> SourceRunResult:
             ingestion = _step(
                 lambda: client.resume_ingested(sid, seed, fetch), IngestionStep, RunOutcome.FAILED_INGESTION, "INGESTED"
             )
+        elif existing.action == ResumeAction.CLAIM_PARTIAL:
+            # Partial earlier ingestion of this URL: claim its row (P9 — Layer 2 re-runs on it).
+            source_id = existing.source_id
+            sid = source_id
+            ingestion = _step(
+                lambda: client.claim_partial(sid, seed, fetch),
+                IngestionStep,
+                RunOutcome.FAILED_INGESTION,
+                existing.lifecycle_state or "SOURCE_REGISTERED",
+            )
         else:
             source_id = _step(
                 lambda: client.register_source(seed, fetch), RegisteredSource, RunOutcome.FAILED_INGESTION, "NONE"
@@ -369,14 +382,22 @@ def _live_run_source(seed: SeedSource, ctx: _LiveContext) -> SourceRunResult:
             ingestion = _step(
                 lambda: client.ingest(sid, seed, fetch), IngestionStep, RunOutcome.FAILED_INGESTION, "SOURCE_REGISTERED"
             )
-            # Idempotent resume, content_hash check: the content already belongs to another source.
-            if ingestion.resume != ResumeAction.NEW:
-                source_id = ingestion.source_id
-                sid = source_id
-                if ingestion.resume in _SKIP_OUTCOME:
-                    return _skipped_result(
-                        seed, ingestion.resume, source_id, ingestion.lifecycle_state, ingestion.reason
-                    )
+        # The ingestion step may continue on (or stop at) a different, existing source.
+        if ingestion.resume != ResumeAction.NEW:
+            source_id = ingestion.source_id
+            sid = source_id
+            if ingestion.resume in _SKIP_OUTCOME:
+                return _skipped_result(
+                    seed, ingestion.resume, source_id, ingestion.lifecycle_state, ingestion.reason
+                )
+            if ingestion.resume == ResumeAction.CONTENT_CHANGED:
+                return _result(
+                    seed,
+                    RunOutcome.CONTENT_CHANGED,
+                    ingestion.lifecycle_state or "NONE",
+                    _short(ingestion.reason or "upstream content changed; declared dataset update required"),
+                    source_id,
+                )
         ingestion_id = ingestion.ingestion_id
 
         extraction = _step(
