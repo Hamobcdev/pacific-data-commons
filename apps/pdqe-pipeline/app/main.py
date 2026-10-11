@@ -1,26 +1,35 @@
 """
-PDQE Stage 02 — FastAPI skeleton for the secure ingestion pipeline.
+PDQE Pipeline — FastAPI application.
 
-No production Claude API calls here (Stage 02 scope). The /ingest/validate
-route exercises Layer 1 only — the one layer that is fully implemented in
-this stage — so the skeleton is runnable and testable end-to-end for the
-part of the pipeline that actually exists so far.
+Stage history:
+  0.2.0 — Stage 02: secure ingestion, Layer 1 pre-check endpoint
+  0.3.0 — Stage 03: Claude extraction endpoint added
+
+Routes:
+  GET  /health              — health check (reports current stage)
+  POST /ingest/validate     — Layer 1 pre-check (Stage 02)
+  POST /extract             — Stage 03 extraction (Layer 3 → Claude → Layer 4 → Supabase)
 """
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from app.extraction.extractor import ExtractionRunResult, run_extraction
 from app.security.layer1_whitelist import Layer1Result, check_layer1
 
-app = FastAPI(title="PDQE Secure Ingestion", version="0.2.0")
+app = FastAPI(title="PDQE Pipeline", version="0.3.0")
 
+
+# ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "02-secure-ingestion"}
+    return {"status": "ok", "stage": "03-claude-extraction", "version": "0.3.0"}
 
+
+# ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
 
 class IngestValidateRequest(BaseModel):
     file_name: str
@@ -36,3 +45,127 @@ def ingest_validate(payload: IngestValidateRequest) -> Layer1Result:
     This endpoint lets a caller pre-check a file before upload.
     """
     return check_layer1(payload.file_name, payload.file_extension)
+
+
+# ── Stage 03 — Claude Extraction ────────────────────────────────────────────────
+
+class ExtractRequest(BaseModel):
+    """
+    Request body for POST /extract.
+
+    Fields
+    ------
+    ingestion_id:
+        UUID of the pdqe.ingestion_events row being processed.
+        Must have status 'APPROVED' or 'LAYER3_PROMPT_READY'.
+    source_id:
+        UUID of the parent pdqe.sources row.
+    source_title:
+        Registered source title. Used as a reference hint in the prompt only.
+    sanitised_content:
+        Layer 2 sanitised text. Must be non-empty.
+    contributing_ingestion_ids:
+        Optional. For multi-document synthesis: UUIDs of ALL ingestion events
+        contributing content. Defaults to [ingestion_id] for single-doc.
+    multi_doc_titles:
+        Optional. For multi-document synthesis: titles of additional source
+        documents being synthesised (beyond source_title).
+    """
+
+    ingestion_id: str
+    source_id: str
+    source_title: str
+    sanitised_content: str
+    contributing_ingestion_ids: list[str] | None = None
+    multi_doc_titles: list[str] | None = None
+
+
+class ExtractResponse(BaseModel):
+    """
+    Response body for POST /extract.
+
+    Fields
+    ------
+    extraction_id:
+        UUID of the pdqe.extractions row written. None if the Supabase write
+        itself failed (the Claude call may still have succeeded — check logs).
+    passed:
+        True if Layer 4 schema validation passed. False means the extraction
+        was stored with status='REJECTED' for human review (Stage 06).
+    status:
+        'VALIDATED' | 'REJECTED' | 'API_ERROR' | 'PARSE_ERROR'
+    rejection_reason:
+        Populated when passed=False. Human-readable description of the failure.
+    model_id:
+        Claude model identifier returned by the API. None on API error.
+    input_tokens:
+        Prompt token count. None on API error.
+    output_tokens:
+        Completion token count. None on API error.
+    error:
+        Populated on API call error or JSON parse error. Distinct from
+        rejection_reason (which is a schema validation failure).
+    """
+
+    extraction_id: str | None
+    passed: bool
+    status: str
+    rejection_reason: str | None
+    model_id: str | None
+    input_tokens: int | None
+    output_tokens: int | None
+    error: str | None
+
+
+def _build_status(result: ExtractionRunResult) -> str:
+    if result.error == "empty_content":
+        return "REJECTED"
+    if result.error and result.model_id is None:
+        # API call failed before we got a response
+        return "API_ERROR"
+    if result.error:
+        # Got a response but couldn't parse JSON
+        return "PARSE_ERROR"
+    return "VALIDATED" if result.validation_result.passed else "REJECTED"
+
+
+@app.post("/extract", response_model=ExtractResponse)
+def extract(payload: ExtractRequest) -> ExtractResponse:
+    """
+    Run Stage 03 extraction for one ingestion event.
+
+    P9: sanitised_content is treated as untrusted data inside the Claude
+    prompt. The response is validated against a strict JSON schema (Layer 4)
+    before any field is used or stored.
+
+    Returns HTTP 200 for both VALIDATED and REJECTED outcomes — both are
+    valid pipeline states written to pdqe.extractions. Returns HTTP 422 for
+    malformed request bodies (Pydantic) and HTTP 500 for unexpected errors
+    that prevent the pipeline from running at all.
+    """
+    try:
+        result: ExtractionRunResult = run_extraction(
+            ingestion_id=payload.ingestion_id,
+            source_id=payload.source_id,
+            source_title=payload.source_title,
+            sanitised_content=payload.sanitised_content,
+            contributing_ingestion_ids=payload.contributing_ingestion_ids,
+            multi_doc_titles=payload.multi_doc_titles,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # Unexpected error — not a validation failure
+        raise HTTPException(
+            status_code=500,
+            detail=f"Extraction pipeline encountered an unexpected error: {exc}",
+        ) from exc
+
+    return ExtractResponse(
+        extraction_id=result.extraction_id,
+        passed=result.validation_result.passed,
+        status=_build_status(result),
+        rejection_reason=result.validation_result.rejection_reason,
+        model_id=result.model_id,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        error=result.error,
+    )
