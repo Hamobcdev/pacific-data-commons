@@ -130,6 +130,18 @@ def call_claude_extraction(prompt: PromptPayload) -> ClaudeCallResult:
 
     raw_text: str = response.content[0].text.strip()
 
+    # Diagnostic: always log stop_reason and token counts so Render logs capture
+    # exactly what the API returned, even when JSON parsing subsequently fails.
+    logger.info(
+        "Claude raw response received. model=%s stop_reason=%s "
+        "input_tokens=%d output_tokens=%d raw_text_len=%d",
+        response.model,
+        response.stop_reason,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+        len(raw_text),
+    )
+
     if response.stop_reason == "max_tokens":
         logger.warning(
             "Claude hit max_tokens limit during extraction. "
@@ -138,11 +150,27 @@ def call_claude_extraction(prompt: PromptPayload) -> ClaudeCallResult:
             MAX_TOKENS,
         )
 
+    if not raw_text:
+        logger.error(
+            "Claude returned empty text (raw_text_len=0). "
+            "stop_reason=%s input_tokens=%d output_tokens=%d model=%s. "
+            "This may indicate a content policy refusal or API anomaly.",
+            response.stop_reason,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            response.model,
+        )
+
     # Parse the JSON response — any failure here is an ExtractionOutputParseError,
     # not a Layer 4 schema validation failure.
     try:
         raw_output = json.loads(raw_text)
     except json.JSONDecodeError as exc:
+        logger.warning(
+            "JSON parse failed. raw_text_len=%d raw_text_preview=%r",
+            len(raw_text),
+            raw_text[:500],
+        )
         raise ExtractionOutputParseError(
             f"Claude returned non-JSON text: {exc}",
             raw_text=raw_text,

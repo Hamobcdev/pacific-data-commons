@@ -120,6 +120,15 @@ def run_extraction(
         multi_doc_titles=multi_doc_titles,
     )
 
+    logger.info(
+        "Stage 03 extraction starting. ingestion_id=%s source_id=%s "
+        "content_chars=%d prompt_chars=%d",
+        ingestion_id,
+        source_id,
+        len(sanitised_content),
+        len(prompt.user_prompt),
+    )
+
     # 3. Call Claude API
     try:
         call_result = call_claude_extraction(prompt)
