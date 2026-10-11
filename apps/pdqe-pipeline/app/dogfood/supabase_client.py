@@ -28,7 +28,8 @@ MAX_REPORT_PAGE = 50
 
 _SUMMARY_COLUMNS = (
     "run_id, run_label, corpus, domain, dry_run, sources_attempted, sources_succeeded, "
-    "sources_failed, sources_routed_to_review, failure_modes, licence_outcomes, "
+    "sources_failed, sources_routed_to_review, sources_already_processed, "
+    "sources_skipped_previously_rejected, failure_modes, licence_outcomes, "
     "started_at, completed_at, status"
 )
 
@@ -44,6 +45,8 @@ def write_run_report(report: DogfoodRunReport, dry_run: bool) -> str:
         "sources_succeeded": report.sources_succeeded,
         "sources_failed": report.sources_failed,
         "sources_routed_to_review": report.sources_routed_to_review,
+        "sources_already_processed": report.sources_already_processed,
+        "sources_skipped_previously_rejected": report.sources_skipped_previously_rejected,
         "failure_modes": report.failure_modes,
         "licence_outcomes": report.licence_outcomes,
         "run_report": report.model_dump(mode="json"),
@@ -176,15 +179,118 @@ def log_security_check(
     )
 
 
+# PostgreSQL unique_violation — idx_pdqe_sources_content_hash refusing duplicate content.
+_UNIQUE_VIOLATION = "23505"
+
+
+class DuplicateContentHash(ValueError):
+    """Another pdqe.sources row already holds this Layer 2 content hash."""
+
+    def __init__(self, source_id: str, content_hash: str) -> None:
+        super().__init__(f"content_hash {content_hash} for source {source_id} already belongs to another source")
+        self.source_id = source_id
+        self.content_hash = content_hash
+
+
 def set_source_content_hash(source_id: str, content_hash: str) -> None:
-    """Record the Layer 2 canonical content hash (UNIQUE — refuses duplicate content)."""
+    """
+    Record the Layer 2 canonical content hash. UNIQUE: duplicate content raises
+    DuplicateContentHash (a ValueError) so the caller can resume the existing source.
+    """
     client = _get_client()
     try:
         client.schema("pdqe").table("sources").update(
             {"content_hash": content_hash, "accessed_at": datetime.now(timezone.utc).isoformat()}
         ).eq("source_id", source_id).execute()
     except APIError as exc:
+        if str(getattr(exc, "code", "") or "") == _UNIQUE_VIOLATION:
+            raise DuplicateContentHash(source_id, content_hash) from exc
         raise ValueError(f"Content hash for source {source_id} could not be recorded: {exc}") from exc
+
+
+# ── Stage 10.1 — idempotent resume lookups ────────────────────────────────────
+
+_SOURCE_STATE_COLUMNS = "source_id, lifecycle_state, content_hash, created_at"
+
+
+def find_sources_by_url(source_url: str) -> list[dict]:
+    """Internal-pipeline pdqe.sources rows registered for source_url, newest first."""
+    client = _get_client()
+    try:
+        response = (
+            client.schema("pdqe")
+            .table("sources")
+            .select(_SOURCE_STATE_COLUMNS)
+            .eq("source_url", source_url)
+            .eq("internal_pipeline", True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+    except APIError as exc:
+        raise ValueError(f"Sources for {source_url!r} could not be looked up: {exc}") from exc
+    return response.data or []
+
+
+def find_source_by_content_hash(content_hash: str) -> Optional[dict]:
+    """The pdqe.sources row holding content_hash (UNIQUE), or None."""
+    client = _get_client()
+    try:
+        response = (
+            client.schema("pdqe")
+            .table("sources")
+            .select(_SOURCE_STATE_COLUMNS)
+            .eq("content_hash", content_hash)
+            .limit(1)
+            .execute()
+        )
+    except APIError as exc:
+        raise ValueError(f"Source for content_hash {content_hash} could not be looked up: {exc}") from exc
+    rows = response.data or []
+    return rows[0] if rows else None
+
+
+def find_ready_ingestion(source_id: str, content_hash: str) -> Optional[str]:
+    """
+    The newest ingestion event of source_id whose Layer 2 completed with
+    content_hash (status LAYER3_PROMPT_READY), or None.
+    """
+    client = _get_client()
+    try:
+        response = (
+            client.schema("pdqe")
+            .table("ingestion_events")
+            .select("ingestion_id")
+            .eq("source_id", source_id)
+            .eq("content_hash", content_hash)
+            .eq("status", "LAYER3_PROMPT_READY")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except APIError as exc:
+        raise ValueError(f"Ingestion events for source {source_id} could not be looked up: {exc}") from exc
+    rows = response.data or []
+    return str(rows[0]["ingestion_id"]) if rows else None
+
+
+def latest_transition_rationale(source_id: str, state_to: str) -> Optional[str]:
+    """Rationale of the newest pdqe.pipeline_state transition of source_id into state_to."""
+    client = _get_client()
+    try:
+        response = (
+            client.schema("pdqe")
+            .table("pipeline_state")
+            .select("rationale")
+            .eq("source_id", source_id)
+            .eq("state_to", state_to)
+            .order("transitioned_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except APIError as exc:
+        raise ValueError(f"Pipeline state for source {source_id} could not be looked up: {exc}") from exc
+    rows = response.data or []
+    return rows[0].get("rationale") if rows else None
 
 
 # ── Stage 10.1 — auto-approved source review queue ────────────────────────────

@@ -130,6 +130,7 @@ def direct(monkeypatch):
             return result() if callable(result) else result
         return _fn
 
+    monkeypatch.setattr(pc.db, "find_sources_by_url", rec("find_sources_by_url", lambda: []))
     monkeypatch.setattr(pc.db, "insert_source", rec("insert_source", lambda: str(uuid4())))
     monkeypatch.setattr(pc.db, "transition_source", rec("transition_source"))
     monkeypatch.setattr(

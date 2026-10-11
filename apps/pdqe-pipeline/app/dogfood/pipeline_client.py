@@ -19,8 +19,23 @@ own yet, so the dogfood-scoped intake for them lives here:
   Stage 08  generate_endpoint → app.endpoint.generator.generate_endpoint
 
 Layer 2 is never bypassed: a Layer 2 rejection (or an unavailable Layer 2)
-records LAYER2_FAILED and the source as FAILED_INGESTION. The DB still refuses
-LICENSE_CHECKED → INGESTED for an UNKNOWN licence and any advance for an
+records LAYER2_FAILED and the source as FAILED_INGESTION.
+
+Idempotent resume (re-running a corpus needs no DB cleanup):
+  1. URL check, before fetching (find_existing_source): the most advanced
+     earlier pdqe.sources row for the seed URL decides —
+       EXTRACTED or later   → ALREADY_PROCESSED, nothing fetched
+       REJECTED/QUARANTINED → SKIPPED_PREVIOUSLY_REJECTED, nothing fetched
+       INGESTED             → resume_ingested on that source: fetch, re-run
+                              Layer 1 + Layer 2 (sanitised content is never
+                              persisted, so it cannot be read back), require the
+                              same content hash, then extract
+       pre-INGESTED partial → ignored; normal register + ingest path
+  2. content_hash check, after Layer 2 (ingest): a UNIQUE violation on
+     pdqe.sources.content_hash marks this run's new registration REJECTED as
+     a duplicate and resumes the source that owns the hash, by the same rules.
+
+The DB still refuses LICENSE_CHECKED → INGESTED for an UNKNOWN licence and any advance for an
 EXCLUDED one — this module relies on those rules rather than re-deciding them.
 
 Every return value is a JSON-mode dict; the runner P9-validates it through the
@@ -43,7 +58,7 @@ from app.dataset.schemas import CollectionCreate
 from app.dataset import supabase_client as dataset_db
 from app.dogfood import supabase_client as db
 from app.dogfood.fetcher import STRATEGY_DIRECT, FetchResult
-from app.dogfood.schemas import SeedSource
+from app.dogfood.schemas import ResumeAction, SeedSource
 from app.endpoint.generator import generate_endpoint
 from app.extraction.extractor import ExtractionRunResult, run_extraction
 from app.qualification.qualifier import qualify
@@ -78,8 +93,47 @@ _SOURCE_TYPES = {
 }
 
 
+# pdqe.sources.lifecycle_state groups for idempotent resume.
+_PRE_INGESTED_STATES = frozenset({"DISCOVERED", "SOURCE_REGISTERED", "LICENSE_CHECKED"})
+_INGESTED_STATE = "INGESTED"
+_PROCESSED_STATES = frozenset({
+    "EXTRACTED", "CLASSIFIED", "QUALIFIED", "VALIDATED", "REVIEW", "APPROVED",
+    "DATASET_CREATED", "COLLECTION_LINKED", "ENDPOINT_GENERATED", "ENDPOINT_VALIDATED",
+    "PROVIDER_APPROVED", "PUBLISHED", "x402_QUERYABLE",
+})
+_REJECTED_STATES = frozenset({"REJECTED", "QUARANTINED"})
+
+# Which earlier row wins when one URL has several (lower = preferred).
+_RESUME_PRIORITY = {
+    ResumeAction.ALREADY_PROCESSED: 0,
+    ResumeAction.RESUME_EXTRACTION: 1,
+    ResumeAction.SKIPPED_PREVIOUSLY_REJECTED: 2,
+    ResumeAction.NEW: 3,
+}
+
+
 class IngestionRefused(RuntimeError):
     """A security layer refused the fetched content."""
+
+
+def _resume_decision(row: dict) -> dict:
+    """Map one existing pdqe.sources row to the resume action for it."""
+    source_id = str(row["source_id"])
+    state = row.get("lifecycle_state")
+    decision = {"source_id": source_id, "lifecycle_state": state}
+    if state in _PROCESSED_STATES:
+        return {**decision, "action": ResumeAction.ALREADY_PROCESSED.value}
+    if state == _INGESTED_STATE:
+        return {**decision, "action": ResumeAction.RESUME_EXTRACTION.value}
+    if state in _REJECTED_STATES:
+        reason = db.latest_transition_rationale(source_id, state) or f"lifecycle_state {state}"
+        return {**decision, "action": ResumeAction.SKIPPED_PREVIOUSLY_REJECTED.value, "reason": reason[:500]}
+    if state in _PRE_INGESTED_STATES:
+        # P9: never skip Layer 2 on a partial ingestion. Layer 2 never completed
+        # for this row, so nothing about it is reused; the content goes through
+        # fetch → Layer 1 → Layer 2 again before anything else.
+        return {**decision, "action": ResumeAction.NEW.value}
+    raise ValueError(f"source {source_id} has unrecognised lifecycle_state {state!r}")
 
 
 def get_operator_id() -> UUID:
@@ -148,9 +202,122 @@ class DirectPipelineClient:
         )
         return {"source_id": source_id}
 
+    # ── Idempotent resume: URL check (before fetch) ───────────────────────────
+    def find_existing_source(self, seed: SeedSource) -> dict:
+        """
+        Resume decision for a seed URL from earlier runs' pdqe.sources rows (see
+        module docstring). Returns {"action": ResumeAction, ...}; action NEW
+        means register, fetch and ingest as normal.
+        """
+        rows = db.find_sources_by_url(seed.source_url)  # newest first
+        best: dict = {"action": ResumeAction.NEW.value}
+        for row in rows:
+            decision = _resume_decision(row)
+            if _RESUME_PRIORITY[ResumeAction(decision["action"])] < _RESUME_PRIORITY[ResumeAction(best["action"])]:
+                best = decision
+        action = ResumeAction(best["action"])
+        if action == ResumeAction.ALREADY_PROCESSED:
+            logger.info("dogfood: source already extracted, skipping: %s (%s)", seed.source_url, best["source_id"])
+        elif action == ResumeAction.RESUME_EXTRACTION:
+            logger.info(
+                "dogfood: source already ingested, resuming from extraction: %s (%s)",
+                seed.source_url, best["source_id"],
+            )
+        elif action == ResumeAction.SKIPPED_PREVIOUSLY_REJECTED:
+            logger.info("dogfood: source previously rejected: %s (%s): %s", seed.source_url, best["source_id"], best["reason"])
+        return best
+
+    def resume_ingested(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict:
+        """
+        Continue an INGESTED source from extraction. Sanitised content is never
+        persisted, so the freshly fetched content goes through Layer 1 and
+        Layer 2 again under a new ingestion event; its canonical hash must
+        equal the source's recorded content_hash, otherwise the upstream
+        content has changed and the resume is refused.
+        """
+        sid = str(source_id)
+        row = next((r for r in db.find_sources_by_url(seed.source_url) if str(r["source_id"]) == sid), None)
+        if row is None or row.get("lifecycle_state") != _INGESTED_STATE or not row.get("content_hash"):
+            raise IngestionRefused(f"source {sid} is not an INGESTED source with a recorded content_hash")
+        ingestion_id, content_hash, text = self._run_layers(sid, seed, fetch)
+        if content_hash != row["content_hash"]:
+            reason = (
+                f"upstream content changed since source {sid} was ingested "
+                f"({row['content_hash']} → {content_hash}); declare a dataset update instead of resuming"
+            )
+            db.update_ingestion_event(ingestion_id, {"status": "REJECTED", "rejection_reason": reason[:500]})
+            raise IngestionRefused(reason)
+        db.update_ingestion_event(ingestion_id, {"status": "LAYER3_PROMPT_READY", "content_hash": content_hash})
+        self._sanitised[ingestion_id] = text
+        return {"ingestion_id": ingestion_id}
+
     # ── Stage 02 ──────────────────────────────────────────────────────────────
     def ingest(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict:
         sid = str(source_id)
+        ingestion_id, content_hash, text = self._run_layers(sid, seed, fetch)
+        # UNIQUE on pdqe.sources.content_hash: duplicate content is refused here,
+        # before the ingestion event is marked ready for Layer 3.
+        try:
+            db.set_source_content_hash(sid, content_hash)
+        except db.DuplicateContentHash:
+            return self._resume_duplicate(sid, ingestion_id, content_hash, text)
+        db.update_ingestion_event(
+            ingestion_id, {"status": "LAYER3_PROMPT_READY", "content_hash": content_hash}
+        )
+        db.transition_source(sid, "INGESTED", "Layer 1 and Layer 2 passed", input_hash=content_hash)
+        self._sanitised[ingestion_id] = text
+        return {"ingestion_id": ingestion_id}
+
+    def _resume_duplicate(self, dup_sid: str, ingestion_id: str, content_hash: str, text: str) -> dict:
+        """
+        Idempotent resume, content_hash check: this run's Layer 2 output already
+        belongs to another source. Close out the new registration as a
+        duplicate and continue on (or stop at) the source that owns the hash.
+        """
+        owner = db.find_source_by_content_hash(content_hash)
+        if owner is None or str(owner["source_id"]) == dup_sid:
+            raise IngestionRefused(f"content_hash {content_hash} conflicts but its owning source could not be found")
+        owner_sid = str(owner["source_id"])
+        decision = _resume_decision(owner)
+        action = ResumeAction(decision["action"])
+        db.update_ingestion_event(
+            ingestion_id,
+            {"status": "REJECTED", "rejection_reason": f"duplicate content of source {owner_sid}"},
+        )
+        if action == ResumeAction.NEW:
+            # P9: never skip Layer 2 on a partial ingestion. The owner holds the
+            # hash but never reached INGESTED, so it cannot be resumed; leave
+            # both rows for an operator rather than guessing.
+            raise IngestionRefused(
+                f"content duplicates source {owner_sid}, whose ingestion never completed "
+                f"(lifecycle_state {decision['lifecycle_state']}); manual cleanup required"
+            )
+        db.transition_source(
+            dup_sid, "REJECTED",
+            f"Duplicate content: content_hash {content_hash} already belongs to source {owner_sid}",
+            input_hash=content_hash,
+        )
+        result = {"ingestion_id": ingestion_id, "resume": action.value, **decision}
+        if action == ResumeAction.RESUME_EXTRACTION:
+            owner_ingestion = db.find_ready_ingestion(owner_sid, content_hash)
+            if owner_ingestion is None:
+                raise IngestionRefused(f"source {owner_sid} is INGESTED but has no Layer 3-ready ingestion event")
+            # Layer 2 ran to completion in this call and produced this exact
+            # canonical hash, which the owner's own completed Layer 2 also recorded.
+            self._sanitised[owner_ingestion] = text
+            result["ingestion_id"] = owner_ingestion
+            logger.info("dogfood: duplicate content, resuming source %s from extraction", owner_sid)
+        else:
+            logger.info("dogfood: duplicate content of source %s (%s), not resuming", owner_sid, action.value)
+        result.pop("action", None)
+        return result
+
+    def _run_layers(self, sid: str, seed: SeedSource, fetch: FetchResult) -> tuple[str, str, str]:
+        """
+        Layer 1 + Layer 2 for one fetch under a new ingestion event.
+        Returns (ingestion_id, content_hash, sanitised UTF-8 text); raises
+        IngestionRefused if either layer refuses the content.
+        """
         ext = file_extension_for(fetch.content_type)
         file_name = f"{Path(urlsplit(seed.source_url).path).name or 'source'}.{ext}"
 
@@ -192,15 +359,7 @@ class DirectPipelineClient:
             True,
             {"content_hash": result.content_hash, "raw_sha256": hashlib.sha256(raw).hexdigest()},
         )
-        # UNIQUE on pdqe.sources.content_hash: duplicate content is refused here,
-        # before the ingestion event is marked ready for Layer 3.
-        db.set_source_content_hash(sid, result.content_hash)
-        db.update_ingestion_event(
-            ingestion_id, {"status": "LAYER3_PROMPT_READY", "content_hash": result.content_hash}
-        )
-        db.transition_source(sid, "INGESTED", "Layer 1 and Layer 2 passed", input_hash=result.content_hash)
-        self._sanitised[ingestion_id] = text
-        return {"ingestion_id": ingestion_id}
+        return ingestion_id, result.content_hash, text
 
     def _fail_layer2(self, ingestion_id: str, code: str, message: str) -> None:
         db.log_security_check(ingestion_id, "LAYER2_SANITISATION", False, {}, code, message[:500])

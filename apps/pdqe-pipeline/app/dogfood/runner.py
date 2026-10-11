@@ -26,6 +26,12 @@ Approval gate after Stage 05:
                      the required follow-up is logged, and the source is listed
                      in report.auto_approved_sources (GET /dogfood/review-queue).
 
+Re-runs are idempotent (pipeline_client.py): a source an earlier run already
+took to EXTRACTED or later is ALREADY_PROCESSED, one that was REJECTED or
+QUARANTINED is SKIPPED_PREVIOUSLY_REJECTED. Both are counted separately in the
+report — neither successes nor failures. An INGESTED source resumes from
+extraction; Layer 2 is never skipped for a partial ingestion (P9).
+
 DOGFOOD_AUTO_APPROVE is a development tool only. It takes effect only when
 PDQE_ENVIRONMENT is "development" or "staging"; set anywhere else (including
 unset) a live run is refused rather than silently ignoring it.
@@ -49,6 +55,7 @@ from app.dogfood.loader import load_corpus
 from app.dogfood.schemas import (
     CORPUS_PRIMARY_DOMAIN,
     REVIEW_OUTCOMES,
+    SKIPPED_OUTCOMES,
     SUCCEEDED_OUTCOMES,
     AutoApprovedSource,
     ReviewQueueEntry,
@@ -58,11 +65,13 @@ from app.dogfood.schemas import (
     DogfoodRunInput,
     DogfoodRunReport,
     EndpointStep,
+    ExistingSource,
     ExtractionStep,
     IngestionStep,
     MAX_ERROR_CHARS,
     QualificationStep,
     RegisteredSource,
+    ResumeAction,
     RunOutcome,
     SeedSource,
     SourceRunResult,
@@ -91,8 +100,10 @@ class PipelineClient(Protocol):
     on a refused or failed step.
     """
 
+    def find_existing_source(self, seed: SeedSource) -> dict: ...  # idempotent resume (URL check)
     def register_source(self, seed: SeedSource, fetch: Optional[FetchResult] = None) -> dict: ...  # Stage 01
     def ingest(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict: ...  # Stage 02
+    def resume_ingested(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict: ...  # Stage 02 (resume)
     def extract(self, source_id: UUID, ingestion_id: UUID, seed: SeedSource) -> dict: ...  # Stage 03
     def qualify(self, source_id: UUID, extraction_id: UUID) -> dict: ...  # Stage 04
     def validate(self, source_id: UUID) -> dict: ...  # Stage 05
@@ -248,6 +259,24 @@ def _result(
     )
 
 
+_SKIP_OUTCOME = {
+    ResumeAction.ALREADY_PROCESSED: RunOutcome.ALREADY_PROCESSED,
+    ResumeAction.SKIPPED_PREVIOUSLY_REJECTED: RunOutcome.SKIPPED_PREVIOUSLY_REJECTED,
+}
+
+
+def _skipped_result(
+    seed: SeedSource, action: ResumeAction, source_id: Optional[UUID],
+    lifecycle_state: Optional[str], reason: Optional[str],
+) -> SourceRunResult:
+    """A source an earlier run already handled (idempotent resume)."""
+    if action == ResumeAction.ALREADY_PROCESSED:
+        detail = f"already processed in an earlier run (lifecycle_state {lifecycle_state})"
+    else:
+        detail = f"previously rejected: {reason or lifecycle_state}"
+    return _result(seed, _SKIP_OUTCOME[action], lifecycle_state or "NONE", _short(detail), source_id)
+
+
 def _dry_run_source(seed: SeedSource) -> SourceRunResult:
     if seed.licence_status == LicenceStatus.EXCLUDED:
         return _result(seed, RunOutcome.LICENCE_BLOCKED, "NONE", "licence_status EXCLUDED")
@@ -310,20 +339,45 @@ def _live_run_source(seed: SeedSource, ctx: _LiveContext) -> SourceRunResult:
                 source_id,
             )
 
+        # Idempotent resume, URL check: an earlier run may already have handled this source.
+        existing = _step(
+            lambda: client.find_existing_source(seed), ExistingSource, RunOutcome.FAILED_INGESTION, "NONE"
+        )
+        if existing.action in _SKIP_OUTCOME:
+            return _skipped_result(
+                seed, existing.action, existing.source_id, existing.lifecycle_state, existing.reason
+            )
+
         try:
             fetched = ctx.fetcher(seed, ctx.tmp_dir)
         except FetchError as exc:
             raise _StepFailed(RunOutcome.FAILED_INGESTION, "NONE", _short(f"FetchError: {exc}")) from exc
         fetch = fetched
 
-        source_id = _step(
-            lambda: client.register_source(seed, fetch), RegisteredSource, RunOutcome.FAILED_INGESTION, "NONE"
-        ).source_id
-        sid = source_id
-
-        ingestion_id = _step(
-            lambda: client.ingest(sid, seed, fetch), IngestionStep, RunOutcome.FAILED_INGESTION, "SOURCE_REGISTERED"
-        ).ingestion_id
+        if existing.action == ResumeAction.RESUME_EXTRACTION:
+            # INGESTED earlier: no new registration, but Layer 1 + Layer 2 still re-run.
+            source_id = existing.source_id
+            sid = source_id
+            ingestion = _step(
+                lambda: client.resume_ingested(sid, seed, fetch), IngestionStep, RunOutcome.FAILED_INGESTION, "INGESTED"
+            )
+        else:
+            source_id = _step(
+                lambda: client.register_source(seed, fetch), RegisteredSource, RunOutcome.FAILED_INGESTION, "NONE"
+            ).source_id
+            sid = source_id
+            ingestion = _step(
+                lambda: client.ingest(sid, seed, fetch), IngestionStep, RunOutcome.FAILED_INGESTION, "SOURCE_REGISTERED"
+            )
+            # Idempotent resume, content_hash check: the content already belongs to another source.
+            if ingestion.resume != ResumeAction.NEW:
+                source_id = ingestion.source_id
+                sid = source_id
+                if ingestion.resume in _SKIP_OUTCOME:
+                    return _skipped_result(
+                        seed, ingestion.resume, source_id, ingestion.lifecycle_state, ingestion.reason
+                    )
+        ingestion_id = ingestion.ingestion_id
 
         extraction = _step(
             lambda: client.extract(sid, ingestion_id, seed),
@@ -423,10 +477,14 @@ def build_report(
     """Aggregate per-source results into a DogfoodRunReport."""
     succeeded = sum(1 for r in results if r.outcome in SUCCEEDED_OUTCOMES)
     review = sum(1 for r in results if r.outcome in REVIEW_OUTCOMES)
+    # Sources an earlier run already handled: neither successes nor failures.
+    already_processed = sum(1 for r in results if r.outcome == RunOutcome.ALREADY_PROCESSED)
+    skipped_rejected = sum(1 for r in results if r.outcome == RunOutcome.SKIPPED_PREVIOUSLY_REJECTED)
+    not_failed = SUCCEEDED_OUTCOMES | REVIEW_OUTCOMES | SKIPPED_OUTCOMES
     failure_modes = [
         {"source_url": r.source_url, "stage": r.stage_reached, "error": r.error or r.outcome.value}
         for r in results
-        if r.outcome not in SUCCEEDED_OUTCOMES and r.outcome not in REVIEW_OUTCOMES
+        if r.outcome not in not_failed
     ]
     licence_outcomes = dict(
         Counter((r.licence_status.value if r.licence_status else "UNKNOWN") for r in results)
@@ -438,8 +496,10 @@ def build_report(
         dry_run=input.dry_run,
         sources_attempted=len(results),
         sources_succeeded=succeeded,
-        sources_failed=len(results) - succeeded - review,
+        sources_failed=len(results) - succeeded - review - already_processed - skipped_rejected,
         sources_routed_to_review=review,
+        sources_already_processed=already_processed,
+        sources_skipped_previously_rejected=skipped_rejected,
         results=results,
         failure_modes=failure_modes,
         licence_outcomes=licence_outcomes,
