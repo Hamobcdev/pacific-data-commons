@@ -122,6 +122,8 @@ const MIN_VENUES_PER_PAIR = 2;
 // the slippage estimate below (both uses are exposed together as
 // benchmark_trade_size_usd in the response, so they must stay the same
 // constant rather than two numbers that could drift apart).
+import { AppError, ValidationError } from "../lib/errors.js";
+
 export const ASSUMED_TRADE_SIZE_USD = 10_000;
 
 // Slippage estimate: (trade_size_usd / venue_liquidity_usd) * 100 *
@@ -833,4 +835,109 @@ function resolveNativeAssetPrice(geckoPoolsByNetwork: Map<EvmNetwork, Map<string
 /** Test-only: clears the in-memory cache between test cases. */
 export function __resetDexArbitrageCacheForTests(): void {
   cache = null;
+}
+
+export interface ArbitrageQueryParams {
+  pair?: string;
+  chain?: string;
+  minSpreadPct?: string | number;
+}
+
+/**
+ * Shared query logic for routes/finance/arbitrage-signals.ts and the
+ * Agent Dataset Gateway's query adapter — extracted so the two callers
+ * can't drift apart. See that route file for the full query-shape doc
+ * comment.
+ */
+export async function queryArbitrageSignals(params: ArbitrageQueryParams): Promise<unknown> {
+  const pairRaw = params.pair;
+  if (pairRaw !== undefined && !CURATED_PAIRS.some((p) => p.pair === pairRaw)) {
+    throw new ValidationError(`pair must be one of the curated pairs: ${CURATED_PAIRS.map((p) => p.pair).join(", ")} (got "${pairRaw}")`);
+  }
+
+  const chainRaw = params.chain;
+  if (chainRaw !== undefined && !(COVERED_CHAINS as readonly string[]).includes(chainRaw)) {
+    throw new ValidationError(`chain must be one of: ${COVERED_CHAINS.join(", ")} (got "${chainRaw}")`);
+  }
+  const chain = chainRaw as Chain | undefined;
+
+  const minSpreadRaw = params.minSpreadPct;
+  let minSpreadPct = 0;
+  if (minSpreadRaw !== undefined) {
+    minSpreadPct = Number(minSpreadRaw);
+    if (!Number.isFinite(minSpreadPct)) {
+      throw new ValidationError("min_spread_pct must be a number");
+    }
+  }
+
+  // Only 502s when EVERY DEX source failed simultaneously (see
+  // getArbitrageSnapshot's own doc comment) — a partial failure still
+  // returns 200 with whatever signals survived, per this endpoint's own
+  // integrity rules.
+  const snapshot = await getArbitrageSnapshot();
+  if (!snapshot) {
+    throw new AppError(502, "bad_gateway", "All DEX data sources are unreachable. Try again shortly.");
+  }
+
+  let signals: ArbitrageSignal[] = snapshot.signals;
+
+  if (pairRaw) {
+    signals = signals.filter((s) => s.pair === pairRaw);
+  }
+  if (chain) {
+    signals = signals.filter((s) => s.estimated_gas.buy_chain === chain || s.estimated_gas.sell_chain === chain);
+  }
+  if (minSpreadPct > 0) {
+    signals = signals.filter((s) => s.net_spread_pct !== null && s.net_spread_pct > minSpreadPct);
+  }
+
+  // Every token actually present in the (possibly filtered) response —
+  // not the full curated set — so a ?pair= or ?chain=-narrowed response
+  // only advertises decimals for tokens it actually returned.
+  const tokensInResponse = new Set<string>();
+  for (const signal of signals) {
+    tokensInResponse.add(signal.base_token);
+    tokensInResponse.add(signal.quote_token);
+  }
+  const tokenDecimalsUsed: Record<string, number> = {};
+  for (const token of tokensInResponse) {
+    tokenDecimalsUsed[token] = resolveTokenDecimals(token).decimals;
+  }
+
+  // signal_age_ms must be computed here, at response time, not stored on
+  // the cached signal — a signal's underlying prices were fetched once
+  // (observed_at, fixed for the life of the 60s cache), but its AGE
+  // grows with every subsequent request served from that same cache
+  // entry. Baking a fixed number into the cached object would make it
+  // wrong for every response after the first.
+  const signalsWithAge = signals.map((s) => ({ ...s, signal_age_ms: Date.now() - new Date(s.observed_at).getTime() }));
+
+  return {
+    signals: signalsWithAge,
+    total_pairs_monitored: snapshot.total_pairs_monitored,
+    pairs_with_signal: signals.length,
+    covered_dexs: COVERED_DEXS,
+    covered_chains: COVERED_CHAINS,
+    data_currency: "real-time",
+    cache_ttl_seconds: 60,
+    attribution: SOURCE_ATTRIBUTION,
+    stage: "1",
+    stage_note: "Stage 1: curated pairs only. Stage 2 will add on-demand arbitrary pair lookup.",
+    gas_warnings: snapshot.gas_warnings,
+    fetch_warnings: snapshot.fetch_warnings,
+    decimal_precision: {
+      warning:
+        "All prices and amounts in this response are human-readable display units. Always convert to raw on-chain integer units using token decimal precision before constructing swap transactions or smart contract calls.",
+      conversion_formula: "raw_units = display_amount * 10^token_decimals (use integer arithmetic, never float — float precision loss causes transaction errors)",
+      example_usdc: "1.5 USDC display → 1500000 raw units (6 decimals)",
+      example_eth: "1.5 ETH display → 1500000000000000000 raw units (18 decimals)",
+      token_decimals_used: tokenDecimalsUsed,
+    },
+    decimal_warning:
+      "IMPORTANT: spot_price_usd and liquidity_usd are display units. For on-chain use apply token_decimals from decimal_precision.token_decimals_used before constructing transactions.",
+    benchmark_trade_size_usd: ASSUMED_TRADE_SIZE_USD,
+    benchmark_trade_note:
+      "Slippage and execution estimates assume a $10,000 benchmark trade. Larger trades will experience greater slippage and may not be profitable at the indicated spread.",
+    cached_at: snapshot.cached_at,
+  };
 }

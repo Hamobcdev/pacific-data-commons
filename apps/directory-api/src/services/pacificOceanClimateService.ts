@@ -35,6 +35,8 @@
 // taking. See SOURCE_ATTRIBUTION below, surfaced verbatim in every
 // response.
 
+import { ValidationError } from "../lib/errors.js";
+
 const FETCH_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 
@@ -194,4 +196,22 @@ export async function getPacificOceanClimate(countryCode: string): Promise<Pacif
 /** Test-only: clears the in-memory cache between test cases. */
 export function __resetOceanClimateCacheForTests(): void {
   cache.clear();
+}
+
+export const VALID_OCEAN_TEMPERATURE_COUNTRIES = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
+
+/**
+ * Shared country validation for routes/climate/ocean-temperature.ts and
+ * the Agent Dataset Gateway's query adapter — extracted so the two
+ * callers can't drift apart.
+ */
+export function parseOceanTemperatureCountry(raw: string | undefined): string {
+  const country = raw?.toUpperCase();
+  if (!country) {
+    throw new ValidationError("country is required, e.g. ?country=WS");
+  }
+  if (!VALID_OCEAN_TEMPERATURE_COUNTRIES.has(country)) {
+    throw new ValidationError(`country must be one of: ${Array.from(VALID_OCEAN_TEMPERATURE_COUNTRIES).join(", ")}`);
+  }
+  return country;
 }

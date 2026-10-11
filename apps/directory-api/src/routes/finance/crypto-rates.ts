@@ -1,15 +1,5 @@
 import { Hono } from "hono";
-import {
-  getCryptoRatesSnapshot,
-  tokensForCategory,
-  PACIFIC_PRIORITY_SYMBOLS,
-  SOURCE_ATTRIBUTION,
-  COINGECKO_UPDATE_FREQUENCY_NOTE,
-  VALID_CATEGORIES,
-  type Category,
-  type CryptoToken,
-} from "../../services/pacificCryptoRatesService.js";
-import { ValidationError } from "../../lib/errors.js";
+import { queryCryptoRates } from "../../services/pacificCryptoRatesService.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 1 / $0.001, Decisions 59/60 — a
@@ -26,67 +16,25 @@ import type { AppBindings } from "../../types.js";
 //     unrecognised symbols silently filters to the valid ones.
 //   category — one of defi|l1|l2|pacific. 400 for any other value.
 // If both are given, category is applied first, then symbols on top.
+//
+// Validation + filtering live in pacificCryptoRatesService.ts's
+// queryCryptoRates() so the Agent Dataset Gateway's query adapter can
+// reuse it.
 export const pacificCryptoRatesRoute = new Hono<AppBindings>();
 
 pacificCryptoRatesRoute.get("/finance/crypto-rates", async (c) => {
-  const categoryRaw = c.req.query("category");
-  let category: Category | undefined;
-  if (categoryRaw !== undefined) {
-    if (!(VALID_CATEGORIES as readonly string[]).includes(categoryRaw)) {
-      throw new ValidationError(`category must be one of: ${VALID_CATEGORIES.join(", ")} (got "${categoryRaw}")`);
-    }
-    category = categoryRaw as Category;
-  }
-
-  const symbolsRaw = c.req.query("symbols");
-  let requestedSymbols: string[] | undefined;
-  if (symbolsRaw !== undefined) {
-    requestedSymbols = symbolsRaw
-      .split(",")
-      .map((s) => s.trim().toUpperCase())
-      .filter((s) => s.length > 0);
-  }
-
   // Never 502s a buyer who already paid for this query (Decision 59/60) —
   // getCryptoRatesSnapshot() itself serves a static fallback rather than
-  // null when neither the KV live feed nor CoinGecko is reachable; see
-  // that function's doc comment. cryptoPricesKv is undefined on Node
-  // local dev (no Workers bindings) — getCryptoRatesSnapshot() handles
-  // that the same way it always has.
-  const snapshot = await getCryptoRatesSnapshot(c.get("cryptoPricesKv"));
-
-  let tokens: CryptoToken[] = snapshot.tokens;
-
-  if (category) {
-    tokens = tokensForCategory(tokens, category);
-  }
-
-  if (requestedSymbols) {
-    const curatedSymbols = new Set(tokens.map((t) => t.symbol));
-    const anyMatch = requestedSymbols.some((s) => curatedSymbols.has(s));
-    if (!anyMatch) {
-      throw new ValidationError(`None of the requested symbols are in the curated list: ${requestedSymbols.join(", ")}`);
-    }
-    const wanted = new Set(requestedSymbols);
-    tokens = tokens.filter((t) => wanted.has(t.symbol));
-  }
+  // null when neither the KV live feed nor CoinGecko is reachable, see
+  // queryCryptoRates()'s own call into it. cryptoPricesKv is undefined on
+  // Node local dev (no Workers bindings) — handled the same way it always
+  // has been.
+  const result = await queryCryptoRates({ category: c.req.query("category"), symbols: c.req.query("symbols") }, c.get("cryptoPricesKv"));
 
   // 60-second cache, same value mirrored here as a standard HTTP cache
   // hint (pacificCryptoRatesService.ts's doc comment has the TTL
   // reasoning).
   c.header("Cache-Control", "public, max-age=60");
 
-  return c.json({
-    tokens,
-    total_tokens: tokens.length,
-    data_currency: snapshot.static_fallback ? "static-fallback" : "real-time",
-    coingecko_update_frequency: COINGECKO_UPDATE_FREQUENCY_NOTE,
-    attribution: SOURCE_ATTRIBUTION,
-    pacific_priority_tokens: PACIFIC_PRIORITY_SYMBOLS,
-    fetch_warnings: snapshot.fetch_warnings,
-    cached_at: snapshot.cached_at,
-    static_fallback: snapshot.static_fallback,
-    static_fallback_reason: snapshot.static_fallback_reason,
-    prices_as_of: snapshot.prices_as_of,
-  });
+  return c.json(result);
 });

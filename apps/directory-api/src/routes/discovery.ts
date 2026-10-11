@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getCaip2Network } from "@pdc/x402-adapter";
 import { DATA_CATEGORIES } from "../lib/dataCategories.js";
+import { AGENT_DATASET_CATALOG, catalogCategoryToDataCategory } from "../lib/agentDatasetCatalog.js";
 import type { AppBindings } from "../types.js";
 
 export const discoveryRoute = new Hono<AppBindings>();
@@ -15,6 +16,34 @@ async function getActiveProviderCount(supabase: AppBindings["Variables"]["supaba
 async function getActiveEndpointCount(supabase: AppBindings["Variables"]["supabase"]): Promise<number> {
   const { count } = await supabase.from("endpoints").select("*", { count: "exact", head: true }).eq("is_active", true);
   return count ?? 0;
+}
+
+/**
+ * Session 3 (Stream A completion) — GoPlausible's bazaar dashboard
+ * (facilitator.goplausible.xyz) indexes endpoints from this manifest, and
+ * was only showing the handful of first-party endpoints that existed
+ * before the Agent Dataset Gateway's catalog did. Derived from
+ * lib/agentDatasetCatalog.ts's AGENT_DATASET_CATALOG — itself derived
+ * from routeSchemas.ts's `paidRoutes` — so a dataset's price or wallet
+ * here can never drift out of sync with what actually gets charged at
+ * its direct route. Lists each dataset's own direct GET route (its real
+ * priced resource), not the Agent Dataset Gateway's POST
+ * /api/v1/datasets/<id>/query adapter — even though that adapter now has
+ * its own correctly-priced paidRoutes entry per dataset (Session 4 fix),
+ * every one of those is gated by middleware/agentWalletAuth.ts on top of
+ * payment, which a generic x402 crawler can't satisfy anyway (same reasoning as routeSchemas.ts's own
+ * doc comment on that entry).
+ */
+function buildPaidEndpoints(directoryApiUrl: string) {
+  return AGENT_DATASET_CATALOG.map((d) => ({
+    path: d.path,
+    full_url: `${directoryApiUrl}${d.path}`,
+    method: d.method,
+    price_usdc: d.priceUsdc,
+    pay_to: d.payToWallet ?? null,
+    category: catalogCategoryToDataCategory(d.category),
+    description: d.description,
+  }));
 }
 
 /**
@@ -71,6 +100,11 @@ discoveryRoute.get("/.well-known/x402-directory.json", async (c) => {
       price_usdc: DIRECTORY_QUERY_PRICE_USDC,
       payment_required: true,
     },
+    // Session 3 — Agent Dataset Gateway's full catalog of priced
+    // first-party endpoints (see buildPaidEndpoints()'s doc comment).
+    // Appended field, same posture as psr_spec/psr_schema below (P6, no
+    // breaking change to this already-published manifest).
+    endpoints: buildPaidEndpoints(directoryApiUrl),
     categories: DATA_CATEGORIES.filter((category) => category !== "cultural"),
     trust_tiers: {
       bronze: { label: "Identity Verified", price_cap_usd: 0.5, free_to_achieve: true },

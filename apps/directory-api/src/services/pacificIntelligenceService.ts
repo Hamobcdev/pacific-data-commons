@@ -8,6 +8,8 @@ import { synthesize as synthesizeReal, type SynthesisResult } from "../lib/claud
 import { selfRegisterAgent } from "./agentSelfRegisterService.js";
 import { submitAttribution as submitAttributionRecord } from "./attributionService.js";
 import { logger } from "../lib/logger.js";
+import { AppError, ValidationError } from "../lib/errors.js";
+import type { Env } from "../lib/env.js";
 
 /**
  * The Pacific Intelligence Orchestrator (Session 31).
@@ -371,4 +373,51 @@ export async function generatePacificBrief(params: GeneratePacificBriefParams): 
     orchestrated_at: orchestratedAt,
     run_id: runId,
   };
+}
+
+const VALID_BRIEF_TOPICS = new Set(["fisheries", "marine", "ocean", "economic", "climate", "general"]);
+const VALID_BRIEF_COUNTRIES = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK", "NU"]);
+
+/**
+ * Shared param validation + config checks + error mapping for
+ * routes/intelligence/pacific-brief.ts and the Agent Dataset Gateway's
+ * query adapter — extracted so the two callers can't drift apart.
+ */
+export async function queryPacificBrief(rawParams: { topic?: string; country?: string }, env: Env, supabase: SupabaseClient): Promise<PacificBrief> {
+  const topic = rawParams.topic?.toLowerCase() ?? "general";
+  const country = rawParams.country?.toUpperCase() ?? "WS";
+
+  if (!VALID_BRIEF_TOPICS.has(topic)) {
+    throw new ValidationError(`topic must be one of: ${Array.from(VALID_BRIEF_TOPICS).join(", ")}`);
+  }
+  if (!VALID_BRIEF_COUNTRIES.has(country)) {
+    throw new ValidationError(`country must be a Pacific ISO code: ${Array.from(VALID_BRIEF_COUNTRIES).join(", ")}`);
+  }
+
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AppError(503, "service_unavailable", "Intelligence synthesis service is not configured.");
+  }
+  if (!env.AGENT_WALLET_KEY) {
+    throw new AppError(503, "service_unavailable", "Orchestrator payment wallet is not configured.");
+  }
+
+  try {
+    return await generatePacificBrief({
+      topic,
+      country,
+      supabase,
+      agentWalletKey: env.AGENT_WALLET_KEY,
+      network: env.ALGORAND_NETWORK,
+      pilotEndpointUrl: env.PILOT_ENDPOINT_URL,
+      publicUrl: env.PUBLIC_URL,
+      avmAddress: env.AVM_ADDRESS,
+      anthropicApiKey: env.ANTHROPIC_API_KEY,
+      claudeModel: env.CLAUDE_MODEL,
+    });
+  } catch (err) {
+    if (err instanceof AllSubEndpointsFailedError) {
+      throw new AppError(503, "endpoints_unavailable", "Pacific data endpoints are temporarily unavailable. Try again shortly.");
+    }
+    throw err;
+  }
 }

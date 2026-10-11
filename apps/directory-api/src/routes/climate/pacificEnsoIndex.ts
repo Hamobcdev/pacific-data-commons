@@ -1,6 +1,6 @@
 import { Hono } from "hono";
+import { queryEnsoIndex } from "../../services/pacificEnsoIndexService.js";
 import type { AppBindings } from "../../types.js";
-import ensoData from "../../data/enso-mei-processed.json";
 
 // NOAA PSL Multivariate ENSO Index v2 (MEI.v2) — public domain
 // https://psl.noaa.gov/enso/mei/
@@ -19,58 +19,20 @@ import ensoData from "../../data/enso-mei-processed.json";
 //   from   — 4-digit start year (inclusive)
 //   to     — 4-digit end year (inclusive)
 //   phase  — elnino | lanina | neutral
+//
+// Filtering logic lives in services/pacificEnsoIndexService.ts so the
+// Agent Dataset Gateway's query adapter can reuse it.
 
 export const pacificEnsoIndexRoute = new Hono<AppBindings>();
 
-interface EnsoRecord {
-  year: number;
-  season: string;
-  period: string;
-  value: number;
-  phase: "elnino" | "lanina" | "neutral";
-}
-
 pacificEnsoIndexRoute.get("/climate/pacific-enso-index", async (c) => {
-  const year  = c.req.query("year");
-  const from  = c.req.query("from");
-  const to    = c.req.query("to");
-  const phase = c.req.query("phase")?.toLowerCase();
-
-  let records: EnsoRecord[] = (ensoData as { records: EnsoRecord[] }).records;
-
-  if (year) {
-    const yr = parseInt(year, 10);
-    records = records.filter((r) => r.year === yr);
-  }
-  if (from) {
-    const fromYr = parseInt(from, 10);
-    records = records.filter((r) => r.year >= fromYr);
-  }
-  if (to) {
-    const toYr = parseInt(to, 10);
-    records = records.filter((r) => r.year <= toYr);
-  }
-  if (phase === "elnino" || phase === "lanina" || phase === "neutral") {
-    records = records.filter((r) => r.phase === phase);
-  }
+  const result = queryEnsoIndex({
+    year: c.req.query("year"),
+    from: c.req.query("from"),
+    to: c.req.query("to"),
+    phase: c.req.query("phase"),
+  });
 
   c.header("Cache-Control", "public, max-age=86400");
-
-  return c.json({
-    data: records,
-    meta: {
-      total_matching: records.length,
-      source: (ensoData as { meta: { source: string } }).meta.source,
-      license: (ensoData as { meta: { license: string } }).meta.license,
-      url: (ensoData as { meta: { url: string } }).meta.url,
-      note: (ensoData as { meta: { note: string } }).meta.note,
-      data_currency: "monthly",
-      filters_applied: {
-        year:  year  ?? null,
-        from:  from  ?? null,
-        to:    to    ?? null,
-        phase: phase ?? null,
-      },
-    },
-  });
+  return c.json(result);
 });

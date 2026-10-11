@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { getPacificOceanClimate } from "../../services/pacificOceanClimateService.js";
-import { AppError, ValidationError } from "../../lib/errors.js";
+import { getPacificOceanClimate, parseOceanTemperatureCountry } from "../../services/pacificOceanClimateService.js";
+import { AppError } from "../../lib/errors.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 1 / $0.01, Decisions 59/60 — a
@@ -17,17 +17,8 @@ import type { AppBindings } from "../../types.js";
 // there's no sensible "all countries" response to aggregate across.
 export const pacificOceanTemperatureRoute = new Hono<AppBindings>();
 
-const VALID_COUNTRIES = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
-
 pacificOceanTemperatureRoute.get("/climate/ocean-temperature", async (c) => {
-  const country = c.req.query("country")?.toUpperCase();
-
-  if (!country) {
-    throw new ValidationError("country is required, e.g. ?country=WS");
-  }
-  if (!VALID_COUNTRIES.has(country)) {
-    throw new ValidationError(`country must be one of: ${Array.from(VALID_COUNTRIES).join(", ")}`);
-  }
+  const country = parseOceanTemperatureCountry(c.req.query("country"));
 
   const oceanClimate = await getPacificOceanClimate(country);
   if (!oceanClimate) {

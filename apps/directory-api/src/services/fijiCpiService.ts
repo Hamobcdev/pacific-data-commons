@@ -34,6 +34,8 @@
 // than fabricate a base year, base_year is null with weights_basis
 // documenting what FBoS does state.
 
+import { ValidationError } from "../lib/errors.js";
+
 export const SOURCE_ATTRIBUTION = {
   source: "Fiji Bureau of Statistics",
   source_url: "https://www.statsfiji.gov.fj/statistics/economic-statistics/prices/",
@@ -124,6 +126,28 @@ export interface FijiCpiFilters {
   year?: number;
   from?: string; // YYYY-MM
   to?: string; // YYYY-MM
+}
+
+/**
+ * Shared param validation for routes/finance/fiji-cpi.ts and the Agent
+ * Dataset Gateway's query adapter — extracted so the two callers can't
+ * drift apart.
+ */
+export function parseFijiCpiParams(yearRaw: string | number | undefined, from: string | undefined, to: string | undefined): FijiCpiFilters {
+  let year: number | undefined;
+  if (yearRaw !== undefined) {
+    year = Number(yearRaw);
+    if (!Number.isInteger(year) || String(year).length !== 4) {
+      throw new ValidationError("year must be a 4-digit integer, e.g. ?year=2026");
+    }
+  }
+  if (from !== undefined && !/^\d{4}-\d{2}$/.test(from)) {
+    throw new ValidationError("from must be in YYYY-MM format, e.g. ?from=2026-07");
+  }
+  if (to !== undefined && !/^\d{4}-\d{2}$/.test(to)) {
+    throw new ValidationError("to must be in YYYY-MM format, e.g. ?to=2026-09");
+  }
+  return { year, from, to };
 }
 
 /** No live upstream (see file header) — async for calling-convention consistency with the rest of this directory, same as getFijiGdp(). */

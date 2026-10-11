@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { getPacificWeather } from "../../services/pacificWeatherService.js";
-import { AppError, ValidationError } from "../../lib/errors.js";
+import { getPacificWeather, parseWeatherCountry } from "../../services/pacificWeatherService.js";
+import { AppError } from "../../lib/errors.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in index.ts (priceUsdc registered separately from this
@@ -15,17 +15,8 @@ import type { AppBindings } from "../../types.js";
 // the whole region (Session 34 intelligence-phase decision).
 export const pacificWeatherRoute = new Hono<AppBindings>();
 
-const VALID_COUNTRIES = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
-
 pacificWeatherRoute.get("/pacific/weather", async (c) => {
-  const country = c.req.query("country")?.toUpperCase();
-
-  if (!country) {
-    throw new ValidationError("country is required, e.g. ?country=WS");
-  }
-  if (!VALID_COUNTRIES.has(country)) {
-    throw new ValidationError(`country must be one of: ${Array.from(VALID_COUNTRIES).join(", ")}`);
-  }
+  const country = parseWeatherCountry(c.req.query("country"));
 
   const weather = await getPacificWeather(country);
   if (!weather) {

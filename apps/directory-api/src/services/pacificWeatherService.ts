@@ -31,6 +31,8 @@
 //    its own real IANA zone instead — all 7 verified live against
 //    Open-Meteo (200 OK) during the intelligence phase.
 
+import { ValidationError } from "../lib/errors.js";
+
 const FETCH_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 60 minutes
 
@@ -221,4 +223,22 @@ export async function getPacificWeather(countryCode: string): Promise<PacificWea
  * purpose as fxRateService.ts's __resetFxRateCacheForTests. */
 export function __resetWeatherCacheForTests(): void {
   cache.clear();
+}
+
+export const VALID_WEATHER_COUNTRIES = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
+
+/**
+ * Shared country validation for routes/pacific/weather.ts and the Agent
+ * Dataset Gateway's query adapter — extracted so the two callers can't
+ * drift apart.
+ */
+export function parseWeatherCountry(raw: string | undefined): string {
+  const country = raw?.toUpperCase();
+  if (!country) {
+    throw new ValidationError("country is required, e.g. ?country=WS");
+  }
+  if (!VALID_WEATHER_COUNTRIES.has(country)) {
+    throw new ValidationError(`country must be one of: ${Array.from(VALID_WEATHER_COUNTRIES).join(", ")}`);
+  }
+  return country;
 }

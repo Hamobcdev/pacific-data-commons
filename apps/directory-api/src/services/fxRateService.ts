@@ -56,6 +56,8 @@
 // a static approximation, individually — a partial outage degrades one
 // currency's freshness, not the whole response.
 
+import { ValidationError } from "../lib/errors.js";
+
 const FETCH_TIMEOUT_MS = 5_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -334,4 +336,89 @@ export async function getFxRates(convertFrom?: string, convertTo?: string, conve
 /** Test-only: clears the in-memory cache between test cases. */
 export function __resetFxRateCacheForTests(): void {
   cache = null;
+}
+
+const SUPPORTED_CURRENCIES = new Set(["WST", "FJD", "TOP", "PGK", "SBD", "VUV", "XPF", "KHR", "AUD", "NZD", "EUR", "GBP", "JPY", "CNY", "SGD", "CAD", "HKD", "USD", "ALGO", "USDC"]);
+
+export interface FxQueryParams {
+  from?: string;
+  to?: string;
+  amount?: string | number;
+  base?: string;
+  pairs?: string;
+  pacificOnly?: string | boolean;
+}
+
+/**
+ * Shared query logic for routes/finance/fx.ts and the Agent Dataset
+ * Gateway's query adapter — extracted so the two callers can't drift
+ * apart. See that route file for the full query-shape doc comment
+ * (conversion mode vs. listing mode).
+ */
+export async function queryFx(params: FxQueryParams): Promise<unknown> {
+  const from = params.from?.toUpperCase();
+  const to = params.to?.toUpperCase();
+  const amountStr = params.amount !== undefined ? String(params.amount) : undefined;
+
+  const anyConversionParam = from !== undefined || to !== undefined || amountStr !== undefined;
+
+  if (anyConversionParam) {
+    if (!from || !to || !amountStr) {
+      throw new ValidationError("Conversion requires from, to, and amount query parameters, e.g. ?from=WST&to=USD&amount=100");
+    }
+    if (!SUPPORTED_CURRENCIES.has(from)) {
+      throw new ValidationError(`"${from}" is not a supported currency. Supported: ${Array.from(SUPPORTED_CURRENCIES).join(", ")}`);
+    }
+    if (!SUPPORTED_CURRENCIES.has(to)) {
+      throw new ValidationError(`"${to}" is not a supported currency. Supported: ${Array.from(SUPPORTED_CURRENCIES).join(", ")}`);
+    }
+
+    const amount = Number(amountStr);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new ValidationError("amount must be a positive number");
+    }
+
+    return getFxRates(from, to, amount);
+  }
+
+  const baseRaw = params.base?.toUpperCase();
+  if (baseRaw !== undefined && !SUPPORTED_CURRENCIES.has(baseRaw)) {
+    throw new ValidationError(`"${baseRaw}" is not a supported base currency. Supported: ${Array.from(SUPPORTED_CURRENCIES).join(", ")}`);
+  }
+
+  const pairsRaw = params.pairs;
+  let requestedPairs: string[] | undefined;
+  if (pairsRaw !== undefined) {
+    requestedPairs = pairsRaw
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
+    const unsupported = requestedPairs.filter((p) => !SUPPORTED_CURRENCIES.has(p));
+    if (unsupported.length > 0) {
+      throw new ValidationError(`Unsupported currency in ?pairs=: ${unsupported.join(", ")}. Supported: ${Array.from(SUPPORTED_CURRENCIES).join(", ")}`);
+    }
+  }
+
+  const pacificOnly = String(params.pacificOnly).toLowerCase() === "true";
+
+  const snapshot = await getFxRates();
+  const base = baseRaw ?? "USD";
+  const ratesForBase = base === "USD" ? snapshot.rates : rebaseRates(snapshot.rates, base);
+
+  let filteredRates: Record<string, number> = ratesForBase;
+  if (pacificOnly) {
+    const keep = new Set<string>([...(PACIFIC_CURRENCIES as readonly string[]), "ALGO", "USDC"]);
+    filteredRates = Object.fromEntries(Object.entries(filteredRates).filter(([code]) => keep.has(code)));
+  }
+  if (requestedPairs) {
+    const keep = new Set(requestedPairs);
+    filteredRates = Object.fromEntries(Object.entries(filteredRates).filter(([code]) => keep.has(code)));
+  }
+
+  return {
+    ...snapshot,
+    base,
+    rates: filteredRates,
+    micro_state_pegs: MICRO_STATE_PEGS,
+  };
 }

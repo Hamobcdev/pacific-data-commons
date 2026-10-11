@@ -1,4 +1,5 @@
 import { paidRoutes } from "../routeSchemas.js";
+import { type DataCategory } from "./dataCategories.js";
 
 /**
  * Stream A — Agent Dataset Gateway (CLAUDE.md Decision 61, "PDC as Pacific
@@ -17,14 +18,16 @@ import { paidRoutes } from "../routeSchemas.js";
  * reporting_lag_note — the per-response fields Decision 61 requires) are
  * supplied here, sourced from docs/current-state/agent-dataset-inventory.csv.
  *
- * Scoped to the five data-bearing categories (finance/climate/fisheries/
- * intelligence/tourism) — the directory meta-routes (/search, /provider/:id,
- * /endpoint/:id, /verify/:certHash) and /algorand/wallet-balance are
- * discovery/utility routes, not registry datasets, and are left out.
+ * Scoped to the six data-bearing categories (finance/climate/fisheries/
+ * intelligence/tourism/algorand) — the directory meta-routes (/search,
+ * /provider/:id, /endpoint/:id, /verify/:certHash) are discovery/utility
+ * routes, not registry datasets, and are left out. /algorand/wallet-balance
+ * IS a registry dataset here (Session 3) — it's a genuine first-party
+ * data lookup (Decision 59), not a directory meta-route.
  */
 
 export interface AgentDatasetMetadata {
-  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism";
+  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand";
   dataCurrency: string;
   upstreamSource: string;
   reportingLagNote?: string;
@@ -67,10 +70,44 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
   "/intelligence/pacific-travel": { category: "intelligence", dataCurrency: "real-time (sub-endpoint composite)", upstreamSource: "PDC sub-endpoints (events + fx + fisheries + weather + tourism-stats) + Claude synthesis" },
   "/pacific/events": { category: "tourism", dataCurrency: "on-demand", upstreamSource: "SPTO + tourism authorities" },
   "/pacific/weather": { category: "tourism", dataCurrency: "hourly", upstreamSource: "Open-Meteo (ECMWF model)" },
+  "/algorand/wallet-balance": { category: "algorand", dataCurrency: "real-time", upstreamSource: "Nodely (primary) / AlgoNode (fallback)" },
 };
 
-/** Datasets wired into POST /api/v1/datasets/:id/query's adapter. Must stay in sync with the switch cases in routes/agentDatasetGateway.ts's runDatasetQuery(). Every other cataloged dataset returns 501 from the query adapter until wired. */
-const QUERYABLE_DATASET_IDS = new Set(["samoa-cpi", "pacific-sea-level", "pacific-purse-seine", "pacific-ocean-forecast"]);
+/**
+ * Datasets wired into POST /api/v1/datasets/:id/query's adapter. Must
+ * stay in sync with the switch cases in routes/agentDatasetGateway.ts's
+ * runDatasetQuery(). Session 3 wires every dataset in DATASET_METADATA
+ * above — this set should always equal its keys' derived ids (see the
+ * routeRegistration-style completeness assertion in
+ * __tests__/agentDatasetGateway.test.ts), but stays an explicit list
+ * rather than derived from DATASET_METADATA directly so a newly added
+ * catalog entry that isn't yet wired fails safe (501) instead of being
+ * silently treated as queryable.
+ */
+const QUERYABLE_DATASET_IDS = new Set([
+  "samoa-cpi",
+  "samoa-gdp",
+  "fiji-gdp",
+  "fiji-cpi",
+  "fx",
+  "crypto-rates",
+  "crypto-history",
+  "arbitrage-signals",
+  "remittance-corridors",
+  "ocean-temperature",
+  "pacific-ocean-temp",
+  "pacific-ocean-forecast",
+  "pacific-coral-bleaching",
+  "pacific-cyclone-history",
+  "pacific-sea-level",
+  "pacific-enso-index",
+  "pacific-purse-seine",
+  "pacific-brief",
+  "pacific-travel",
+  "events",
+  "weather",
+  "wallet-balance",
+]);
 
 export interface AgentDataset {
   datasetId: string;
@@ -128,4 +165,26 @@ export const AGENT_DATASET_CATALOG: AgentDataset[] = buildCatalog();
 
 export function getAgentDataset(datasetId: string): AgentDataset | undefined {
   return AGENT_DATASET_CATALOG.find((d) => d.datasetId === datasetId);
+}
+
+/**
+ * Maps this catalog's own category taxonomy onto lib/dataCategories.ts's
+ * canonical DataCategory enum — used by routes/discovery.ts and
+ * routes/wellKnownX402.ts's agent-discovery manifests, which advertise
+ * DATA_CATEGORIES as their category vocabulary. "intelligence" and
+ * "algorand" have no direct DataCategory equivalent (composite synthesis
+ * briefs and a wallet lookup aren't research papers or financial flows)
+ * so both map to "other" rather than overloading an unrelated category.
+ */
+const CATEGORY_TO_DATA_CATEGORY: Record<AgentDatasetMetadata["category"], DataCategory> = {
+  finance: "financial_flows",
+  climate: "climate",
+  fisheries: "fisheries",
+  tourism: "tourism",
+  intelligence: "other",
+  algorand: "other",
+};
+
+export function catalogCategoryToDataCategory(category: AgentDatasetMetadata["category"]): DataCategory {
+  return CATEGORY_TO_DATA_CATEGORY[category];
 }

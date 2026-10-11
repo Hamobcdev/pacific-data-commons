@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { wellKnownX402Route } from "../routes/wellKnownX402.js";
+import { AGENT_DATASET_CATALOG } from "../lib/agentDatasetCatalog.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import type { AppBindings } from "../types.js";
 import type { Env } from "../lib/env.js";
@@ -41,7 +42,7 @@ describe("GET /.well-known/x402", () => {
       provider: string;
       network: string;
       caip2: string;
-      endpoints: Array<{ path: string; pay_to: string; category: string }>;
+      endpoints: Array<{ path: string; pay_to: string; category: string; price_usdc: string }>;
       agents: { marketplace_url: string | null; catalogue: Array<{ id: string }> };
       docs: string | null;
     };
@@ -51,14 +52,24 @@ describe("GET /.well-known/x402", () => {
     expect(body.caip2).toContain("algorand:");
     expect(body.docs).toBe("https://pdc.synergybcpacific.com/en/developers");
 
+    // Session 3 — derived from AGENT_DATASET_CATALOG (22 datasets) + /search,
+    // not a hand-written list — see routes/wellKnownX402.ts's buildEndpoints().
+    expect(body.endpoints.length).toBe(AGENT_DATASET_CATALOG.length + 1);
+
     const paths = body.endpoints.map((e) => e.path);
-    expect(paths).toEqual(["/finance/samoa-cpi", "/climate/ocean-temperature", "/finance/samoa-gdp", "/search"]);
+    expect(paths).toContain("/search");
+    for (const dataset of AGENT_DATASET_CATALOG) {
+      expect(paths).toContain(dataset.path);
+    }
 
     const searchEndpoint = body.endpoints.find((e) => e.path === "/search");
     expect(searchEndpoint?.pay_to).toBe(TEST_AVM_ADDRESS);
 
     const cpiEndpoint = body.endpoints.find((e) => e.path === "/finance/samoa-cpi");
     expect(cpiEndpoint?.pay_to).not.toBe(TEST_AVM_ADDRESS); // pilot-earnings wallet, not the main directory wallet
+
+    const seaLevelEndpoint = body.endpoints.find((e) => e.path === "/climate/pacific-sea-level");
+    expect(seaLevelEndpoint?.price_usdc).toBe("0.15"); // sourced from paidRoutes, not a flat default
 
     expect(body.agents.marketplace_url).toBe("https://pdc.synergybcpacific.com/en/agents");
     expect(body.agents.catalogue.length).toBe(7);

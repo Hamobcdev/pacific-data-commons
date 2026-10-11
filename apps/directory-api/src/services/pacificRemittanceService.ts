@@ -50,6 +50,7 @@
 // this just reuses fxRateService's own 24h cache for the FX leg).
 
 import { getFxRates } from "./fxRateService.js";
+import { ValidationError } from "../lib/errors.js";
 
 const FETCH_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -357,4 +358,63 @@ export async function getRemittanceSnapshot(): Promise<RemittanceSnapshot> {
 /** Test-only: clears the in-memory cache between test cases. */
 export function __resetRemittanceCacheForTests(): void {
   cache = null;
+}
+
+export interface RemittanceQueryParams {
+  corridor?: string;
+  token?: string;
+  minSavingPct?: string | number;
+}
+
+/**
+ * Shared query logic for routes/finance/remittance-corridors.ts and the
+ * Agent Dataset Gateway's query adapter — extracted so the two callers
+ * can't drift apart.
+ */
+export async function queryRemittanceCorridors(params: RemittanceQueryParams): Promise<unknown> {
+  const corridorRaw = params.corridor;
+  if (corridorRaw !== undefined && !CORRIDORS.some((corr) => corr.corridor_id === corridorRaw)) {
+    throw new ValidationError(`corridor must be one of: ${CORRIDORS.map((corr) => corr.corridor_id).join(", ")} (got "${corridorRaw}")`);
+  }
+
+  const tokenRaw = params.token?.toUpperCase();
+  if (tokenRaw !== undefined && !CRYPTO_TOKENS.some((t) => t.token === tokenRaw)) {
+    throw new ValidationError(`token must be one of: ${CRYPTO_TOKENS.map((t) => t.token).join(", ")} (got "${tokenRaw}")`);
+  }
+  const token = tokenRaw as CryptoToken | undefined;
+
+  const minSavingRaw = params.minSavingPct;
+  let minSavingPct = 0;
+  if (minSavingRaw !== undefined) {
+    minSavingPct = Number(minSavingRaw);
+    if (!Number.isFinite(minSavingPct)) {
+      throw new ValidationError("min_saving_pct must be a number");
+    }
+  }
+
+  const snapshot = await getRemittanceSnapshot();
+  let corridors = snapshot.corridors;
+
+  if (corridorRaw) {
+    corridors = corridors.filter((corr) => corr.corridor_id === corridorRaw);
+  }
+  if (minSavingPct > 0) {
+    corridors = corridors.filter((corr) => corr.potential_saving_pct !== null && corr.potential_saving_pct > minSavingPct);
+  }
+  if (token) {
+    corridors = corridors.map((corr) => ({ ...corr, crypto_rails: corr.crypto_rails.filter((r) => r.token === token) }));
+  }
+
+  return {
+    corridors,
+    meta: {
+      benchmark_send_amount_usd: BENCHMARK_SEND_AMOUNT_USD,
+      corridors_returned: corridors.length,
+      note: "Crypto rail costs are network fees only. Local on-ramp and off-ramp costs are additional and vary by provider and country.",
+      not_financial_advice: true,
+      data_sources: ["World Bank Remittance Prices Worldwide", "fawazahmed0/currency-api / ExchangeRate-API / Frankfurter (ECB) — see /finance/fx", "Static crypto network fee estimates"],
+      generated_at: snapshot.generated_at,
+    },
+    fetch_warnings: snapshot.fetch_warnings,
+  };
 }

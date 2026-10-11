@@ -259,12 +259,12 @@ export function discoveryFor(config: DiscoveryConfig) {
   return declareDiscoveryExtension(config).bazaar;
 }
 
-export const paidRoutes: Array<{
+export interface PaidRouteSpec {
   // Widened from "GET" only (Session 24 through the ENSO/crypto-rates/
   // arbitrage-signals routes above, which are all GET) to also allow
-  // "POST" — the Agent Dataset Gateway's query adapter
-  // (POST /api/v1/datasets/:id/query) is the first paidRoutes entry that
-  // takes a request body rather than query params.
+  // "POST" — the Agent Dataset Gateway's query adapter entries
+  // (POST /api/v1/datasets/<id>/query) are the first paidRoutes entries
+  // that take a request body rather than query params.
   method: "GET" | "POST";
   path: string;
   description: string;
@@ -272,7 +272,9 @@ export const paidRoutes: Array<{
   priceUsdc?: number;
   /** Overrides the gate's default payTo wallet for this route only — see PdcPaidRouteSpec.payToAddress. */
   payToAddress?: string;
-}> = [
+}
+
+const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/search",
@@ -1231,22 +1233,83 @@ export const paidRoutes: Array<{
       },
     }),
   },
-  {
-    // Stream A — Agent Dataset Gateway (CLAUDE.md Decision 61). MVP scope
-    // is samoa-cpi only (lib/agentDatasetCatalog.ts's QUERYABLE_DATASET_IDS);
-    // every other dataset in the catalog returns 501 from this same route
-    // until wired. Priced identically to /finance/samoa-cpi itself
-    // (SAMOA_CPI_PRICE_USDC, same payToAddress) — the gateway adapter calls
-    // getSamoaCpi() directly in-process rather than making a second HTTP
-    // call to /finance/samoa-cpi, so an agent pays once per query, not
-    // twice. No `discovery` bazaar declaration yet — this route is gated
-    // by middleware/agentWalletAuth.ts's requireKnownAgentWallet on top of
-    // payment, which a generic x402 crawler can't satisfy anyway.
-    method: "POST",
-    path: "/api/v1/datasets/:id/query",
-    description:
-      "Agent Dataset Gateway query adapter. MVP scope: only dataset id 'samoa-cpi' is wired (returns 501 for any other id) — see GET /api/v1/datasets for the full catalog and GET /api/v1/manifests/:id for per-dataset schema. Requires X-Agent-Wallet header naming a wallet already registered in the agents table. POST body: { \"params\": { \"years\": 15 } }, years optional, 1-60, default 15.",
-    priceUsdc: SAMOA_CPI_PRICE_USDC,
-    payToAddress: PDC_PILOT_EARNINGS_WALLET,
-  },
 ];
+
+/**
+ * Stream A — Agent Dataset Gateway (CLAUDE.md Decision 61) per-dataset
+ * pricing fix. Hono's own route handler (routes/agentDatasetGateway.ts)
+ * still uses one dynamic "POST /api/v1/datasets/:id/query" path — that's
+ * unrelated and unchanged. This is about what the PAYMENT GATE charges:
+ * it used to register that literal ":id" pattern as a SINGLE paidRoutes
+ * entry priced at SAMOA_CPI_PRICE_USDC flat, so an agent querying
+ * pacific-sea-level through the gateway was charged $0.01 instead of its
+ * real $0.15 — found during Stream A Session 3 review, fixed here.
+ *
+ * Since @x402/core's route matching is regex-based per literal pattern
+ * (confirmed in node_modules/.pnpm/@x402+core.../server/index.js's
+ * parseRoutePattern — a literal path compiles to an exact-match regex,
+ * same as every other paidRoutes entry above), registering one literal
+ * route per dataset id — rather than teaching the payment gate a dynamic
+ * per-request price resolver — is the fix that fits this app's existing
+ * architecture with no changes to app.ts's addRoute() loop or to
+ * @pdc/x402-adapter at all. Each entry reuses its OWN dataset's direct
+ * GET route's price/wallet (looked up by path in paidRoutesBase above),
+ * so it can never drift from what that same dataset costs directly.
+ *
+ * AGENT_DATASET_GATEWAY_DIRECT_PATHS must mirror
+ * lib/agentDatasetCatalog.ts's DATASET_METADATA keys exactly. It's
+ * necessarily a second list, not an import of the first: agentDatasetCatalog.ts
+ * already imports `paidRoutes` from this file, so this file importing
+ * back from agentDatasetCatalog.ts would be circular.
+ * __tests__/routeSchemas.test.ts's "Agent Dataset Gateway pricing"
+ * suite cross-checks the two lists stay in sync.
+ */
+const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
+  "/finance/fx",
+  "/finance/samoa-cpi",
+  "/finance/samoa-gdp",
+  "/finance/fiji-gdp",
+  "/finance/fiji-cpi",
+  "/finance/crypto-rates",
+  "/finance/crypto-history",
+  "/finance/arbitrage-signals",
+  "/finance/remittance-corridors",
+  "/climate/ocean-temperature",
+  "/climate/pacific-ocean-temp",
+  "/climate/pacific-ocean-forecast",
+  "/climate/pacific-coral-bleaching",
+  "/climate/pacific-cyclone-history",
+  "/climate/pacific-sea-level",
+  "/climate/pacific-enso-index",
+  "/fisheries/pacific-purse-seine",
+  "/intelligence/pacific-brief",
+  "/intelligence/pacific-travel",
+  "/pacific/events",
+  "/pacific/weather",
+  "/algorand/wallet-balance",
+];
+
+function datasetIdFromDirectPath(path: string): string {
+  const segments = path.split("/").filter(Boolean);
+  const last = segments[segments.length - 1];
+  if (!last) throw new Error(`cannot derive dataset id from path "${path}"`);
+  return last;
+}
+
+const agentDatasetGatewayRoutes: PaidRouteSpec[] = AGENT_DATASET_GATEWAY_DIRECT_PATHS.map((path) => {
+  const directRoute = paidRoutesBase.find((r) => r.method === "GET" && r.path === path);
+  if (!directRoute) {
+    throw new Error(`Agent Dataset Gateway: no direct GET paidRoutes entry found for "${path}" — AGENT_DATASET_GATEWAY_DIRECT_PATHS is out of sync with paidRoutesBase.`);
+  }
+
+  const datasetId = datasetIdFromDirectPath(path);
+  return {
+    method: "POST",
+    path: `/api/v1/datasets/${datasetId}/query`,
+    description: `Agent Dataset Gateway query adapter for dataset "${datasetId}" — see GET /api/v1/datasets for the full catalog and GET /api/v1/manifests/${datasetId} for its schema. Requires X-Agent-Wallet header naming a wallet already registered in the agents table. Priced identically to the direct route (GET ${path}): $${directRoute.priceUsdc} USDC.`,
+    priceUsdc: directRoute.priceUsdc,
+    payToAddress: directRoute.payToAddress,
+  };
+});
+
+export const paidRoutes: PaidRouteSpec[] = [...paidRoutesBase, ...agentDatasetGatewayRoutes];
