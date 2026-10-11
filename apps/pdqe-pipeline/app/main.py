@@ -13,6 +13,7 @@ Stage history:
   0.10.0 — Stage 10: internal dogfooding corpus runner endpoints added
   0.10.1 — Stage 10.1: live corpus runner (fetcher, direct pipeline calls,
            DOGFOOD_AUTO_APPROVE guard), /dogfood/review-queue added
+  0.10.2 — Stage 02b: Layer 2 content sanitisation implemented (no new routes)
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -117,14 +118,14 @@ from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.10.1")
+app = FastAPI(title="PDQE Pipeline", version="0.10.2")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "10.1-live-runner", "version": "0.10.1"}
+    return {"status": "ok", "stage": "02b-layer2-sanitisation", "version": "0.10.2"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────

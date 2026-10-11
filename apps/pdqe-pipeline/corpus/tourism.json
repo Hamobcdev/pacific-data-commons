@@ -9,7 +9,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Regional anchor for tourism; already a co-source of the top-queried tourism endpoint (session34). Reuse terms not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Regional anchor for tourism; already a co-source of the top-queried tourism endpoint (session34). Reuse terms not stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://www.samoa.travel/",
@@ -21,7 +21,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Expands the existing top-queried Samoa tourism endpoint. Underlying arrivals are compiled by the Samoa Bureau of Statistics — attribution chain to confirm. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Expands the existing top-queried Samoa tourism endpoint. Underlying arrivals are compiled by the Samoa Bureau of Statistics — attribution chain to confirm. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://www.statsfiji.gov.fj/",
@@ -33,7 +33,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Largest Pacific tourism market. Government statistics; reuse licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Largest Pacific tourism market. Government statistics; reuse licence not stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://vnso.gov.vu/",
@@ -45,7 +45,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Includes cruise arrivals, a distinct series from air arrivals. Reuse licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Includes cruise arrivals, a distinct series from air arrivals. Reuse licence not stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://www.mfem.gov.ck/statistics",
@@ -57,6 +57,6 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "High tourism dependence makes this a strong indicator series. Reuse licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "High tourism dependence makes this a strong indicator series. Reuse licence not stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   }
 ]

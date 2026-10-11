@@ -227,7 +227,7 @@ def test_load_health_corpus_returns_sources():
     assert len(seeds) == 5
     assert all(s.domain.value == "HEALTH" for s in seeds)
     # WHO data is non-commercial — must never be marked CLEAR.
-    who = next(s for s in seeds if "who.int" in s.source_url)
+    who = next(s for s in seeds if s.title.startswith("WHO Global Health Observatory"))
     assert who.licence_status.value == "RESTRICTED"
 
 

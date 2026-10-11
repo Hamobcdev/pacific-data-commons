@@ -12,3 +12,8 @@ supabase>=2.0,<3.0
 # Stage 09 — pdc-x402-adapter client (live mode only; already a transitive
 # dependency of supabase, pinned explicitly because app code imports it).
 httpx>=0.27,<1.0
+# Stage 02b — Layer 2 content sanitisation (app/security/layer2_sanitisation.py).
+defusedxml>=0.7.1,<1.0
+openpyxl>=3.1.0,<4.0
+python-docx>=1.1.0,<2.0
+pypdf>=4.0.0,<7.0
