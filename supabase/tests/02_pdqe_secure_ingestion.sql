@@ -37,10 +37,10 @@ END $$;
 
 -- Seed a source row to attach ingestion attempts to (FK requirement)
 INSERT INTO pdqe.sources (
-  title, publisher_name, source_type, acquisition_method,
+  internal_pipeline, title, publisher_name, source_type, acquisition_method,
   geographic_scope, candidate_domains, registered_by
 ) VALUES (
-  'Stage 02 Test Source',
+  TRUE, 'Stage 02 Test Source',
   'Test Publisher',
   'PDF_DOCUMENT',
   'MANUAL_UPLOAD',

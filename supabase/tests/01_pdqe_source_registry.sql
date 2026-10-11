@@ -57,10 +57,10 @@ SELECT has_column('pdqe', 'sources', 'registered_by',      'T01.2j: registered_b
 
 -- T01.3: Insert a source succeeds (service_role, the pipeline default)
 INSERT INTO pdqe.sources (
-  title, publisher_name, source_type, acquisition_method,
+  internal_pipeline, title, publisher_name, source_type, acquisition_method,
   geographic_scope, candidate_domains, registered_by
 ) VALUES (
-  'Samoa CPI Monthly Bulletin',
+  TRUE, 'Samoa CPI Monthly Bulletin',
   'Samoa Bureau of Statistics',
   'PDF_DOCUMENT',
   'MANUAL_UPLOAD',
@@ -88,11 +88,11 @@ SELECT is(
   'T01.5: default licence_status is UNKNOWN'
 );
 
--- T01.6: Default internal_pipeline is TRUE
-SELECT is(
-  (SELECT internal_pipeline FROM pdqe.sources WHERE title = 'Samoa CPI Monthly Bulletin'),
-  TRUE,
-  'T01.6: default internal_pipeline is TRUE'
+-- T01.6: Default internal_pipeline is FALSE (Stage 11, migration 20261012000010).
+-- Internal rows opt in explicitly — every insert in this suite sets TRUE.
+SELECT col_default_is(
+  'pdqe', 'sources', 'internal_pipeline', 'false',
+  'T01.6: default internal_pipeline is FALSE'
 );
 
 -- T01.7: source_id is auto-generated (non-null UUID)
@@ -303,11 +303,11 @@ SELECT ok(
 SELECT throws_ok(
   $$
     INSERT INTO pdqe.sources (
-      title, publisher_name, source_type, acquisition_method,
+      internal_pipeline, title, publisher_name, source_type, acquisition_method,
       geographic_scope, candidate_domains, registered_by,
       content_hash
     ) VALUES (
-      'Duplicate Content Source',
+      TRUE, 'Duplicate Content Source',
       'Test Publisher',
       'PDF_DOCUMENT',
       'MANUAL_UPLOAD',
@@ -324,10 +324,10 @@ SELECT throws_ok(
 
 -- T04.3: NULL content_hash allows multiple rows (deduplication only applies to known content)
 INSERT INTO pdqe.sources (
-  title, publisher_name, source_type, acquisition_method,
+  internal_pipeline, title, publisher_name, source_type, acquisition_method,
   geographic_scope, candidate_domains, registered_by
 ) VALUES (
-  'Another Source With No Hash Yet',
+  TRUE, 'Another Source With No Hash Yet',
   'Test Publisher B',
   'PDF_DOCUMENT',
   'MANUAL_UPLOAD',
@@ -337,10 +337,10 @@ INSERT INTO pdqe.sources (
 );
 
 INSERT INTO pdqe.sources (
-  title, publisher_name, source_type, acquisition_method,
+  internal_pipeline, title, publisher_name, source_type, acquisition_method,
   geographic_scope, candidate_domains, registered_by
 ) VALUES (
-  'Yet Another Source With No Hash',
+  TRUE, 'Yet Another Source With No Hash',
   'Test Publisher C',
   'PDF_DOCUMENT',
   'MANUAL_UPLOAD',
@@ -361,10 +361,10 @@ SELECT is(
 
 -- Insert a fresh source for transition tests
 INSERT INTO pdqe.sources (
-  title, publisher_name, source_type, acquisition_method,
+  internal_pipeline, title, publisher_name, source_type, acquisition_method,
   geographic_scope, candidate_domains, registered_by, licence_status
 ) VALUES (
-  'Transition Test Source',
+  TRUE, 'Transition Test Source',
   'Test Publisher',
   'API_ENDPOINT',
   'API_PULL',
@@ -431,10 +431,10 @@ SELECT throws_ok(
 
 -- T05.4: Valid forward transition succeeds
 INSERT INTO pdqe.sources (
-  title, publisher_name, source_type, acquisition_method,
+  internal_pipeline, title, publisher_name, source_type, acquisition_method,
   geographic_scope, candidate_domains, registered_by, licence_status
 ) VALUES (
-  'Forward Transition Test',
+  TRUE, 'Forward Transition Test',
   'Test Publisher',
   'API_ENDPOINT',
   'API_PULL',
