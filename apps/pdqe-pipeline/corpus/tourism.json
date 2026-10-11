@@ -1,0 +1,62 @@
+[
+  {
+    "source_url": "https://corporate.southpacificislands.travel/",
+    "title": "SPTO Regional Visitor Arrivals",
+    "description": "Pacific Tourism Organisation regional visitor arrival statistics and annual tourism reports.",
+    "domain": "ECONOMICS",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Regional anchor for tourism; already a co-source of the top-queried tourism endpoint (session34). Reuse terms not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.samoa.travel/",
+    "title": "Samoa Tourism Authority Visitor Arrival Statistics",
+    "description": "Annual and monthly visitor arrivals to Samoa by country of residence and purpose of visit.",
+    "domain": "ECONOMICS",
+    "geography_scope": [
+      "WSM"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Expands the existing top-queried Samoa tourism endpoint. Underlying arrivals are compiled by the Samoa Bureau of Statistics — attribution chain to confirm. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.statsfiji.gov.fj/",
+    "title": "Fiji Bureau of Statistics — Visitor Arrivals and Tourism Earnings",
+    "description": "Monthly visitor arrivals and quarterly tourism earnings for Fiji.",
+    "domain": "ECONOMICS",
+    "geography_scope": [
+      "FJI"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Largest Pacific tourism market. Government statistics; reuse licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://vnso.gov.vu/",
+    "title": "Vanuatu National Statistics Office — International Visitor Arrivals",
+    "description": "Air and cruise visitor arrivals to Vanuatu by country of usual residence.",
+    "domain": "ECONOMICS",
+    "geography_scope": [
+      "VUT"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Includes cruise arrivals, a distinct series from air arrivals. Reuse licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.mfem.gov.ck/statistics",
+    "title": "Cook Islands Statistics Office — Visitor Arrivals",
+    "description": "Monthly visitor arrivals to the Cook Islands by country of residence.",
+    "domain": "ECONOMICS",
+    "geography_scope": [
+      "COK"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "High tourism dependence makes this a strong indicator series. Reuse licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  }
+]

@@ -10,6 +10,7 @@ Stage history:
   0.7.0 — Stage 07: dataset and collection model endpoints added
   0.8.0 — Stage 08: endpoint generation endpoints added
   0.9.0 — Stage 09: PDC integration endpoints added
+  0.10.0 — Stage 10: internal dogfooding corpus runner endpoints added
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -33,9 +34,11 @@ Routes:
   POST /integration/publish/{endpoint_id}         — Stage 09 SBP admin publication
   POST /integration/register/{endpoint_id}        — Stage 09 x402 registration via pdc-x402-adapter
   POST /integration/pipeline/{endpoint_id}        — Stage 09 full pipeline (testing; off by default)
+  POST /dogfood/run                               — Stage 10 corpus run (dry_run=true by default)
+  GET  /dogfood/report                            — Stage 10 recent corpus run summaries
 
 The /review/*, /dataset/*, /collection/*, /endpoint/*, /endpoints and
-/integration/* routes require the X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
+/integration/* and /dogfood/* routes require the X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
 evidence, record decisions, and create the post-approval records that
 advance a source toward publication.
 """
@@ -50,6 +53,9 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel
 
+from app.dogfood.runner import LiveRunUnavailableError, get_live_pipeline_client, run_corpus
+from app.dogfood.schemas import DogfoodRunInput, DogfoodRunReport, DogfoodRunSummary, resolve_corpus
+from app.dogfood.supabase_client import MAX_REPORT_PAGE, list_runs
 from app.dataset.manager import (
     create_collection,
     create_dataset,
@@ -97,14 +103,14 @@ from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.9.0")
+app = FastAPI(title="PDQE Pipeline", version="0.10.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "09-pdc-integration", "version": "0.9.0"}
+    return {"status": "ok", "stage": "10-internal-dogfooding", "version": "0.10.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -688,3 +694,60 @@ def integration_pipeline_endpoint(endpoint_id: str, payload: IntegrationPipeline
     eid = _parse_uuid(endpoint_id, "endpoint_id")
     with _integration_errors("Integration pipeline"):
         return run_full_pipeline(eid, payload.source_id, _approval(payload))
+
+
+# ── Stage 10 — Internal Dogfooding ─────────────────────────────────────────────
+
+@app.post(
+    "/dogfood/run",
+    response_model=DogfoodRunReport,
+    dependencies=[Depends(_require_review_key)],
+)
+def dogfood_run_endpoint(payload: DogfoodRunInput) -> DogfoodRunReport:
+    """
+    Stage 10: run one seed corpus and return its report (synchronous).
+
+    dry_run defaults to true: seed definitions and the licence gate are
+    checked and no pipeline rows are written. The report is recorded in
+    pdqe.dogfood_runs only when record_run=true. A live run (dry_run=false)
+    returns HTTP 501 until Stage 01/02 intake routes exist — it never runs
+    Stage 09, so provider approval and publication stay manual gates.
+
+    An unknown domain is rejected with 422 by DogfoodRunInput.
+    """
+    client = None
+    if not payload.dry_run:
+        try:
+            client = get_live_pipeline_client()
+        except LiveRunUnavailableError as exc:
+            raise HTTPException(status_code=501, detail=str(exc)) from exc
+    try:
+        return run_corpus(payload, write_to_db=payload.record_run, client=client)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500, detail=f"Dogfood run encountered an unexpected error: {exc}"
+        ) from exc
+
+
+@app.get(
+    "/dogfood/report",
+    response_model=list[DogfoodRunSummary],
+    dependencies=[Depends(_require_review_key)],
+)
+def dogfood_report_endpoint(
+    domain: str | None = None,
+    limit: int = Query(default=5, ge=1, le=MAX_REPORT_PAGE),
+) -> list[DogfoodRunSummary]:
+    """Stage 10: recent recorded corpus runs, newest first, optionally for one ?domain=."""
+    corpus = None
+    if domain is not None:
+        try:
+            corpus = resolve_corpus(domain).value
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        return [DogfoodRunSummary.model_validate(row) for row in list_runs(corpus, limit)]
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

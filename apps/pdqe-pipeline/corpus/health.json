@@ -1,0 +1,86 @@
+[
+  {
+    "source_url": "https://www.who.int/data/gho",
+    "title": "WHO Global Health Observatory — Western Pacific Island Country Indicators",
+    "description": "WHO GHO indicators (life expectancy, NCD mortality, risk factors) for Pacific Island member states of the WHO Western Pacific Region.",
+    "domain": "HEALTH",
+    "geography_scope": [
+      "WSM",
+      "FJI",
+      "TON",
+      "VUT",
+      "PNG",
+      "SLB",
+      "KIR",
+      "TUV",
+      "NRU",
+      "PLW",
+      "FSM",
+      "MHL",
+      "COK",
+      "NIU"
+    ],
+    "licence_status": "RESTRICTED",
+    "licence_url": "https://www.who.int/about/policies/publishing/copyright",
+    "notes": "WHO data is generally CC BY-NC-SA 3.0 IGO — non-commercial, which conflicts with x402 resale. RESTRICTED so a human decides whether a free/research-tier endpoint is allowed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.spc.int/",
+    "title": "Pacific Monitoring Alliance for NCD Action (MANA) Dashboard",
+    "description": "SPC-coordinated dashboard tracking Pacific countries' progress on NCD policy and legislation.",
+    "domain": "HEALTH",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Pacific NCD policy-status data (the NCD crisis is the region's leading health burden). Exact dashboard URL and licence to confirm. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://data.unicef.org/topic/child-health/immunization/",
+    "title": "WHO/UNICEF Estimates of National Immunization Coverage (WUENIC) — Pacific",
+    "description": "Annual national immunisation coverage estimates (DTP3, MCV1/2, etc.) for Pacific Island countries.",
+    "domain": "HEALTH",
+    "geography_scope": [
+      "WSM",
+      "FJI",
+      "TON",
+      "VUT",
+      "PNG",
+      "SLB",
+      "KIR",
+      "TUV",
+      "NRU",
+      "PLW",
+      "FSM",
+      "MHL"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Immunisation coverage is a priority Pacific indicator after the 2019 Samoa measles outbreak. Licence terms not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://pacificdata.org/",
+    "title": "Pacific Data Hub — Health Indicators",
+    "description": "SPC Pacific Data Hub health indicator datasets, including National Minimum Development Indicators health series.",
+    "domain": "HEALTH",
+    "geography_scope": [
+      "PACIFIC"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "Regional health indicator catalogue. Licence varies per dataset; not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  },
+  {
+    "source_url": "https://www.health.gov.ws/",
+    "title": "Samoa Ministry of Health Annual Health Statistics",
+    "description": "Samoa Ministry of Health annual reports and health statistics bulletins.",
+    "domain": "HEALTH",
+    "geography_scope": [
+      "WSM"
+    ],
+    "licence_status": "UNKNOWN",
+    "licence_url": null,
+    "notes": "National-level source for Samoa health data (OGIP-adjacent ministry). PDF reports — exercises document extraction. Licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+  }
+]
