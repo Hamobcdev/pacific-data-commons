@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { getPurseSeineCatch, DEFAULT_SPECIES, VALID_SPECIES, isValidSpecies, MIN_YEAR, MAX_YEAR } from "../../services/pacificFisheriesPurseSeineService.js";
-import { AppError, ValidationError } from "../../lib/errors.js";
+import { getPurseSeineCatch, parsePurseSeineParams } from "../../services/pacificFisheriesPurseSeineService.js";
+import { AppError } from "../../lib/errors.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 2 / $0.05, Decisions 59/60 — a
@@ -25,30 +25,9 @@ import type { AppBindings } from "../../types.js";
 export const pacificPurseSeineRoute = new Hono<AppBindings>();
 
 pacificPurseSeineRoute.get("/fisheries/pacific-purse-seine", async (c) => {
-  const speciesRaw = (c.req.query("species") ?? DEFAULT_SPECIES).toLowerCase();
+  const { species, year } = parsePurseSeineParams(c.req.query("species"), c.req.query("year"));
 
-  if (speciesRaw === "alb") {
-    throw new ValidationError(
-      "Albacore (alb) is not available from this dataset — albacore is primarily caught by longline, not purse seine, so WCPFC's purse-seine 1x1 product has no albacore variable. Supported species: skj, yft, bet.",
-    );
-  }
-  if (!isValidSpecies(speciesRaw)) {
-    throw new ValidationError(`species must be one of: ${VALID_SPECIES.join(", ")} (got "${speciesRaw}")`);
-  }
-
-  const yearRaw = c.req.query("year");
-  if (!yearRaw) {
-    throw new ValidationError(`year is required, e.g. ?year=2020 (dataset covers ${MIN_YEAR}–${MAX_YEAR})`);
-  }
-  if (!/^\d{4}$/.test(yearRaw)) {
-    throw new ValidationError("year must be a 4-digit year, e.g. ?year=2020");
-  }
-  const year = Number(yearRaw);
-  if (year < MIN_YEAR || year > MAX_YEAR) {
-    throw new ValidationError(`year must be between ${MIN_YEAR} and ${MAX_YEAR} (dataset coverage)`);
-  }
-
-  const result = await getPurseSeineCatch(speciesRaw, year);
+  const result = await getPurseSeineCatch(species, year);
   if (!result) {
     // A valid species/year with no result means THREDDS itself was
     // unreachable/erroring this run — a third-party outage, not a server

@@ -69,8 +69,8 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
   "/pacific/weather": { category: "tourism", dataCurrency: "hourly", upstreamSource: "Open-Meteo (ECMWF model)" },
 };
 
-/** Datasets wired into POST /api/v1/datasets/:id/query's adapter — MVP scope is samoa-cpi only (CLAUDE.md Stream A recommended first slice). Every other dataset is listed for discovery but returns 501 from the query adapter until wired. */
-const QUERYABLE_DATASET_IDS = new Set(["samoa-cpi"]);
+/** Datasets wired into POST /api/v1/datasets/:id/query's adapter. Must stay in sync with the switch cases in routes/agentDatasetGateway.ts's runDatasetQuery(). Every other cataloged dataset returns 501 from the query adapter until wired. */
+const QUERYABLE_DATASET_IDS = new Set(["samoa-cpi", "pacific-sea-level", "pacific-purse-seine", "pacific-ocean-forecast"]);
 
 export interface AgentDataset {
   datasetId: string;

@@ -72,6 +72,8 @@
 // licensing, or quality judgement of any kind — see SOURCE_ATTRIBUTION
 // and REPORTING_LAG_NOTE below, both surfaced verbatim in every response.
 
+import { ValidationError } from "../lib/errors.js";
+
 const FETCH_TIMEOUT_MS = 20_000; // Larger grid payload than this codebase's other first-party services (up to ~900KB per gear variable) — longer timeout than samoaCpiService's/pacificOceanClimateService's 8–10s.
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -108,6 +110,44 @@ export function isValidSpecies(code: string): code is SpeciesCode {
 // schema, so the route can reject an out-of-range year synchronously.
 export const MIN_YEAR = 1967;
 export const MAX_YEAR = 2021;
+
+export interface PurseSeineQueryParams {
+  species: SpeciesCode;
+  year: number;
+}
+
+/**
+ * Shared species/year validation for routes/fisheries/pacific-purse-seine.ts
+ * and the Agent Dataset Gateway's query adapter — extracted so the two
+ * callers' validation rules (including the explicit albacore rejection)
+ * can't drift apart.
+ */
+export function parsePurseSeineParams(speciesRaw: string | undefined, yearRaw: string | number | undefined): PurseSeineQueryParams {
+  const species = (speciesRaw ?? DEFAULT_SPECIES).toLowerCase();
+
+  if (species === "alb") {
+    throw new ValidationError(
+      "Albacore (alb) is not available from this dataset — albacore is primarily caught by longline, not purse seine, so WCPFC's purse-seine 1x1 product has no albacore variable. Supported species: skj, yft, bet.",
+    );
+  }
+  if (!isValidSpecies(species)) {
+    throw new ValidationError(`species must be one of: ${VALID_SPECIES.join(", ")} (got "${species}")`);
+  }
+
+  if (yearRaw === undefined || yearRaw === "") {
+    throw new ValidationError(`year is required, e.g. ?year=2020 (dataset covers ${MIN_YEAR}–${MAX_YEAR})`);
+  }
+  const yearStr = String(yearRaw);
+  if (!/^\d{4}$/.test(yearStr)) {
+    throw new ValidationError("year must be a 4-digit year, e.g. ?year=2020");
+  }
+  const year = Number(yearStr);
+  if (year < MIN_YEAR || year > MAX_YEAR) {
+    throw new ValidationError(`year must be between ${MIN_YEAR} and ${MAX_YEAR} (dataset coverage)`);
+  }
+
+  return { species, year };
+}
 
 export const REPORTING_LAG_NOTE =
   "WCPFC member catch reports are verified 1–2 years after fishing year. Data reflects completed reporting cycles only.";
