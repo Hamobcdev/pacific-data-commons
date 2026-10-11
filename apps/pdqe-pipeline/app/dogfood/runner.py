@@ -1,29 +1,41 @@
 """
-PDQE Stage 10 — corpus runner.
+PDQE Stage 10 / 10.1 — corpus runner.
 
 Drives each seed source of one corpus through the pipeline and records the
 outcome: success, failure mode and stage, licence result, review routing.
 
 dry_run=True (default): validates the seed sources and their licence gate
-  only. Writes no pipeline rows and needs no pipeline client.
-dry_run=False: runs Stage 01 registration through Stage 08 endpoint
-  generation for each source via a PipelineClient. It never runs Stage 09 —
-  provider approval and publication remain manual gates, so a successful
-  source stops at ENDPOINT_GENERATED (endpoint DRAFT).
+  only. Fetches nothing, writes no pipeline rows, needs no pipeline client.
+dry_run=False: fetches each source's content at runtime (fetcher.py) and runs
+  Stage 01 registration through Stage 08 endpoint generation via a
+  PipelineClient — in production the in-process DirectPipelineClient
+  (pipeline_client.py), which calls the pipeline functions directly. It never
+  runs Stage 09 — provider approval and publication remain manual gates, so a
+  successful source stops at ENDPOINT_GENERATED (endpoint DRAFT).
 
-Licence gate (applied before any pipeline call, "unknown is not approval"):
-  EXCLUDED                 → LICENCE_BLOCKED, never registered
-  UNKNOWN, REVIEW_REQUIRED → registered, then ROUTED_TO_REVIEW (licence review)
-  CLEAR, RESTRICTED        → full pipeline; Stage 05 validators decide the rest
+Licence gate (applied before any fetch or pipeline call, "unknown is not approval"):
+  EXCLUDED         → LICENCE_BLOCKED, never fetched or registered
+  UNKNOWN          → registered, then ROUTED_TO_REVIEW (licence review)
+  REVIEW_REQUIRED  → as UNKNOWN, unless DOGFOOD_AUTO_APPROVE is on
+  CLEAR, RESTRICTED → full pipeline; Stage 05 validators decide the rest
 
-The runner itself never fetches third-party data. Ingestion of source content
-is the PipelineClient's job, and no client exists in this service yet — see
-get_live_pipeline_client().
+Approval gate after Stage 05:
+  REVIEW outcome   → ROUTED_TO_REVIEW (auto-approve never overrides validators)
+  VALIDATED        → ROUTED_TO_REVIEW, unless DOGFOOD_AUTO_APPROVE is on, in
+                     which case VALIDATED → APPROVED is applied, a WARNING with
+                     the required follow-up is logged, and the source is listed
+                     in report.auto_approved_sources (GET /dogfood/review-queue).
+
+DOGFOOD_AUTO_APPROVE is a development tool only. It takes effect only when
+PDQE_ENVIRONMENT is "development" or "staging"; set anywhere else (including
+unset) a live run is refused rather than silently ignoring it.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Protocol, TypeVar
@@ -32,11 +44,14 @@ from uuid import UUID
 from pydantic import BaseModel, ValidationError
 
 from app.dogfood import supabase_client as db
+from app.dogfood.fetcher import FetchError, FetchResult, fetch_source
 from app.dogfood.loader import load_corpus
 from app.dogfood.schemas import (
     CORPUS_PRIMARY_DOMAIN,
     REVIEW_OUTCOMES,
     SUCCEEDED_OUTCOMES,
+    AutoApprovedSource,
+    ReviewQueueEntry,
     CollectionStep,
     Corpus,
     DatasetStep,
@@ -60,9 +75,13 @@ from app.validation.schemas import ValidationOutcome
 
 logger = logging.getLogger(__name__)
 
-_LICENCE_REVIEW = frozenset({LicenceStatus.UNKNOWN, LicenceStatus.REVIEW_REQUIRED})
-
 T = TypeVar("T", bound=BaseModel)
+
+AUTO_APPROVE_ENV = "DOGFOOD_AUTO_APPROVE"  # Render: DOGFOOD_AUTO_APPROVE=false (never true in production)
+ENVIRONMENT_ENV = "PDQE_ENVIRONMENT"
+AUTO_APPROVE_ENVIRONMENTS = frozenset({"development", "staging"})
+
+Fetcher = Callable[[SeedSource, str], FetchResult]
 
 
 class PipelineClient(Protocol):
@@ -72,36 +91,114 @@ class PipelineClient(Protocol):
     on a refused or failed step.
     """
 
-    def register_source(self, seed: SeedSource) -> dict: ...  # Stage 01
-    def ingest(self, source_id: UUID, seed: SeedSource) -> dict: ...  # Stage 02
+    def register_source(self, seed: SeedSource, fetch: Optional[FetchResult] = None) -> dict: ...  # Stage 01
+    def ingest(self, source_id: UUID, seed: SeedSource, fetch: FetchResult) -> dict: ...  # Stage 02
     def extract(self, source_id: UUID, ingestion_id: UUID, seed: SeedSource) -> dict: ...  # Stage 03
     def qualify(self, source_id: UUID, extraction_id: UUID) -> dict: ...  # Stage 04
     def validate(self, source_id: UUID) -> dict: ...  # Stage 05
+    def dogfood_auto_approve(self, source_id: UUID, rationale: str) -> None: ...  # VALIDATED → APPROVED
     def create_dataset(self, source_id: UUID) -> dict: ...  # Stage 07
     def get_or_create_collection(self, name: str, domain: DomainClassification) -> dict: ...  # Stage 07
     def link_dataset(self, dataset_id: UUID, collection_id: UUID) -> dict: ...  # Stage 07
-    def generate_endpoint(self, dataset_id: UUID) -> dict: ...  # Stage 08
+    def generate_endpoint(self, dataset_id: UUID, collection_id: Optional[UUID] = None) -> dict: ...  # Stage 08
 
 
 class LiveRunUnavailableError(RuntimeError):
-    """A live corpus run was requested but this service has no pipeline client for it."""
+    """A live corpus run was requested but this service is not configured for one."""
 
 
 def get_live_pipeline_client() -> PipelineClient:
     """
-    The PipelineClient used by POST /dogfood/run with dry_run=false.
-
-    None exists yet: the service has no Stage 01 registration route or Stage
-    02 content-ingestion route (only the Layer 1 pre-check, POST
-    /ingest/validate), and Stage 10 is not permitted to fetch third-party
-    content to feed extraction. Fails loudly rather than producing a run in
-    which every source "fails ingestion" for a reason unrelated to the source.
+    The PipelineClient used by POST /dogfood/run with dry_run=false: the
+    in-process DirectPipelineClient. Raises LiveRunUnavailableError (→ HTTP
+    501) when PDQE_DOGFOOD_OPERATOR_ID, the auth.users id recorded as
+    registered_by, is not configured.
     """
-    raise LiveRunUnavailableError(
-        "Live corpus runs need Stage 01 source registration and Stage 02 content "
-        "ingestion routes, which this service does not expose yet. Use dry_run=true."
+    from app.dogfood.pipeline_client import DirectPipelineClient, get_operator_id
+
+    try:
+        operator_id = get_operator_id()
+    except RuntimeError as exc:
+        raise LiveRunUnavailableError(f"Live corpus runs are not configured: {exc}") from exc
+    return DirectPipelineClient(operator_id)
+
+
+# ── DOGFOOD_AUTO_APPROVE ──────────────────────────────────────────────────────
+
+def _auto_approve_requested() -> bool:
+    return os.getenv(AUTO_APPROVE_ENV, "false").strip().lower() == "true"
+
+
+def _auto_approve_environment_ok() -> bool:
+    return os.getenv(ENVIRONMENT_ENV, "").strip().lower() in AUTO_APPROVE_ENVIRONMENTS
+
+
+def auto_approve_enabled() -> bool:
+    """
+    True only when DOGFOOD_AUTO_APPROVE=true on a development/staging service.
+    Raises ValueError when it is requested anywhere else, so a misconfigured
+    production service refuses the run instead of silently bypassing review.
+    """
+    if not _auto_approve_requested():
+        return False
+    if not _auto_approve_environment_ok():
+        raise ValueError(
+            f"{AUTO_APPROVE_ENV}=true is refused: {ENVIRONMENT_ENV} must be one of "
+            f"{sorted(AUTO_APPROVE_ENVIRONMENTS)}. Human review is required in production."
+        )
+    return True
+
+
+def _auto_approve_source(
+    source_id: UUID, seed: SeedSource, run_label: str, client: PipelineClient
+) -> AutoApprovedSource:
+    """
+    Bypass human review for dogfood runs only.
+    NEVER called unless DOGFOOD_AUTO_APPROVE=true AND dry_run=False (the
+    runner only reaches it from a live run). Raises RuntimeError if called
+    outside of that context.
+
+    Always logs a structured WARNING so the operator knows exactly which
+    sources bypassed human review and what follow-up is required.
+    """
+    if not _auto_approve_requested() or not _auto_approve_environment_ok():
+        raise RuntimeError(
+            "auto_approve called without DOGFOOD_AUTO_APPROVE=true on a development/staging "
+            "service — this is a bug; human review is required in production"
+        )
+    client.dogfood_auto_approve(
+        source_id,
+        f"DOGFOOD_AUTO_APPROVE ({run_label}): human review bypassed for internal dogfooding; "
+        "manual licence review required before publication",
+    )
+    logger.warning(
+        "DOGFOOD_AUTO_APPROVE: bypassed human review gate",
+        extra={
+            "source_id": str(source_id),
+            "source_url": seed.source_url,
+            "title": seed.title,
+            "domain": seed.domain.value,
+            "licence_status": seed.licence_status.value,
+            "run_label": run_label,
+            "action_required": (
+                "This source bypassed human licence review. "
+                "Before this endpoint can be published, a human must verify: "
+                "1) reuse rights are confirmed; "
+                "2) licence_status is updated from UNKNOWN/REVIEW_REQUIRED to CLEAR or RESTRICTED; "
+                "3) source record is manually approved via the review queue."
+            ),
+        },
+    )
+    return AutoApprovedSource(
+        source_id=source_id,
+        source_url=seed.source_url,
+        title=seed.title,
+        domain=seed.domain,
+        licence_status=seed.licence_status,
     )
 
+
+# ── Steps ─────────────────────────────────────────────────────────────────────
 
 class _StepFailed(Exception):
     def __init__(self, outcome: RunOutcome, stage_reached: str, error: str) -> None:
@@ -161,19 +258,50 @@ def _collection_name(corpus: Corpus) -> str:
     return f"PDQE Dogfood — {corpus.value.title()}"
 
 
-def _live_run_source(
-    seed: SeedSource, client: PipelineClient, corpus: Corpus, collections: dict[Corpus, UUID]
-) -> SourceRunResult:
+def _remove_temp(path: Optional[str]) -> None:
+    if not path:
+        return
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:  # noqa: BLE001 — cleanup failure is logged, not raised
+        logger.warning("dogfood: could not delete temp file %s: %s", path, exc)
+
+
+class _LiveContext:
+    """Per-run state shared by every source in a live run."""
+
+    def __init__(
+        self, client: PipelineClient, corpus: Corpus, run_label: str, auto_approve: bool,
+        fetcher: Fetcher, tmp_dir: str,
+    ) -> None:
+        self.client = client
+        self.corpus = corpus
+        self.run_label = run_label
+        self.auto_approve = auto_approve
+        self.fetcher = fetcher
+        self.tmp_dir = tmp_dir
+        self.collection_id: Optional[UUID] = None
+        self.auto_approved: list[AutoApprovedSource] = []
+
+
+def _live_run_source(seed: SeedSource, ctx: _LiveContext) -> SourceRunResult:
     if seed.licence_status == LicenceStatus.EXCLUDED:
         return _result(seed, RunOutcome.LICENCE_BLOCKED, "NONE", "licence_status EXCLUDED")
 
+    client = ctx.client
+    licence_review = seed.licence_status == LicenceStatus.UNKNOWN or (
+        seed.licence_status == LicenceStatus.REVIEW_REQUIRED and not ctx.auto_approve
+    )
     source_id: Optional[UUID] = None
+    fetched: Optional[FetchResult] = None
     try:
-        source_id = _step(
-            lambda: client.register_source(seed), RegisteredSource, RunOutcome.FAILED_INGESTION, "NONE"
-        ).source_id
-
-        if seed.licence_status in _LICENCE_REVIEW:
+        if licence_review:
+            # Registered for the licence review queue; content is never fetched.
+            source_id = _step(
+                lambda: client.register_source(seed), RegisteredSource, RunOutcome.FAILED_INGESTION, "NONE"
+            ).source_id
             return _result(
                 seed,
                 RunOutcome.ROUTED_TO_REVIEW,
@@ -182,9 +310,19 @@ def _live_run_source(
                 source_id,
             )
 
+        try:
+            fetched = ctx.fetcher(seed, ctx.tmp_dir)
+        except FetchError as exc:
+            raise _StepFailed(RunOutcome.FAILED_INGESTION, "NONE", _short(f"FetchError: {exc}")) from exc
+        fetch = fetched
+
+        source_id = _step(
+            lambda: client.register_source(seed, fetch), RegisteredSource, RunOutcome.FAILED_INGESTION, "NONE"
+        ).source_id
         sid = source_id
+
         ingestion_id = _step(
-            lambda: client.ingest(sid, seed), IngestionStep, RunOutcome.FAILED_INGESTION, "SOURCE_REGISTERED"
+            lambda: client.ingest(sid, seed, fetch), IngestionStep, RunOutcome.FAILED_INGESTION, "SOURCE_REGISTERED"
         ).ingestion_id
 
         extraction = _step(
@@ -215,22 +353,36 @@ def _live_run_source(
         if validation.outcome == ValidationOutcome.REJECTED:
             raise _StepFailed(RunOutcome.FAILED_VALIDATION, "QUALIFIED", _short(validation.outcome_reason))
 
+        if not ctx.auto_approve:
+            return _result(
+                seed,
+                RunOutcome.ROUTED_TO_REVIEW,
+                "VALIDATED",
+                "validated; awaiting human approval (DOGFOOD_AUTO_APPROVE is off)",
+                source_id,
+            )
+        try:
+            approved = _auto_approve_source(sid, seed, ctx.run_label, client)
+        except Exception as exc:  # noqa: BLE001
+            raise _StepFailed(
+                RunOutcome.FAILED_VALIDATION, "VALIDATED", _short(f"auto-approve refused: {type(exc).__name__}: {exc}")
+            ) from exc
+        ctx.auto_approved.append(approved)
+
         dataset_id = _step(
-            lambda: client.create_dataset(sid), DatasetStep, RunOutcome.FAILED_DATASET, "VALIDATED"
+            lambda: client.create_dataset(sid), DatasetStep, RunOutcome.FAILED_DATASET, "APPROVED"
         ).dataset_id
 
-        collection_id = collections.get(corpus)
-        if collection_id is None:
-            collection_id = _step(
+        if ctx.collection_id is None:
+            ctx.collection_id = _step(
                 lambda: client.get_or_create_collection(
-                    _collection_name(corpus), CORPUS_PRIMARY_DOMAIN[corpus]
+                    _collection_name(ctx.corpus), CORPUS_PRIMARY_DOMAIN[ctx.corpus]
                 ),
                 CollectionStep,
                 RunOutcome.FAILED_DATASET,
                 "DATASET_CREATED",
             ).collection_id
-            collections[corpus] = collection_id
-        cid = collection_id
+        cid = ctx.collection_id
 
         try:
             client.link_dataset(dataset_id, cid)
@@ -240,13 +392,15 @@ def _live_run_source(
             ) from exc
 
         _step(
-            lambda: client.generate_endpoint(dataset_id),
+            lambda: client.generate_endpoint(dataset_id, cid),
             EndpointStep,
             RunOutcome.FAILED_ENDPOINT,
             "COLLECTION_LINKED",
         )
     except _StepFailed as failure:
         return _result(seed, failure.outcome, failure.stage_reached, failure.error, source_id)
+    finally:
+        _remove_temp(fetched.local_path if fetched else None)
 
     # Stage 09 (provider approval, publication) is deliberately not run.
     return _result(seed, RunOutcome.SUCCESS, "ENDPOINT_GENERATED", None, source_id)
@@ -263,6 +417,8 @@ def build_report(
     results: list[SourceRunResult],
     started_at: datetime,
     completed_at: datetime,
+    run_label: Optional[str] = None,
+    auto_approved_sources: Optional[list[AutoApprovedSource]] = None,
 ) -> DogfoodRunReport:
     """Aggregate per-source results into a DogfoodRunReport."""
     succeeded = sum(1 for r in results if r.outcome in SUCCEEDED_OUTCOMES)
@@ -276,7 +432,7 @@ def build_report(
         Counter((r.licence_status.value if r.licence_status else "UNKNOWN") for r in results)
     )
     return DogfoodRunReport(
-        run_label=input.run_label or _default_label(corpus, input.dry_run, started_at),
+        run_label=run_label or input.run_label or _default_label(corpus, input.dry_run, started_at),
         domain=input.domain,
         corpus=corpus,
         dry_run=input.dry_run,
@@ -289,6 +445,7 @@ def build_report(
         licence_outcomes=licence_outcomes,
         started_at=started_at,
         completed_at=completed_at,
+        auto_approved_sources=list(auto_approved_sources or []),
     )
 
 
@@ -296,40 +453,89 @@ def run_corpus(
     input: DogfoodRunInput,
     write_to_db: bool = False,
     client: Optional[PipelineClient] = None,
+    fetcher: Optional[Fetcher] = None,
 ) -> DogfoodRunReport:
     """
     Run one corpus and return its report.
 
     1. Load and validate the seed sources for input.domain
     2. For each source (up to max_sources): dry run → seed + licence check
-       only; live run → Stages 01–08 via `client`
-    3. Build the DogfoodRunReport
+       only; live run → fetch content, then Stages 01–08 via `client`
+       (temp files are always deleted, success or failure)
+    3. Build the DogfoodRunReport (incl. auto_approved_sources)
     4. If write_to_db: insert it into pdqe.dogfood_runs (sets report.run_id)
 
-    Raises ValueError for an unknown domain or an invalid corpus file, and
-    for a live run without a client.
+    Raises ValueError for an unknown domain, an invalid corpus file, a live
+    run without a client, or DOGFOOD_AUTO_APPROVE set outside development.
     """
     corpus = resolve_corpus(input.domain)
     if not input.dry_run and client is None:
         raise ValueError("a live corpus run requires a PipelineClient")
+    auto_approve = False if input.dry_run else auto_approve_enabled()
 
     started_at = datetime.now(timezone.utc)
+    run_label = input.run_label or _default_label(corpus, input.dry_run, started_at)
     seeds = load_corpus(input.domain)
     if input.max_sources is not None:
         seeds = seeds[: input.max_sources]
 
-    collections: dict[Corpus, UUID] = {}
     results: list[SourceRunResult] = []
-    for seed in seeds:
-        if input.dry_run:
+    auto_approved: list[AutoApprovedSource] = []
+    if input.dry_run:
+        for seed in seeds:
             results.append(_dry_run_source(seed))
-        else:
-            assert client is not None
-            results.append(_live_run_source(seed, client, corpus, collections))
-        logger.info("dogfood %s: %s → %s", corpus.value, seed.source_url, results[-1].outcome.value)
+            logger.info("dogfood %s: %s → %s", corpus.value, seed.source_url, results[-1].outcome.value)
+    else:
+        assert client is not None
+        with tempfile.TemporaryDirectory(prefix="pdqe-dogfood-") as tmp_dir:
+            ctx = _LiveContext(client, corpus, run_label, auto_approve, fetcher or fetch_source, tmp_dir)
+            for seed in seeds:
+                results.append(_live_run_source(seed, ctx))
+                logger.info("dogfood %s: %s → %s", corpus.value, seed.source_url, results[-1].outcome.value)
+            auto_approved = ctx.auto_approved
 
-    report = build_report(input, corpus, results, started_at, datetime.now(timezone.utc))
+    report = build_report(
+        input, corpus, results, started_at, datetime.now(timezone.utc), run_label, auto_approved
+    )
     if write_to_db:
         run_id = db.write_run_report(report, input.dry_run)
         report = report.model_copy(update={"run_id": UUID(run_id)})
     return report
+
+
+# ── GET /dogfood/review-queue ─────────────────────────────────────────────────
+
+def list_review_queue() -> list[ReviewQueueEntry]:
+    """
+    Every auto-approved source across recorded live runs whose licence has not
+    yet been confirmed by a human (pdqe.sources.licence_confirmed_by is NULL,
+    or the source row no longer exists), newest run first. A source
+    auto-approved in several runs is listed once, under its latest run.
+
+    P9: run_report JSONB is re-validated through AutoApprovedSource; a
+    malformed entry is a data error (ValueError), not silently skipped.
+    """
+    pending: list[ReviewQueueEntry] = []
+    seen: set[UUID] = set()
+    for row in db.list_live_run_reports():
+        report = row.get("run_report") or {}
+        for raw in report.get("auto_approved_sources") or []:
+            try:
+                source = AutoApprovedSource.model_validate(raw)
+            except ValidationError as exc:
+                raise ValueError(f"run {row.get('run_id')} has a malformed auto_approved_sources entry: {exc}") from exc
+            if source.source_id in seen:
+                continue
+            seen.add(source.source_id)
+            pending.append(
+                ReviewQueueEntry(
+                    run_id=row["run_id"],
+                    run_label=row["run_label"],
+                    run_started_at=row["started_at"],
+                    **source.model_dump(),
+                )
+            )
+    confirmed = db.fetch_licence_confirmations([str(e.source_id) for e in pending])
+    pending = [e for e in pending if confirmed.get(str(e.source_id)) is None]
+    pending.sort(key=lambda e: e.run_started_at, reverse=True)
+    return pending

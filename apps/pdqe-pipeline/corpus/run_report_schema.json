@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "AutoApprovedSource": {
+      "additionalProperties": false,
+      "description": "One source that bypassed the human approval gate in a dogfood run.",
+      "properties": {
+        "source_id": {
+          "format": "uuid",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "domain": {
+          "$ref": "#/$defs/DomainClassification"
+        },
+        "licence_status": {
+          "$ref": "#/$defs/LicenceStatus"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_url",
+        "title",
+        "domain",
+        "licence_status"
+      ],
+      "title": "AutoApprovedSource",
+      "type": "object"
+    },
     "Corpus": {
       "enum": [
         "FISHERIES",
@@ -22,6 +56,7 @@
         "ECONOMICS",
         "GOVERNANCE",
         "HEALTH",
+        "TOURISM",
         "OTHER",
         "NONE_OF_THE_ABOVE"
       ],
@@ -215,6 +250,13 @@
       ],
       "default": null,
       "title": "Run Id"
+    },
+    "auto_approved_sources": {
+      "items": {
+        "$ref": "#/$defs/AutoApprovedSource"
+      },
+      "title": "Auto Approved Sources",
+      "type": "array"
     }
   },
   "required": [

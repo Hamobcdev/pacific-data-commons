@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -25,6 +26,7 @@ from pydantic import ValidationError
 
 from app.dogfood import runner
 from app.dogfood import supabase_client as db
+from app.dogfood.fetcher import FetchResult
 from app.dogfood.loader import CORPUS_DIR, load_corpus
 from app.dogfood.runner import run_corpus
 from app.dogfood.schemas import (
@@ -65,10 +67,10 @@ class FakePipelineClient:
             raise self.fail[name]
         return response
 
-    def register_source(self, seed):
+    def register_source(self, seed, fetch=None):
         return self._call("register_source", {"source_id": str(uuid4())})
 
-    def ingest(self, source_id, seed):
+    def ingest(self, source_id, seed, fetch):
         return self._call("ingest", {"ingestion_id": str(uuid4())})
 
     def extract(self, source_id, ingestion_id, seed):
@@ -100,7 +102,10 @@ class FakePipelineClient:
     def link_dataset(self, dataset_id, collection_id):
         return self._call("link_dataset", {"dataset_id": str(dataset_id), "collection_id": str(collection_id)})
 
-    def generate_endpoint(self, dataset_id):
+    def dogfood_auto_approve(self, source_id, rationale):
+        self._call("dogfood_auto_approve", {})
+
+    def generate_endpoint(self, dataset_id, collection_id=None):
         return self._call("generate_endpoint", {"endpoint_id": str(uuid4()), "status": "DRAFT"})
 
 
@@ -175,9 +180,26 @@ def _seed(**overrides) -> SeedSource:
     return SeedSource.model_validate({**seed.model_dump(mode="json"), **overrides})
 
 
+def _fake_fetch(seed, tmp_dir):
+    """Stage 10.1: live runs fetch first — never over the network in tests."""
+    path = Path(tmp_dir) / f"fetch-{uuid4().hex}"
+    path.write_bytes(b"year,value\n2024,1\n")
+    return FetchResult(
+        source_url=seed.source_url, local_path=str(path), content_type="text/csv",
+        size_bytes=path.stat().st_size, fetch_strategy="direct_download",
+    )
+
+
+@pytest.fixture
+def auto_approve(monkeypatch):
+    """Stage 10.1: a live source only reaches Stage 07+ via DOGFOOD_AUTO_APPROVE."""
+    monkeypatch.setenv("DOGFOOD_AUTO_APPROVE", "true")
+    monkeypatch.setenv("PDQE_ENVIRONMENT", "development")
+
+
 def _live(client: FakePipelineClient, monkeypatch, seeds: list[SeedSource], **kwargs) -> DogfoodRunReport:
     monkeypatch.setattr(runner, "load_corpus", lambda domain: seeds)
-    return run_corpus(DogfoodRunInput(domain="FISHERIES", dry_run=False, **kwargs), client=client)
+    return run_corpus(DogfoodRunInput(domain="FISHERIES", dry_run=False, **kwargs), client=client, fetcher=_fake_fetch)
 
 
 CLEAR = {"licence_status": "CLEAR"}
@@ -195,8 +217,8 @@ def test_load_fisheries_corpus_returns_sources():
 def test_load_tourism_corpus_returns_sources():
     seeds = load_corpus("TOURISM")
     assert len(seeds) == 5
-    # TOURISM is a corpus, not a domain classification — seeds are ECONOMICS.
-    assert all(s.domain.value == "ECONOMICS" for s in seeds)
+    # Stage 10.1: TOURISM is its own domain classification (was ECONOMICS).
+    assert all(s.domain.value == "TOURISM" for s in seeds)
     assert any("WSM" in s.geography_scope for s in seeds)
 
 
@@ -324,7 +346,7 @@ def test_live_run_records_qualification_failure(monkeypatch):
     assert "validate" not in client.calls
 
 
-def test_live_run_records_routed_to_review(monkeypatch):
+def test_live_run_records_routed_to_review(monkeypatch, auto_approve):
     client = FakePipelineClient(validation_outcome="REVIEW")
     report = _live(client, monkeypatch, [_seed(**CLEAR)])
     result = report.results[0]
@@ -352,10 +374,12 @@ def test_live_run_tracks_licence_outcomes_by_status(monkeypatch):
     ]
     report = _live(FakePipelineClient(), monkeypatch, seeds)
     assert report.licence_outcomes == {"CLEAR": 1, "UNKNOWN": 2, "EXCLUDED": 1, "REVIEW_REQUIRED": 1}
-    assert report.sources_routed_to_review == 3
+    # 2 UNKNOWN + 1 REVIEW_REQUIRED (licence review) + the CLEAR source, which
+    # validates but awaits human approval without DOGFOOD_AUTO_APPROVE (10.1).
+    assert report.sources_routed_to_review == 4
 
 
-def test_live_run_endpoint_generation_succeeds(monkeypatch):
+def test_live_run_endpoint_generation_succeeds(monkeypatch, auto_approve):
     client = FakePipelineClient()
     seeds = [
         _seed(source_url="https://a.example.org/", **CLEAR),
@@ -373,7 +397,7 @@ def test_live_run_endpoint_generation_succeeds(monkeypatch):
 
 # ── 4. Run report ─────────────────────────────────────────────────────────────
 
-def test_report_counts_match_results(monkeypatch):
+def test_report_counts_match_results(monkeypatch, auto_approve):
     seeds = [
         _seed(source_url="https://a.example.org/", **CLEAR),
         _seed(source_url="https://b.example.org/", licence_status="UNKNOWN"),
@@ -387,7 +411,7 @@ def test_report_counts_match_results(monkeypatch):
         DogfoodRunReport.model_validate({**report.model_dump(), "sources_succeeded": 3})
 
 
-def test_report_failure_modes_list_non_empty_on_failure(monkeypatch):
+def test_report_failure_modes_list_non_empty_on_failure(monkeypatch, auto_approve):
     client = FakePipelineClient(fail={"generate_endpoint": ValueError("dataset already has an endpoint")})
     report = _live(client, monkeypatch, [_seed(**CLEAR)])
     assert report.results[0].outcome == RunOutcome.FAILED_ENDPOINT
@@ -410,7 +434,7 @@ def test_report_writes_to_db_when_flag_true(fake_db):
     assert len(fake_db.dogfood_runs) == 1
     row = fake_db.dogfood_runs[0]
     assert row["run_id"] == str(report.run_id)
-    assert row["corpus"] == "TOURISM" and row["domain"] == "ECONOMICS"
+    assert row["corpus"] == "TOURISM" and row["domain"] == "TOURISM"
     assert row["dry_run"] is True and row["status"] == "COMPLETE"
     assert row["run_report"]["run_label"] == "stage10-tourism-batch-1"
 
@@ -452,7 +476,7 @@ def test_dogfood_run_defaults_to_dry_run(api, fake_db):
     assert body["dry_run"] is True
     assert body["sources_attempted"] == 5
     assert fake_db.dogfood_runs == []  # record_run defaults to false
-    # A live run is refused until Stage 01/02 intake routes exist.
+    # A live run is refused (501) while PDQE_DOGFOOD_OPERATOR_ID is unset.
     live = api.post("/dogfood/run", json={"domain": "HEALTH", "dry_run": False}, headers={"X-PDQE-Review-Key": API_KEY})
     assert live.status_code == 501
 

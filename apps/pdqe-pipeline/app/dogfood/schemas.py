@@ -6,9 +6,11 @@ rows read back from pdqe.dogfood_runs are all untrusted data and are
 validated here before use.
 
 Corpus vs domain: the five Stage 10 corpora are FISHERIES, CLIMATE, TRADE,
-TOURISM and HEALTH. TOURISM is not a DomainClassification value, so tourism
-seeds are classified ECONOMICS and a run records both the corpus that ran and
-its primary domain (see CORPUS_PRIMARY_DOMAIN).
+TOURISM and HEALTH. Each maps to the DomainClassification of the same name
+(TOURISM was added in Stage 10.1, migration 20261012000008; before that tourism
+seeds were classified ECONOMICS). A run records both the corpus that ran and
+its primary domain (see CORPUS_PRIMARY_DOMAIN). ECONOMICS remains an accepted
+alias for the trade corpus.
 """
 
 from __future__ import annotations
@@ -63,7 +65,7 @@ CORPUS_PRIMARY_DOMAIN: dict[Corpus, DomainClassification] = {
     Corpus.FISHERIES: DomainClassification.FISHERIES,
     Corpus.CLIMATE: DomainClassification.CLIMATE,
     Corpus.TRADE: DomainClassification.TRADE,
-    Corpus.TOURISM: DomainClassification.ECONOMICS,
+    Corpus.TOURISM: DomainClassification.TOURISM,
     Corpus.HEALTH: DomainClassification.HEALTH,
 }
 
@@ -176,6 +178,18 @@ class SourceRunResult(BaseModel):
     source_id: Optional[UUID] = None  # set if the source was registered
 
 
+class AutoApprovedSource(BaseModel):
+    """One source that bypassed the human approval gate in a dogfood run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: UUID
+    source_url: str
+    title: str
+    domain: DomainClassification
+    licence_status: LicenceStatus
+
+
 class DogfoodRunReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -193,6 +207,10 @@ class DogfoodRunReport(BaseModel):
     started_at: datetime
     completed_at: Optional[datetime] = None
     run_id: Optional[UUID] = None  # set once the report is recorded in pdqe.dogfood_runs
+    # Sources whose human approval gate was bypassed by DOGFOOD_AUTO_APPROVE.
+    # Non-empty means manual follow-up is required before any of their
+    # endpoints can be published. Stored in pdqe.dogfood_runs.run_report.
+    auto_approved_sources: list[AutoApprovedSource] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _counts(self) -> "DogfoodRunReport":
@@ -303,3 +321,22 @@ class DogfoodRunSummary(BaseModel):
     started_at: datetime
     completed_at: Optional[datetime] = None
     status: str
+
+
+class ReviewQueueEntry(BaseModel):
+    """
+    GET /dogfood/review-queue item: an auto-approved source whose licence has
+    not yet been confirmed by a human (pdqe.sources.licence_confirmed_by is
+    NULL). Each one needs manual licence review before publication.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: UUID
+    run_label: str
+    source_id: UUID
+    source_url: str
+    title: str
+    domain: DomainClassification
+    licence_status: LicenceStatus
+    run_started_at: datetime

@@ -55,9 +55,9 @@
       "FSM",
       "MHL"
     ],
-    "licence_status": "UNKNOWN",
-    "licence_url": null,
-    "notes": "Immunisation coverage is a priority Pacific indicator after the 2019 Samoa measles outbreak. Licence terms not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "licence_status": "CLEAR",
+    "licence_url": "https://data.unicef.org/resources/dataset/immunization/",
+    "notes": "UNICEF data published under CC BY 3.0 IGO. Confirmed open licence. Reuse permitted with attribution."
   },
   {
     "source_url": "https://pacificdata.org/",

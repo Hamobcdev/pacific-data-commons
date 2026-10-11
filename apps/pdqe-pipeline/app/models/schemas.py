@@ -24,6 +24,7 @@ SourceDomain = Literal[
     "ECONOMICS",
     "GOVERNANCE",
     "HEALTH",
+    "TOURISM",
     "OTHER",
 ]
 

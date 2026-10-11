@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-CURRENT_QUESTION_SET_VERSION = "v1.0"
+# v1.1 (Stage 10.1): TOURISM added to DOMAIN_CHOICES.
+CURRENT_QUESTION_SET_VERSION = "v1.1"
 
 DOMAIN_CHOICES = [
     "FISHERIES",
@@ -23,6 +24,7 @@ DOMAIN_CHOICES = [
     "ECONOMICS",
     "GOVERNANCE",
     "HEALTH",
+    "TOURISM",
     "OTHER",
     "NONE_OF_THE_ABOVE",
 ]

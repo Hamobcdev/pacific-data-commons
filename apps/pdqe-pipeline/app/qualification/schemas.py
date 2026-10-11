@@ -28,6 +28,7 @@ class DomainClassification(str, Enum):
     ECONOMICS = "ECONOMICS"
     GOVERNANCE = "GOVERNANCE"
     HEALTH = "HEALTH"
+    TOURISM = "TOURISM"
     OTHER = "OTHER"
     NONE_OF_THE_ABOVE = "NONE_OF_THE_ABOVE"
 

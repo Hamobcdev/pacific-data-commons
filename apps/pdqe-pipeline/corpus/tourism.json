@@ -3,7 +3,7 @@
     "source_url": "https://corporate.southpacificislands.travel/",
     "title": "SPTO Regional Visitor Arrivals",
     "description": "Pacific Tourism Organisation regional visitor arrival statistics and annual tourism reports.",
-    "domain": "ECONOMICS",
+    "domain": "TOURISM",
     "geography_scope": [
       "PACIFIC"
     ],
@@ -15,7 +15,7 @@
     "source_url": "https://www.samoa.travel/",
     "title": "Samoa Tourism Authority Visitor Arrival Statistics",
     "description": "Annual and monthly visitor arrivals to Samoa by country of residence and purpose of visit.",
-    "domain": "ECONOMICS",
+    "domain": "TOURISM",
     "geography_scope": [
       "WSM"
     ],
@@ -27,7 +27,7 @@
     "source_url": "https://www.statsfiji.gov.fj/",
     "title": "Fiji Bureau of Statistics — Visitor Arrivals and Tourism Earnings",
     "description": "Monthly visitor arrivals and quarterly tourism earnings for Fiji.",
-    "domain": "ECONOMICS",
+    "domain": "TOURISM",
     "geography_scope": [
       "FJI"
     ],
@@ -39,7 +39,7 @@
     "source_url": "https://vnso.gov.vu/",
     "title": "Vanuatu National Statistics Office — International Visitor Arrivals",
     "description": "Air and cruise visitor arrivals to Vanuatu by country of usual residence.",
-    "domain": "ECONOMICS",
+    "domain": "TOURISM",
     "geography_scope": [
       "VUT"
     ],
@@ -51,7 +51,7 @@
     "source_url": "https://www.mfem.gov.ck/statistics",
     "title": "Cook Islands Statistics Office — Visitor Arrivals",
     "description": "Monthly visitor arrivals to the Cook Islands by country of residence.",
-    "domain": "ECONOMICS",
+    "domain": "TOURISM",
     "geography_scope": [
       "COK"
     ],
