@@ -130,6 +130,12 @@ def call_claude_extraction(prompt: PromptPayload) -> ClaudeCallResult:
 
     raw_text: str = response.content[0].text.strip()
 
+    # Strip markdown code fence if Claude wraps its JSON in ```json ... ```
+    # This happens occasionally and causes json.loads to fail at the first backtick.
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("\n", 1)[1]        # drop the ```json opening line
+        raw_text = raw_text.rsplit("```", 1)[0].strip()  # drop the closing ```
+
     # Diagnostic: always log stop_reason and token counts so Render logs capture
     # exactly what the API returned, even when JSON parsing subsequently fails.
     logger.info(
