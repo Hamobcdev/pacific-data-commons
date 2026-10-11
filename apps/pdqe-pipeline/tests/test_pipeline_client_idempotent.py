@@ -332,6 +332,59 @@ def test_already_extracted_returns_already_processed(env):
     assert (report.sources_succeeded, report.sources_failed, report.sources_routed_to_review) == (0, 0, 0)
 
 
+def test_endpoint_generated_returns_already_processed(env):
+    """A source at ENDPOINT_GENERATED or later is fully processed — skip it."""
+    seed = _seed()
+    sid = env.db.add_source(seed.source_url, "ENDPOINT_GENERATED", CONTENT_HASH)
+    fetcher = _Fetcher()
+    report = env.run(seed, fetcher)
+    result = report.results[0]
+    assert result.outcome == RunOutcome.ALREADY_PROCESSED
+    assert result.source_id == UUID(sid) and result.stage_reached == "ENDPOINT_GENERATED"
+    assert fetcher.calls == 0 and env.db.layer2_calls == 0 and env.extractions == []
+    assert report.sources_already_processed == 1
+
+
+@pytest.mark.parametrize("state", ["COLLECTION_LINKED", "DATASET_CREATED"])
+def test_resume_endpoint_from_collection_linked(env, state, monkeypatch):
+    """
+    A source at COLLECTION_LINKED or DATASET_CREATED has a dataset + collection
+    but no endpoint yet. The runner must resume at Stage 08 (generate_endpoint)
+    without re-fetching content or re-running earlier stages.
+    """
+    seed = _seed()
+    sid = env.db.add_source(seed.source_url, state, CONTENT_HASH)
+    did = str(uuid4())
+    cid = str(uuid4())
+
+    # Stub dataset_db.list_datasets_for_source and endpoint_db.list_dataset_collection_ids
+    monkeypatch.setattr(pc.dataset_db, "list_datasets_for_source", lambda _sid: [{"dataset_id": did}])
+    monkeypatch.setattr(pc.endpoint_db, "list_dataset_collection_ids", lambda _did: [cid])
+
+    endpoint_calls: list[dict] = []
+
+    def _fake_generate_endpoint(dataset_id, collection_id=None):
+        endpoint_calls.append({"dataset_id": str(dataset_id), "collection_id": str(collection_id)})
+        return SimpleNamespace(model_dump=lambda mode=None: {"endpoint_id": str(uuid4()), "status": "DRAFT"})
+
+    monkeypatch.setattr(pc, "generate_endpoint", _fake_generate_endpoint)
+
+    fetcher = _Fetcher()
+    report = env.run(seed, fetcher)
+    result = report.results[0]
+
+    assert result.outcome == RunOutcome.SUCCESS, result.error
+    assert result.stage_reached == "ENDPOINT_GENERATED"
+    assert result.source_id == UUID(sid)
+    # Content must NOT be re-fetched — no new Layer 1/2/3 pass
+    assert fetcher.calls == 0 and env.db.layer2_calls == 0 and env.extractions == []
+    # generate_endpoint called exactly once with the correct dataset + collection
+    assert len(endpoint_calls) == 1
+    assert endpoint_calls[0] == {"dataset_id": did, "collection_id": cid}
+    assert report.sources_succeeded == 1
+    assert (report.sources_failed, report.sources_already_processed) == (0, 0)
+
+
 # ── Supporting behaviour ──────────────────────────────────────────────────────
 
 def test_resume_refuses_changed_upstream_content(env):

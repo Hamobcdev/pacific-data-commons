@@ -351,6 +351,21 @@ def _live_run_source(seed: SeedSource, ctx: _LiveContext) -> SourceRunResult:
                 seed, existing.action, existing.source_id, existing.lifecycle_state, existing.reason
             )
 
+        if existing.action == ResumeAction.RESUME_ENDPOINT:
+            # Dataset + collection already exist (lifecycle_state DATASET_CREATED or
+            # COLLECTION_LINKED). Skip all earlier stages and run Stage 08 only.
+            # Content is NOT re-fetched (no new Layer 2 pass required).
+            source_id = existing.source_id
+            eid = existing.dataset_id
+            cid = existing.collection_id
+            _step(
+                lambda: client.generate_endpoint(eid, cid),
+                EndpointStep,
+                RunOutcome.FAILED_ENDPOINT,
+                existing.lifecycle_state or "COLLECTION_LINKED",
+            )
+            return _result(seed, RunOutcome.SUCCESS, "ENDPOINT_GENERATED", None, source_id)
+
         try:
             fetched = ctx.fetcher(seed, ctx.tmp_dir)
         except FetchError as exc:
