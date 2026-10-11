@@ -8,6 +8,7 @@ Stage history:
   0.5.0 — Stage 05: deterministic validation endpoint added
   0.6.0 — Stage 06: human review queue endpoints added
   0.7.0 — Stage 07: dataset and collection model endpoints added
+  0.8.0 — Stage 08: endpoint generation endpoints added
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -23,8 +24,12 @@ Routes:
   POST /dataset/{dataset_id}/link/{collection_id} — Stage 07 link dataset to collection
   GET  /dataset/{dataset_id}                      — Stage 07 dataset record
   GET  /collection/{collection_id}/datasets       — Stage 07 datasets in a collection
+  POST /endpoint/generate/{dataset_id}            — Stage 08 generate a DRAFT endpoint spec
+  GET  /endpoint/{endpoint_id}                    — Stage 08 endpoint record
+  GET  /endpoints                                 — Stage 08 list endpoints (optional ?status=)
 
-The /review/*, /dataset/* and /collection/* routes require the
+The /review/*, /dataset/*, /collection/*, /endpoint/* and /endpoints routes
+require the
 X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
 evidence, record decisions, and create the post-approval records that
 advance a source toward publication.
@@ -53,6 +58,9 @@ from app.dataset.schemas import (
     DatasetCreate,
     DatasetRecord,
 )
+from app.endpoint.generator import generate_endpoint, get_endpoint, list_endpoints
+from app.endpoint.schemas import EndpointGenerateRequest, EndpointRecord, EndpointStatus
+from app.endpoint.supabase_client import MAX_LIST_PAGE as MAX_ENDPOINT_PAGE
 from app.extraction.extractor import ExtractionRunResult, run_extraction
 from app.qualification.qualifier import qualify
 from app.qualification.schemas import JevAssessmentOutput
@@ -72,14 +80,14 @@ from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.7.0")
+app = FastAPI(title="PDQE Pipeline", version="0.8.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "07-dataset-collection", "version": "0.7.0"}
+    return {"status": "ok", "stage": "08-endpoint-generation", "version": "0.8.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -494,3 +502,67 @@ def list_collection_datasets_endpoint(collection_id: str) -> list[DatasetRecord]
         return list_collection_datasets(cid)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+# ── Stage 08 — Endpoint Generation ─────────────────────────────────────────────
+
+@app.post(
+    "/endpoint/generate/{dataset_id}",
+    response_model=EndpointRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def generate_endpoint_endpoint(
+    dataset_id: str, payload: EndpointGenerateRequest | None = None
+) -> EndpointRecord:
+    """
+    Stage 08: generate the endpoint spec for a COLLECTION_LINKED dataset and
+    advance its source to ENDPOINT_GENERATED.
+
+    Body is optional: {"collection_id": "<uuid>"} picks the primary
+    collection (must be linked to the dataset). Every other field is assigned
+    deterministically. The endpoint is stored as DRAFT — generation is not
+    publication; Stage 09 is required before it is live or x402-queryable.
+
+    Raises HTTP 400 if the dataset/source is missing or not COLLECTION_LINKED,
+    the collection is not linked, or the dataset already has an endpoint.
+    """
+    did = _parse_uuid(dataset_id, "dataset_id")
+    try:
+        return generate_endpoint(did, payload.collection_id if payload else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Endpoint generation encountered an unexpected error: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/endpoint/{endpoint_id}",
+    response_model=EndpointRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def get_endpoint_endpoint(endpoint_id: str) -> EndpointRecord:
+    """Stage 08: one endpoint record. HTTP 404 if it does not exist."""
+    eid = _parse_uuid(endpoint_id, "endpoint_id")
+    try:
+        return get_endpoint(eid)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get(
+    "/endpoints",
+    response_model=list[EndpointRecord],
+    dependencies=[Depends(_require_review_key)],
+)
+def list_endpoints_endpoint(
+    status: EndpointStatus | None = None,
+    limit: int = Query(default=MAX_ENDPOINT_PAGE, ge=1, le=MAX_ENDPOINT_PAGE),
+) -> list[EndpointRecord]:
+    """Stage 08: endpoints, newest first, optionally filtered by ?status=."""
+    try:
+        return list_endpoints(status, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
