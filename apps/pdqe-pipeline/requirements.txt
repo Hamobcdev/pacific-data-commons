@@ -2,4 +2,10 @@ fastapi>=0.115,<1.0
 pydantic>=2.9,<3.0
 uvicorn[standard]>=0.30,<1.0
 anthropic>=0.40,<1.0
+# typesafe>=0.1.0  # Stage 04 (Jev qualification) — NOT added live. The PyPI
+# package literally named "typesafe" (0.9.1, by Krister Hedfors) is an
+# unrelated type-assertion decorator library, not the TypeSafe AI / Jev SDK.
+# JEV_MOCK_MODE=true keeps all tests passing without this dependency.
+# Confirm the correct install source/package name for the TypeSafe AI SDK
+# before uncommenting and enabling JEV_MOCK_MODE=false in any environment.
 supabase>=2.0,<3.0

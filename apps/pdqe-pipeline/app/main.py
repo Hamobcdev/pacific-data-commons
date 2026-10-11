@@ -4,29 +4,34 @@ PDQE Pipeline — FastAPI application.
 Stage history:
   0.2.0 — Stage 02: secure ingestion, Layer 1 pre-check endpoint
   0.3.0 — Stage 03: Claude extraction endpoint added
+  0.4.0 — Stage 04: Jev qualification endpoint added
 
 Routes:
   GET  /health              — health check (reports current stage)
   POST /ingest/validate     — Layer 1 pre-check (Stage 02)
   POST /extract             — Stage 03 extraction (Layer 3 → Claude → Layer 4 → Supabase)
+  POST /qualify/{source_id} — Stage 04 qualification (Jev → thresholds → Supabase)
 """
 
 from __future__ import annotations
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.extraction.extractor import ExtractionRunResult, run_extraction
+from app.qualification.qualifier import qualify
+from app.qualification.schemas import JevAssessmentOutput
 from app.security.layer1_whitelist import Layer1Result, check_layer1
 
-app = FastAPI(title="PDQE Pipeline", version="0.3.0")
+app = FastAPI(title="PDQE Pipeline", version="0.4.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "03-claude-extraction", "version": "0.3.0"}
+    return {"status": "ok", "stage": "04-jev-qualification", "version": "0.4.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -169,3 +174,41 @@ def extract(payload: ExtractRequest) -> ExtractResponse:
         output_tokens=result.output_tokens,
         error=result.error,
     )
+
+
+# ── Stage 04 — Jev Qualification ────────────────────────────────────────────────
+
+class QualifyRequest(BaseModel):
+    """Request body for POST /qualify/{source_id}."""
+
+    extraction_id: str
+
+
+@app.post("/qualify/{source_id}", response_model=JevAssessmentOutput)
+async def qualify_endpoint(source_id: str, payload: QualifyRequest) -> JevAssessmentOutput:
+    """
+    Run Stage 04 Jev qualification for a validated extraction.
+
+    source_id is a path parameter for routing/logging symmetry with the rest
+    of the pipeline API; the extraction to qualify is identified by
+    extraction_id in the request body, since pdqe.extractions is keyed on
+    extraction_id and a source may have more than one extraction over its
+    lifetime (re-extraction).
+
+    Raises HTTP 400 if the extraction is not found or not in VALIDATED state.
+    Raises HTTP 500 on an unexpected Jev, validation, or DB error.
+    """
+    try:
+        extraction_id = UUID(payload.extraction_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"extraction_id is not a valid UUID: {exc}") from exc
+
+    try:
+        return await qualify(extraction_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Qualification pipeline encountered an unexpected error: {exc}",
+        ) from exc
