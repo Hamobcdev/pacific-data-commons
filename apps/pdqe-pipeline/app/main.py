@@ -6,6 +6,7 @@ Stage history:
   0.3.0 — Stage 03: Claude extraction endpoint added
   0.4.0 — Stage 04: Jev qualification endpoint added
   0.5.0 — Stage 05: deterministic validation endpoint added
+  0.6.0 — Stage 06: human review queue endpoints added
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -13,29 +14,51 @@ Routes:
   POST /extract             — Stage 03 extraction (Layer 3 → Claude → Layer 4 → Supabase)
   POST /qualify/{source_id} — Stage 04 qualification (Jev → thresholds → Supabase)
   POST /validate/{source_id} — Stage 05 deterministic validation (validators → routing → Supabase)
+  POST /review/enqueue/{source_id} — Stage 06 queue a REVIEW-state source for human review
+  POST /review/decide       — Stage 06 record an APPROVED/REJECTED decision (mandatory reason)
+  GET  /review/pending      — Stage 06 pending reviews for the reviewer dashboard
+
+The /review/* routes require the X-PDQE-Review-Key header (see
+_require_review_key) — they expose reviewer evidence and record decisions
+that advance a source toward publication.
 """
 
 from __future__ import annotations
+
+import hmac
+import os
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from app.extraction.extractor import ExtractionRunResult, run_extraction
 from app.qualification.qualifier import qualify
 from app.qualification.schemas import JevAssessmentOutput
+from app.review.queue import (
+    MAX_PENDING_PAGE,
+    enqueue_review,
+    list_pending_reviews,
+    record_decision,
+)
+from app.review.schemas import (
+    EnqueueReviewInput,
+    ReviewDecisionInput,
+    ReviewQueueItem,
+    ReviewRecord,
+)
 from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.5.0")
+app = FastAPI(title="PDQE Pipeline", version="0.6.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "05-deterministic-validation", "version": "0.5.0"}
+    return {"status": "ok", "stage": "06-human-review", "version": "0.6.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -250,3 +273,92 @@ def validate_endpoint(source_id: str) -> ValidationOutput:
             status_code=500,
             detail=f"Validation pipeline encountered an unexpected error: {exc}",
         ) from exc
+
+
+# ── Stage 06 — Human Review ─────────────────────────────────────────────────────
+
+def _require_review_key(x_pdqe_review_key: str | None = Header(default=None)) -> None:
+    """
+    Shared-secret guard for the /review/* routes. Fails closed: if
+    PDQE_REVIEW_API_KEY is not configured the routes return 503 rather than
+    running unauthenticated. Constant-time comparison.
+    """
+    expected = os.environ.get("PDQE_REVIEW_API_KEY")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Review API is not configured")
+    if not x_pdqe_review_key or not hmac.compare_digest(
+        x_pdqe_review_key.encode(), expected.encode()
+    ):
+        raise HTTPException(status_code=401, detail="Invalid or missing review API key")
+
+
+@app.post(
+    "/review/enqueue/{source_id}",
+    response_model=ReviewQueueItem,
+    dependencies=[Depends(_require_review_key)],
+)
+def enqueue_review_endpoint(source_id: str, payload: EnqueueReviewInput) -> ReviewQueueItem:
+    """
+    Stage 06: enqueue a REVIEW-state source for human review.
+
+    Body: {"validation_id": "<uuid>"} — the Stage 05 validation whose outcome
+    was REVIEW. Raises HTTP 400 if the source is not in REVIEW, the
+    validation doesn't belong to it or wasn't a REVIEW outcome, or the review
+    is already queued.
+    """
+    try:
+        sid = UUID(source_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"source_id is not a valid UUID: {exc}") from exc
+
+    try:
+        return enqueue_review(sid, payload.validation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Review queue encountered an unexpected error: {exc}",
+        ) from exc
+
+
+@app.post(
+    "/review/decide",
+    response_model=ReviewRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def record_decision_endpoint(payload: ReviewDecisionInput) -> ReviewRecord:
+    """
+    Stage 06: record a human reviewer decision.
+
+    Body: {"review_id": "<uuid>", "decision": "APPROVED|REJECTED",
+           "decision_reason": "<text>", "reviewer_id": "<auth.users uuid>"}
+
+    Advances REVIEW → APPROVED | REJECTED. Raises HTTP 400 if the review is
+    missing or already decided, or the transition is refused (e.g. approving
+    while licence_status is UNKNOWN). Malformed bodies are rejected with 422.
+    """
+    try:
+        return record_decision(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Review decision encountered an unexpected error: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/review/pending",
+    response_model=list[ReviewRecord],
+    dependencies=[Depends(_require_review_key)],
+)
+def list_pending_endpoint(
+    limit: int = Query(default=MAX_PENDING_PAGE, ge=1, le=MAX_PENDING_PAGE),
+) -> list[ReviewRecord]:
+    """Stage 06: list pending human reviews, newest first."""
+    try:
+        return list_pending_reviews(limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
