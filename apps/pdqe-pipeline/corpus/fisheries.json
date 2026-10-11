@@ -9,7 +9,7 @@
     ],
     "licence_status": "REVIEW_REQUIRED",
     "licence_url": "https://www.wcpfc.int/public-domain",
-    "notes": "Core regional tuna dataset. Release is governed by WCPFC's Rules for Public Domain Data (aggregation and attribution conditions), so commercial reuse needs human sign-off. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Core regional tuna dataset. Release is governed by WCPFC's Rules for Public Domain Data (aggregation and attribution conditions), so commercial reuse needs human sign-off. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://oceanfish.spc.int/",
@@ -21,7 +21,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Primary scientific provider for WCPO tuna. No explicit reuse licence identified for the data products. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Primary scientific provider for WCPO tuna. No explicit reuse licence identified for the data products. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://www.ffa.int/",
@@ -47,7 +47,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Economic dimension of the fishery that SPC catch data lacks. Reuse rights not explicitly stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Economic dimension of the fishery that SPC catch data lacks. Reuse rights not explicitly stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://fame.spc.int/",
@@ -59,7 +59,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Coastal fisheries are the food-security half of Pacific fisheries. Check any community-sourced survey data for customary-rights content (would be EXCLUDED). URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Coastal fisheries are the food-security half of Pacific fisheries. Check any community-sourced survey data for customary-rights content (would be EXCLUDED). URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://www.fao.org/fishery/en/statistics",
@@ -78,6 +78,6 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": "https://www.fao.org/contact-us/terms/db-terms-of-use/en",
-    "notes": "Global baseline for cross-checking regional series. FAO database terms of use apply; licence not confirmed for commercial resale, so left UNKNOWN. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Global baseline for cross-checking regional series. FAO database terms of use apply; licence not confirmed for commercial resale, so left UNKNOWN. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   }
 ]

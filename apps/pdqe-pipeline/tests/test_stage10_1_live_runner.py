@@ -70,12 +70,13 @@ def mock_http(monkeypatch):
 class _FetchSpy:
     """Fake fetcher that writes a real temp file and remembers its path."""
 
-    def __init__(self) -> None:
+    def __init__(self, content: bytes = b"year,country,value\n2024,WSM,1\n") -> None:
         self.paths: list[str] = []
+        self._content = content
 
     def __call__(self, seed: SeedSource, tmp_dir: str) -> FetchResult:
         path = Path(tmp_dir) / f"fetch-{uuid4().hex}.csv"
-        path.write_bytes(b"year,country,value\n2024,WSM,1\n")
+        path.write_bytes(self._content)
         self.paths.append(str(path))
         return FetchResult(
             source_url=seed.source_url, local_path=str(path), content_type="text/csv",
@@ -286,12 +287,12 @@ def test_live_run_cleans_up_temp_file_on_success(monkeypatch, auto_approve):
 
 
 def test_live_run_cleans_up_temp_file_on_error(direct, monkeypatch, no_auto_approve):
-    # The real Layer 2 is unimplemented until Stage 02b: ingestion must fail
-    # closed (never bypass sanitisation), record it, and still clean up.
+    # The real Layer 2 rejects content with nothing extractable: ingestion
+    # must fail closed (never bypass sanitisation), record it, and clean up.
     from app.security.layer2_sanitisation import run_layer2
 
     client = DirectPipelineClient(OPERATOR, layer2=run_layer2)
-    spy = _FetchSpy()
+    spy = _FetchSpy(content=b"=\n@\n+-\n")  # only formula prefixes: nothing left
     result = _live(client, monkeypatch, [_seed()], fetch=spy).results[0]
     assert result.outcome == RunOutcome.FAILED_INGESTION
     assert result.stage_reached == "SOURCE_REGISTERED"

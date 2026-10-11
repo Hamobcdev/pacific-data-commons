@@ -9,7 +9,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Regional climate knowledge hub. Hosts third-party material with mixed rights; no single portal-wide licence confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Regional climate knowledge hub. Hosts third-party material with mixed rights; no single portal-wide licence confirmed. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "http://www.bom.gov.au/climate/pccsp/",
@@ -35,12 +35,12 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Authoritative projection set for Pacific adaptation planning. Australian Government copyright; reuse terms not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Authoritative projection set for Pacific adaptation planning. Australian Government copyright; reuse terms not confirmed. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
-    "source_url": "http://www.bom.gov.au/oceanography/projects/spslcmp/",
-    "title": "Pacific Sea Level and Geodetic Monitoring (SEAFRAME) Tide Gauge Network",
-    "description": "Hourly and monthly sea level, air/water temperature and pressure from SEAFRAME stations across Pacific Island countries.",
+    "source_url": "https://stats-nsi-stable.pacificdata.org/rest/data/SPC,DF_SEA_LEVEL,1.0/A..?format=csv",
+    "title": "Pacific Data Hub .Stat — Pacific Sea Level",
+    "description": "SPC PDH.stat sea level dataflow (DF_SEA_LEVEL), annual series, served as SDMX-CSV.",
     "domain": "CLIMATE",
     "geography_scope": [
       "FJI",
@@ -58,7 +58,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Long-running Pacific sea level record; complements the existing /pacific sea level endpoint. Reuse terms not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Pacific sea level record; complements the existing /pacific sea level endpoint. Replaces the BoM SEAFRAME project landing page with the PDH.stat sea level dataflow; licence varies by dataflow and is not confirmed for this one. Stage 02b: direct data-file URL, not live-verified (build sandbox has no outbound network to this host) — confirm with a live fetch before relying on it."
   },
   {
     "source_url": "https://oscar.wmo.int/surface/",
@@ -70,7 +70,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Station metadata layer for WMO Pacific station data. WMO data policy (Resolution 1) governs exchange, not commercial resale. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Station metadata layer for WMO Pacific station data. WMO data policy (Resolution 1) governs exchange, not commercial resale. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php",
@@ -83,6 +83,6 @@
     ],
     "licence_status": "CLEAR",
     "licence_url": "https://www.weather.gov/disclaimer",
-    "notes": "US federal government work (public domain). Control case for a CLEAR licence path; already wrapped by the /pacific ENSO endpoint. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "US federal government work (public domain). Control case for a CLEAR licence path; already wrapped by the /pacific ENSO endpoint. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   }
 ]

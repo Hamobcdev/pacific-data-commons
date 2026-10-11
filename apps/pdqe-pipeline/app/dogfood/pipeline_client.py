@@ -18,8 +18,8 @@ own yet, so the dogfood-scoped intake for them lives here:
                              → app.dataset.manager
   Stage 08  generate_endpoint → app.endpoint.generator.generate_endpoint
 
-Layer 2 is never bypassed: until Stage 02b implements run_layer2(), ingestion
-raises and the source is recorded as FAILED_INGESTION. The DB still refuses
+Layer 2 is never bypassed: a Layer 2 rejection (or an unavailable Layer 2)
+records LAYER2_FAILED and the source as FAILED_INGESTION. The DB still refuses
 LICENSE_CHECKED → INGESTED for an UNKNOWN licence and any advance for an
 EXCLUDED one — this module relies on those rules rather than re-deciding them.
 

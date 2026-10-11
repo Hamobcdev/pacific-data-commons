@@ -15,7 +15,7 @@
     ],
     "licence_status": "REVIEW_REQUIRED",
     "licence_url": "https://comtradeplus.un.org/",
-    "notes": "Most complete commodity-level trade source. Comtrade terms of use restrict bulk redistribution — needs human licence review before any resale. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Most complete commodity-level trade source. Comtrade terms of use restrict bulk redistribution — needs human licence review before any resale. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://wits.worldbank.org/",
@@ -33,10 +33,10 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Aggregates Comtrade, TRAINS and WTO data; rights follow each underlying source, so not CLEAR. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Aggregates Comtrade, TRAINS and WTO data; rights follow each underlying source, so not CLEAR. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
-    "source_url": "https://data.worldbank.org/indicator/NE.EXP.GNFS.ZS",
+    "source_url": "https://api.worldbank.org/v2/country/WS;FJ;TO;VU;PG;SB;KI/indicator/NE.EXP.GNFS.ZS?format=json&per_page=1000",
     "title": "World Bank WDI — Exports of Goods and Services (% of GDP), Pacific Islands",
     "description": "World Development Indicators trade-openness series for Pacific Island countries.",
     "domain": "TRADE",
@@ -51,7 +51,7 @@
     ],
     "licence_status": "CLEAR",
     "licence_url": "https://datacatalog.worldbank.org/public-licenses#cc-by",
-    "notes": "WDI is published under CC BY 4.0. Attribution must also name the national source the World Bank cites (Decision 59). URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "WDI is published under CC BY 4.0. Attribution must also name the national source the World Bank cites (Decision 59). World Bank Indicators API (JSON) for this seed's own indicator NE.EXP.GNFS.ZS; per_page=1000 returns every year for all seven countries in one response. Stage 02b: direct data-file URL, not live-verified (build sandbox has no outbound network to this host) — confirm with a live fetch before relying on it."
   },
   {
     "source_url": "https://pacifictradeinvest.com/",
@@ -63,10 +63,10 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Exporter-facing intelligence, mostly PDF reports — good test of document extraction. No reuse licence stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Exporter-facing intelligence, mostly PDF reports — good test of document extraction. No reuse licence stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
-    "source_url": "https://stats.pacificdata.org/",
+    "source_url": "https://stats-nsi-stable.pacificdata.org/rest/data/SPC,DF_IMTS,1.0/A.WS+FJ+TO+VU+PG+SB+KI..?format=csv",
     "title": "Pacific Data Hub .Stat — International Merchandise Trade Statistics",
     "description": "SPC-curated international merchandise trade statistics for Pacific Island countries and territories.",
     "domain": "TRADE",
@@ -75,6 +75,6 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Regionally curated alternative to Comtrade. Licence varies by dataflow; not confirmed for this one. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Regionally curated alternative to Comtrade. Licence varies by dataflow; not confirmed for this one. PDH.stat IMTS dataflow (DF_IMTS) as SDMX-CSV. Stage 02b: direct data-file URL, not live-verified (build sandbox has no outbound network to this host) — confirm with a live fetch before relying on it."
   }
 ]

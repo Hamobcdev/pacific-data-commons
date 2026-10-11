@@ -1,8 +1,8 @@
 [
   {
-    "source_url": "https://www.who.int/data/gho",
+    "source_url": "https://ghoapi.azureedge.net/api/WHOSIS_000002",
     "title": "WHO Global Health Observatory — Western Pacific Island Country Indicators",
-    "description": "WHO GHO indicators (life expectancy, NCD mortality, risk factors) for Pacific Island member states of the WHO Western Pacific Region.",
+    "description": "WHO GHO OData indicator WHOSIS_000002 (healthy life expectancy (HALE) at birth) for Pacific Island member states of the WHO Western Pacific Region.",
     "domain": "HEALTH",
     "geography_scope": [
       "WSM",
@@ -22,7 +22,7 @@
     ],
     "licence_status": "RESTRICTED",
     "licence_url": "https://www.who.int/about/policies/publishing/copyright",
-    "notes": "WHO data is generally CC BY-NC-SA 3.0 IGO — non-commercial, which conflicts with x402 resale. RESTRICTED so a human decides whether a free/research-tier endpoint is allowed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "WHO data is generally CC BY-NC-SA 3.0 IGO — non-commercial, which conflicts with x402 resale. RESTRICTED so a human decides whether a free/research-tier endpoint is allowed. GHO OData API; the fetcher appends $format=json&$top=1000. The response covers all WHO member states, not only Pacific ones. Stage 02b: direct data-file URL, not live-verified (build sandbox has no outbound network to this host) — confirm with a live fetch before relying on it."
   },
   {
     "source_url": "https://www.spc.int/",
@@ -34,7 +34,7 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Pacific NCD policy-status data (the NCD crisis is the region's leading health burden). Exact dashboard URL and licence to confirm. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Pacific NCD policy-status data (the NCD crisis is the region's leading health burden). Exact dashboard URL and licence to confirm. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
     "source_url": "https://data.unicef.org/topic/child-health/immunization/",
@@ -57,19 +57,19 @@
     ],
     "licence_status": "CLEAR",
     "licence_url": "https://data.unicef.org/resources/dataset/immunization/",
-    "notes": "UNICEF data published under CC BY 3.0 IGO. Confirmed open licence. Reuse permitted with attribution."
+    "notes": "UNICEF data published under CC BY 3.0 IGO. Confirmed open licence. Reuse permitted with attribution. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   },
   {
-    "source_url": "https://pacificdata.org/",
+    "source_url": "https://stats-nsi-stable.pacificdata.org/rest/data/SPC,DF_WHO_UNICEF_IMMUNISATION,1.0/A..?format=csv",
     "title": "Pacific Data Hub — Health Indicators",
-    "description": "SPC Pacific Data Hub health indicator datasets, including National Minimum Development Indicators health series.",
+    "description": "SPC PDH.stat WHO/UNICEF immunisation coverage dataflow (DF_WHO_UNICEF_IMMUNISATION), annual series, served as SDMX-CSV.",
     "domain": "HEALTH",
     "geography_scope": [
       "PACIFIC"
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "Regional health indicator catalogue. Licence varies per dataset; not confirmed. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "Regional health indicator catalogue. Licence varies per dataset; not confirmed. Stage 02b: direct data-file URL, not live-verified (build sandbox has no outbound network to this host) — confirm with a live fetch before relying on it."
   },
   {
     "source_url": "https://www.health.gov.ws/",
@@ -81,6 +81,6 @@
     ],
     "licence_status": "UNKNOWN",
     "licence_url": null,
-    "notes": "National-level source for Samoa health data (OGIP-adjacent ministry). PDF reports — exercises document extraction. Licence not stated. URL not live-verified at authoring (sandbox had no outbound network) — confirm before a live run."
+    "notes": "National-level source for Samoa health data (OGIP-adjacent ministry). PDF reports — exercises document extraction. Licence not stated. URL is a portal landing page — needs direct data-file URL before live run can succeed."
   }
 ]
