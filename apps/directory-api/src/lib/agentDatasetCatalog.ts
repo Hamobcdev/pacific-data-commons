@@ -1,4 +1,5 @@
 import { paidRoutes } from "../routeSchemas.js";
+import { type DataCategory } from "./dataCategories.js";
 
 /**
  * Stream A — Agent Dataset Gateway (CLAUDE.md Decision 61, "PDC as Pacific
@@ -164,4 +165,26 @@ export const AGENT_DATASET_CATALOG: AgentDataset[] = buildCatalog();
 
 export function getAgentDataset(datasetId: string): AgentDataset | undefined {
   return AGENT_DATASET_CATALOG.find((d) => d.datasetId === datasetId);
+}
+
+/**
+ * Maps this catalog's own category taxonomy onto lib/dataCategories.ts's
+ * canonical DataCategory enum — used by routes/discovery.ts and
+ * routes/wellKnownX402.ts's agent-discovery manifests, which advertise
+ * DATA_CATEGORIES as their category vocabulary. "intelligence" and
+ * "algorand" have no direct DataCategory equivalent (composite synthesis
+ * briefs and a wallet lookup aren't research papers or financial flows)
+ * so both map to "other" rather than overloading an unrelated category.
+ */
+const CATEGORY_TO_DATA_CATEGORY: Record<AgentDatasetMetadata["category"], DataCategory> = {
+  finance: "financial_flows",
+  climate: "climate",
+  fisheries: "fisheries",
+  tourism: "tourism",
+  intelligence: "other",
+  algorand: "other",
+};
+
+export function catalogCategoryToDataCategory(category: AgentDatasetMetadata["category"]): DataCategory {
+  return CATEGORY_TO_DATA_CATEGORY[category];
 }

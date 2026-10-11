@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getCaip2Network } from "@pdc/x402-adapter";
 import { AGENT_REGISTRY } from "@pdc/shared-types";
-import { PDC_PILOT_EARNINGS_WALLET } from "../routeSchemas.js";
+import { AGENT_DATASET_CATALOG, catalogCategoryToDataCategory } from "../lib/agentDatasetCatalog.js";
 import type { AppBindings } from "../types.js";
 
 /**
@@ -25,38 +25,19 @@ import type { AppBindings } from "../types.js";
  */
 export const wellKnownX402Route = new Hono<AppBindings>();
 
+/**
+ * Session 3 (Stream A completion) — this list used to be 4 hand-written
+ * entries (samoa-cpi, ocean-temperature, samoa-gdp, search), stale since
+ * before this app had 20+ first-party endpoints. Now derived from
+ * lib/agentDatasetCatalog.ts's AGENT_DATASET_CATALOG (itself derived from
+ * routeSchemas.ts's `paidRoutes`) so price/wallet here can never drift
+ * out of sync with what a dataset's direct route actually charges — see
+ * routes/discovery.ts's buildPaidEndpoints() for the identical reasoning
+ * (why this lists each dataset's direct GET route, not the Agent Dataset
+ * Gateway's single shared-price POST adapter).
+ */
 function buildEndpoints(env: AppBindings["Variables"]["env"], publicUrl: string) {
   return [
-    {
-      path: "/finance/samoa-cpi",
-      full_url: `${publicUrl}/finance/samoa-cpi`,
-      price_usdc: "0.01",
-      description: "Samoa Consumer Price Index and annual inflation rate, sourced from World Bank Open Data. Not an SBS-certified feed — see the response's own attribution field.",
-      category: "financial_flows",
-      pay_to: PDC_PILOT_EARNINGS_WALLET,
-      trust_tier: "bronze" as const,
-      data_format: "json" as const,
-    },
-    {
-      path: "/climate/ocean-temperature",
-      full_url: `${publicUrl}/climate/ocean-temperature`,
-      price_usdc: "0.01",
-      description: "Pacific sea surface temperature and wave/swell conditions, sourced from Open-Meteo's Marine Weather API.",
-      category: "climate",
-      pay_to: PDC_PILOT_EARNINGS_WALLET,
-      trust_tier: "bronze" as const,
-      data_format: "json" as const,
-    },
-    {
-      path: "/finance/samoa-gdp",
-      full_url: `${publicUrl}/finance/samoa-gdp`,
-      price_usdc: "0.01",
-      description: "Samoa GDP expenditure approach — annual. FY2025/26: -8.1% real. Source: Samoa Bureau of Statistics.",
-      category: "financial_flows",
-      pay_to: PDC_PILOT_EARNINGS_WALLET,
-      trust_tier: "bronze" as const,
-      data_format: "json" as const,
-    },
     {
       path: "/search",
       full_url: `${publicUrl}/search`,
@@ -67,6 +48,16 @@ function buildEndpoints(env: AppBindings["Variables"]["env"], publicUrl: string)
       trust_tier: "directory" as const,
       data_format: "json" as const,
     },
+    ...AGENT_DATASET_CATALOG.map((d) => ({
+      path: d.path,
+      full_url: `${publicUrl}${d.path}`,
+      price_usdc: String(d.priceUsdc),
+      description: d.description,
+      category: catalogCategoryToDataCategory(d.category),
+      pay_to: d.payToWallet ?? env.AVM_ADDRESS,
+      trust_tier: "bronze" as const,
+      data_format: "json" as const,
+    })),
   ];
 }
 
