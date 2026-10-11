@@ -9,3 +9,6 @@ anthropic>=0.40,<1.0
 # Confirm the correct install source/package name for the TypeSafe AI SDK
 # before uncommenting and enabling JEV_MOCK_MODE=false in any environment.
 supabase>=2.0,<3.0
+# Stage 09 — pdc-x402-adapter client (live mode only; already a transitive
+# dependency of supabase, pinned explicitly because app code imports it).
+httpx>=0.27,<1.0

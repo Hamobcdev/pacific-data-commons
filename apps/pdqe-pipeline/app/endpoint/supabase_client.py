@@ -43,7 +43,8 @@ _ENDPOINT_COLUMNS = (
     "endpoint_id, dataset_id, collection_id, path, slug, title, description, domain, "
     "pricing_tier, price_usdc, cultural_sovereignty, provider_wallet, response_schema, "
     "parameters, query_examples, endpoint_hash, provenance_dataset_id, "
-    "provenance_source_ids, status, generated_at, updated_at"
+    "provenance_source_ids, status, generated_at, updated_at, "
+    "provider_approved_at, x402_registration_id, x402_registered_at"
 )
 
 TRANSITION_ENDPOINT_GENERATED = "transition_to_endpoint_generated"
