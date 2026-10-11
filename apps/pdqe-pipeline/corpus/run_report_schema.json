@@ -86,7 +86,10 @@
         "FAILED_ENDPOINT",
         "ROUTED_TO_REVIEW",
         "LICENCE_BLOCKED",
-        "DRY_RUN_PASS"
+        "DRY_RUN_PASS",
+        "ALREADY_PROCESSED",
+        "SKIPPED_PREVIOUSLY_REJECTED",
+        "CONTENT_CHANGED"
       ],
       "title": "RunOutcome",
       "type": "string"
@@ -196,6 +199,18 @@
     "sources_routed_to_review": {
       "minimum": 0,
       "title": "Sources Routed To Review",
+      "type": "integer"
+    },
+    "sources_already_processed": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Sources Already Processed",
+      "type": "integer"
+    },
+    "sources_skipped_previously_rejected": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Sources Skipped Previously Rejected",
       "type": "integer"
     },
     "results": {

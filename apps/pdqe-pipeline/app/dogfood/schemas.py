@@ -159,10 +159,19 @@ class RunOutcome(str, Enum):
     ROUTED_TO_REVIEW = "ROUTED_TO_REVIEW"
     LICENCE_BLOCKED = "LICENCE_BLOCKED"
     DRY_RUN_PASS = "DRY_RUN_PASS"
+    # Idempotent resume (re-runs): the source was already handled by an earlier
+    # run. Counted separately — neither a success nor a failure of this run.
+    ALREADY_PROCESSED = "ALREADY_PROCESSED"  # EXTRACTED or later already
+    SKIPPED_PREVIOUSLY_REJECTED = "SKIPPED_PREVIOUSLY_REJECTED"  # REJECTED / QUARANTINED
+    # The URL's content no longer matches the hash an earlier run recorded:
+    # the source needs a declared dataset update (Decision 54), not a resume.
+    CONTENT_CHANGED = "CONTENT_CHANGED"
 
 
 SUCCEEDED_OUTCOMES = frozenset({RunOutcome.SUCCESS, RunOutcome.DRY_RUN_PASS})
-REVIEW_OUTCOMES = frozenset({RunOutcome.ROUTED_TO_REVIEW})
+# CONTENT_CHANGED waits on a human declaring the update, so it is review work.
+REVIEW_OUTCOMES = frozenset({RunOutcome.ROUTED_TO_REVIEW, RunOutcome.CONTENT_CHANGED})
+SKIPPED_OUTCOMES = frozenset({RunOutcome.ALREADY_PROCESSED, RunOutcome.SKIPPED_PREVIOUSLY_REJECTED})
 
 
 class SourceRunResult(BaseModel):
@@ -201,6 +210,8 @@ class DogfoodRunReport(BaseModel):
     sources_succeeded: int = Field(ge=0)
     sources_failed: int = Field(ge=0)
     sources_routed_to_review: int = Field(ge=0)
+    sources_already_processed: int = Field(default=0, ge=0)
+    sources_skipped_previously_rejected: int = Field(default=0, ge=0)
     results: list[SourceRunResult]
     failure_modes: list[dict]
     licence_outcomes: dict[str, int]
@@ -217,9 +228,16 @@ class DogfoodRunReport(BaseModel):
         if self.sources_attempted != len(self.results):
             raise ValueError("sources_attempted must equal the number of results")
         if self.sources_attempted != (
-            self.sources_succeeded + self.sources_failed + self.sources_routed_to_review
+            self.sources_succeeded
+            + self.sources_failed
+            + self.sources_routed_to_review
+            + self.sources_already_processed
+            + self.sources_skipped_previously_rejected
         ):
-            raise ValueError("succeeded + failed + routed_to_review must equal attempted")
+            raise ValueError(
+                "succeeded + failed + routed_to_review + already_processed + "
+                "skipped_previously_rejected must equal attempted"
+            )
         if sum(self.licence_outcomes.values()) != self.sources_attempted:
             raise ValueError("licence_outcomes must count every attempted source")
         return self
@@ -266,8 +284,51 @@ class RegisteredSource(_Projection):
     source_id: UUID
 
 
+class ResumeAction(str, Enum):
+    """What an earlier run left behind for a source (idempotent resume)."""
+
+    NEW = "NEW"  # nothing usable — register, fetch and run Layer 1 + Layer 2
+    # Pre-INGESTED partial of the same URL — claim its row; fetch, Layer 1 and
+    # Layer 2 still run on it before anything else (P9).
+    CLAIM_PARTIAL = "CLAIM_PARTIAL"
+    RESUME_EXTRACTION = "RESUME_EXTRACTION"  # INGESTED — continue on the existing source
+    ALREADY_PROCESSED = "ALREADY_PROCESSED"  # EXTRACTED or later — nothing to do
+    SKIPPED_PREVIOUSLY_REJECTED = "SKIPPED_PREVIOUSLY_REJECTED"  # REJECTED / QUARANTINED
+    # Ingestion responses only: fresh Layer 2 hash ≠ the source's recorded hash.
+    CONTENT_CHANGED = "CONTENT_CHANGED"
+
+
+class ExistingSource(_Projection):
+    """find_existing_source response: the resume decision for one seed URL."""
+
+    action: ResumeAction
+    source_id: Optional[UUID] = None
+    lifecycle_state: Optional[str] = None
+    reason: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _source_id_required(self) -> "ExistingSource":
+        if self.action == ResumeAction.CONTENT_CHANGED:
+            raise ValueError("CONTENT_CHANGED needs fresh content; it is never a pre-fetch decision")
+        if self.action != ResumeAction.NEW and self.source_id is None:
+            raise ValueError(f"{self.action.value} requires the existing source_id")
+        return self
+
+
 class IngestionStep(_Projection):
     ingestion_id: UUID
+    # Set when the content hash matched an existing source: the run continues
+    # on (or stops at) that source instead of the one it just registered.
+    resume: ResumeAction = ResumeAction.NEW
+    source_id: Optional[UUID] = None
+    lifecycle_state: Optional[str] = None
+    reason: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _source_id_required(self) -> "IngestionStep":
+        if self.resume != ResumeAction.NEW and self.source_id is None:
+            raise ValueError(f"{self.resume.value} requires the existing source_id")
+        return self
 
 
 class ExtractionStep(_Projection):
@@ -316,6 +377,8 @@ class DogfoodRunSummary(BaseModel):
     sources_succeeded: int = Field(ge=0)
     sources_failed: int = Field(ge=0)
     sources_routed_to_review: int = Field(ge=0)
+    sources_already_processed: int = Field(default=0, ge=0)
+    sources_skipped_previously_rejected: int = Field(default=0, ge=0)
     failure_modes: list[dict]
     licence_outcomes: dict[str, int]
     started_at: datetime

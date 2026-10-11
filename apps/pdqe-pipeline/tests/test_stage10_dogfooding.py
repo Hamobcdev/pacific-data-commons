@@ -67,6 +67,17 @@ class FakePipelineClient:
             raise self.fail[name]
         return response
 
+    def find_existing_source(self, seed):
+        # No earlier run: every source is new (idempotent resume is covered in
+        # test_pipeline_client_idempotent.py). Not recorded in self.calls.
+        return {"action": "NEW"}
+
+    def resume_ingested(self, source_id, seed, fetch):
+        return self._call("resume_ingested", {"ingestion_id": str(uuid4())})
+
+    def claim_partial(self, source_id, seed, fetch):
+        return self._call("claim_partial", {"ingestion_id": str(uuid4())})
+
     def register_source(self, seed, fetch=None):
         return self._call("register_source", {"source_id": str(uuid4())})
 
