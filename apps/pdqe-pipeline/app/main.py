@@ -9,6 +9,7 @@ Stage history:
   0.6.0 — Stage 06: human review queue endpoints added
   0.7.0 — Stage 07: dataset and collection model endpoints added
   0.8.0 — Stage 08: endpoint generation endpoints added
+  0.9.0 — Stage 09: PDC integration endpoints added
 
 Routes:
   GET  /health              — health check (reports current stage)
@@ -27,10 +28,14 @@ Routes:
   POST /endpoint/generate/{dataset_id}            — Stage 08 generate a DRAFT endpoint spec
   GET  /endpoint/{endpoint_id}                    — Stage 08 endpoint record
   GET  /endpoints                                 — Stage 08 list endpoints (optional ?status=)
+  POST /integration/validate/{endpoint_id}        — Stage 09 automated endpoint validation
+  POST /integration/approve/{endpoint_id}         — Stage 09 provider wallet + price approval
+  POST /integration/publish/{endpoint_id}         — Stage 09 SBP admin publication
+  POST /integration/register/{endpoint_id}        — Stage 09 x402 registration via pdc-x402-adapter
+  POST /integration/pipeline/{endpoint_id}        — Stage 09 full pipeline (testing; off by default)
 
-The /review/*, /dataset/*, /collection/*, /endpoint/* and /endpoints routes
-require the
-X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
+The /review/*, /dataset/*, /collection/*, /endpoint/*, /endpoints and
+/integration/* routes require the X-PDQE-Review-Key header (see _require_review_key) — they expose reviewer
 evidence, record decisions, and create the post-approval records that
 advance a source toward publication.
 """
@@ -39,6 +44,7 @@ from __future__ import annotations
 
 import hmac
 import os
+from contextlib import contextmanager
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
@@ -62,6 +68,17 @@ from app.endpoint.generator import generate_endpoint, get_endpoint, list_endpoin
 from app.endpoint.schemas import EndpointGenerateRequest, EndpointRecord, EndpointStatus
 from app.endpoint.supabase_client import MAX_LIST_PAGE as MAX_ENDPOINT_PAGE
 from app.extraction.extractor import ExtractionRunResult, run_extraction
+from app.integration.approver import publish_endpoint, submit_provider_approval
+from app.integration.pipeline import run_endpoint_validation, run_full_pipeline, run_x402_registration
+from app.integration.schemas import (
+    EndpointValidationOutput,
+    IntegrationPipelineOutput,
+    IntegrationPipelineRequest,
+    ProviderApprovalInput,
+    ProviderApprovalRequest,
+    SourceRefInput,
+    X402RegistrationResult,
+)
 from app.qualification.qualifier import qualify
 from app.qualification.schemas import JevAssessmentOutput
 from app.review.queue import (
@@ -80,14 +97,14 @@ from app.security.layer1_whitelist import Layer1Result, check_layer1
 from app.validation.orchestrator import run_validation
 from app.validation.schemas import ValidationOutput
 
-app = FastAPI(title="PDQE Pipeline", version="0.8.0")
+app = FastAPI(title="PDQE Pipeline", version="0.9.0")
 
 
 # ── Health ──────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "stage": "08-endpoint-generation", "version": "0.8.0"}
+    return {"status": "ok", "stage": "09-pdc-integration", "version": "0.9.0"}
 
 
 # ── Stage 02 — Layer 1 pre-check ────────────────────────────────────────────────
@@ -566,3 +583,108 @@ def list_endpoints_endpoint(
         return list_endpoints(status, limit)
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ── Stage 09 — PDC Integration ─────────────────────────────────────────────────
+
+@contextmanager
+def _integration_errors(action: str):
+    """Map Stage 09 errors: ValueError (rule refused) → 400, anything else → 500."""
+    try:
+        yield
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"{action} encountered an unexpected error: {exc}") from exc
+
+
+def _approval(payload: ProviderApprovalRequest) -> ProviderApprovalInput:
+    return ProviderApprovalInput(provider_wallet=payload.provider_wallet, price_usdc=payload.price_usdc)
+
+
+@app.post(
+    "/integration/validate/{endpoint_id}",
+    response_model=EndpointValidationOutput,
+    dependencies=[Depends(_require_review_key)],
+)
+def integration_validate_endpoint(endpoint_id: str, payload: SourceRefInput) -> EndpointValidationOutput:
+    """
+    Stage 09: run every automated check on a DRAFT endpoint. If all pass,
+    advance ENDPOINT_GENERATED → ENDPOINT_VALIDATED (endpoint DRAFT →
+    VALIDATED). A failed validation returns HTTP 200 with passed=false and
+    every failing check; nothing is written.
+    """
+    eid = _parse_uuid(endpoint_id, "endpoint_id")
+    with _integration_errors("Endpoint validation"):
+        return run_endpoint_validation(eid, payload.source_id)
+
+
+@app.post(
+    "/integration/approve/{endpoint_id}",
+    response_model=EndpointRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def integration_approve_endpoint(endpoint_id: str, payload: ProviderApprovalRequest) -> EndpointRecord:
+    """
+    Stage 09: provider approval. Body: {"source_id", "provider_wallet",
+    "price_usdc"?}. price_usdc may only raise the price (>= tier floor).
+    Advances ENDPOINT_VALIDATED → PROVIDER_APPROVED; wallet, price and hash
+    are then frozen.
+    """
+    eid = _parse_uuid(endpoint_id, "endpoint_id")
+    with _integration_errors("Provider approval"):
+        return submit_provider_approval(eid, payload.source_id, _approval(payload))
+
+
+@app.post(
+    "/integration/publish/{endpoint_id}",
+    response_model=EndpointRecord,
+    dependencies=[Depends(_require_review_key)],
+)
+def integration_publish_endpoint(endpoint_id: str, payload: SourceRefInput) -> EndpointRecord:
+    """Stage 09: SBP admin publication. PROVIDER_APPROVED → PUBLISHED."""
+    eid = _parse_uuid(endpoint_id, "endpoint_id")
+    with _integration_errors("Endpoint publication"):
+        return publish_endpoint(eid, payload.source_id)
+
+
+@app.post(
+    "/integration/register/{endpoint_id}",
+    response_model=X402RegistrationResult,
+    dependencies=[Depends(_require_review_key)],
+)
+def integration_register_endpoint(endpoint_id: str, payload: SourceRefInput) -> X402RegistrationResult:
+    """
+    Stage 09: register a PUBLISHED endpoint with x402 via pdc-x402-adapter and
+    advance PUBLISHED → x402_QUERYABLE. Mock registration (no network call)
+    unless VITE_FLAG_LIVE_RPC_ACTIVE=true at runtime.
+    """
+    eid = _parse_uuid(endpoint_id, "endpoint_id")
+    with _integration_errors("x402 registration"):
+        return run_x402_registration(eid, payload.source_id)
+
+
+def _full_pipeline_enabled() -> bool:
+    return os.environ.get("PDQE_ALLOW_FULL_PIPELINE", "false").strip().lower() == "true"
+
+
+@app.post(
+    "/integration/pipeline/{endpoint_id}",
+    response_model=IntegrationPipelineOutput,
+    dependencies=[Depends(_require_review_key)],
+)
+def integration_pipeline_endpoint(endpoint_id: str, payload: IntegrationPipelineRequest) -> IntegrationPipelineOutput:
+    """
+    Stage 09, testing only: validate → provider approval → publish → register
+    in one call. It collapses two separate human gates (provider approval and
+    SBP publication) into one request, so it is refused with HTTP 403 unless
+    PDQE_ALLOW_FULL_PIPELINE=true is set on the service. Stops after
+    validation (registration=null) if any check fails.
+    """
+    if not _full_pipeline_enabled():
+        raise HTTPException(status_code=403, detail="Full integration pipeline is disabled on this service")
+    eid = _parse_uuid(endpoint_id, "endpoint_id")
+    with _integration_errors("Integration pipeline"):
+        return run_full_pipeline(eid, payload.source_id, _approval(payload))

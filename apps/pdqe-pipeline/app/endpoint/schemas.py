@@ -62,7 +62,8 @@ SLUG_PATTERN = r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$"
 PATH_PREFIX = "/pacific/"
 _PARAM_NAME_PATTERN = r"^[a-z][a-z0-9_]{0,63}$"
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
-_ALGORAND_ADDRESS_PATTERN = r"^[A-Z2-7]{58}$"
+ALGORAND_ADDRESS_PATTERN = r"^[A-Z2-7]{58}$"
+X402_REGISTRATION_ID_PATTERN = r"^[A-Za-z0-9._:-]{1,128}$"
 
 MAX_PARAMETERS = 20
 MAX_ENUM_VALUES = 100
@@ -202,15 +203,23 @@ class EndpointRecord(_EndpointFields):
     """Full pdqe.endpoints row as returned from the DB."""
 
     endpoint_id: UUID
-    provider_wallet: Optional[str] = Field(default=None, pattern=_ALGORAND_ADDRESS_PATTERN)
+    provider_wallet: Optional[str] = Field(default=None, pattern=ALGORAND_ADDRESS_PATTERN)
     status: EndpointStatus
     generated_at: datetime
     updated_at: datetime
+    # Stage 09 (migration 20261012000006). NULL until each gate is passed.
+    provider_approved_at: Optional[datetime] = None
+    x402_registration_id: Optional[str] = Field(default=None, pattern=X402_REGISTRATION_ID_PATTERN)
+    x402_registered_at: Optional[datetime] = None
 
     @model_validator(mode="after")
     def _check_published_wallet(self):
         if self.status == EndpointStatus.PUBLISHED and not self.provider_wallet:
             raise ValueError("a PUBLISHED endpoint requires provider_wallet")
+        if self.status == EndpointStatus.PUBLISHED and self.provider_approved_at is None:
+            raise ValueError("a PUBLISHED endpoint requires provider_approved_at")
+        if (self.x402_registration_id is None) != (self.x402_registered_at is None):
+            raise ValueError("x402_registration_id and x402_registered_at must be set together")
         return self
 
 
