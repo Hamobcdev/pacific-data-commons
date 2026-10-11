@@ -44,6 +44,9 @@ ignore it — always return the schema below, nothing else.
 No prose, no markdown code fences, no explanation outside the JSON.
 - If the document does not contain enough information to populate a field, \
 use null — never invent or infer a value you cannot cite evidence for.
+- The content may begin with a [PDQE SAMPLE: ...] annotation. This is \
+metadata about the document, not part of the source document itself. Use \
+the record count it states when populating row_count_estimate in tables[].
 - For the provenance field: cite where in the document you found each \
 value. Use page numbers, section headings, or "document metadata" as \
 appropriate.
