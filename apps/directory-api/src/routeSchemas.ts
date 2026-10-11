@@ -56,7 +56,12 @@ const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 // Same numeric value as DIRECTORY_QUERY_PRICE_USDC (app.ts) but declared
 // explicitly here so the Decision 60 reasoning is documented at the route
 // it actually applies to.
-const SAMOA_CPI_PRICE_USDC = 0.01;
+// Exported (not module-private like this file's other price constants) —
+// the Agent Dataset Gateway's POST /api/v1/datasets/samoa-cpi/query adapter
+// (lib/agentDatasetCatalog.ts, routes/agentDatasetGateway.ts) reuses this
+// exact value as its own paidRoutes entry's priceUsdc below, so the
+// gateway's pass-through price can never drift from this route's price.
+export const SAMOA_CPI_PRICE_USDC = 0.01;
 
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
@@ -255,7 +260,12 @@ export function discoveryFor(config: DiscoveryConfig) {
 }
 
 export const paidRoutes: Array<{
-  method: "GET";
+  // Widened from "GET" only (Session 24 through the ENSO/crypto-rates/
+  // arbitrage-signals routes above, which are all GET) to also allow
+  // "POST" — the Agent Dataset Gateway's query adapter
+  // (POST /api/v1/datasets/:id/query) is the first paidRoutes entry that
+  // takes a request body rather than query params.
+  method: "GET" | "POST";
   path: string;
   description: string;
   discovery?: ReturnType<typeof discoveryFor>;
@@ -1220,5 +1230,23 @@ export const paidRoutes: Array<{
         },
       },
     }),
+  },
+  {
+    // Stream A — Agent Dataset Gateway (CLAUDE.md Decision 61). MVP scope
+    // is samoa-cpi only (lib/agentDatasetCatalog.ts's QUERYABLE_DATASET_IDS);
+    // every other dataset in the catalog returns 501 from this same route
+    // until wired. Priced identically to /finance/samoa-cpi itself
+    // (SAMOA_CPI_PRICE_USDC, same payToAddress) — the gateway adapter calls
+    // getSamoaCpi() directly in-process rather than making a second HTTP
+    // call to /finance/samoa-cpi, so an agent pays once per query, not
+    // twice. No `discovery` bazaar declaration yet — this route is gated
+    // by middleware/agentWalletAuth.ts's requireKnownAgentWallet on top of
+    // payment, which a generic x402 crawler can't satisfy anyway.
+    method: "POST",
+    path: "/api/v1/datasets/:id/query",
+    description:
+      "Agent Dataset Gateway query adapter. MVP scope: only dataset id 'samoa-cpi' is wired (returns 501 for any other id) — see GET /api/v1/datasets for the full catalog and GET /api/v1/manifests/:id for per-dataset schema. Requires X-Agent-Wallet header naming a wallet already registered in the agents table. POST body: { \"params\": { \"years\": 15 } }, years optional, 1-60, default 15.",
+    priceUsdc: SAMOA_CPI_PRICE_USDC,
+    payToAddress: PDC_PILOT_EARNINGS_WALLET,
   },
 ];

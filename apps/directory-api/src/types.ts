@@ -14,6 +14,8 @@ export interface AppVariables {
   // that read it must treat "undefined" as "no KV available" and fall
   // through to their existing non-KV behaviour, not throw.
   cryptoPricesKv?: KVNamespace;
+  /** Set by middleware/agentWalletAuth.ts's requireKnownAgentWallet — only present on routes behind that middleware (the Agent Dataset Gateway's query adapter). */
+  agentWallet?: string;
 }
 
 export interface AppBindings {
