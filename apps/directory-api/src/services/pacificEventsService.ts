@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AppError } from "../lib/errors.js";
+import { AppError, ValidationError } from "../lib/errors.js";
 
 /**
  * Pacific Events (Session 32) — backs GET /pacific/events and is the first
@@ -82,4 +82,37 @@ export async function getUpcomingEvents(
   }
 
   return (data ?? []) as unknown as PacificEvent[];
+}
+
+const VALID_EVENT_COUNTRIES = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
+
+/**
+ * Shared param validation + lookup for routes/pacific/events.ts and the
+ * Agent Dataset Gateway's query adapter — extracted so the two callers
+ * can't drift apart.
+ */
+export async function queryEvents(
+  rawParams: { country?: string; daysAhead?: string | number; category?: string },
+  supabase: SupabaseClient,
+): Promise<{ results: PacificEvent[]; count: number }> {
+  const countryRaw = rawParams.country?.toUpperCase();
+  if (countryRaw && !VALID_EVENT_COUNTRIES.has(countryRaw)) {
+    throw new ValidationError(`country must be one of: ${Array.from(VALID_EVENT_COUNTRIES).join(", ")}`);
+  }
+
+  let daysAhead: number | undefined;
+  if (rawParams.daysAhead !== undefined) {
+    daysAhead = Number(rawParams.daysAhead);
+    if (!Number.isInteger(daysAhead) || daysAhead < 1 || daysAhead > 365) {
+      throw new ValidationError("days_ahead must be an integer between 1 and 365");
+    }
+  }
+
+  const categoryRaw = rawParams.category?.toLowerCase();
+  if (categoryRaw && !VALID_EVENT_CATEGORIES.has(categoryRaw)) {
+    throw new ValidationError(`category must be one of: ${Array.from(VALID_EVENT_CATEGORIES).join(", ")}`);
+  }
+
+  const results = await getUpcomingEvents(supabase, { countryCode: countryRaw, daysAhead, category: categoryRaw });
+  return { results, count: results.length };
 }

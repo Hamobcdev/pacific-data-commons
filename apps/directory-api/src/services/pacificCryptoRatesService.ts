@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger.js";
+import { ValidationError } from "../lib/errors.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
 // pacificCryptoRatesService.ts
@@ -463,4 +464,66 @@ export function tokensForCategory(tokens: CryptoToken[], category: Category): Cr
 /** Test-only: clears the in-memory cache between test cases. */
 export function __resetCryptoRatesCacheForTests(): void {
   cache = null;
+}
+
+export interface CryptoRatesQueryParams {
+  category?: string;
+  symbols?: string;
+}
+
+/**
+ * Shared query logic for routes/finance/crypto-rates.ts and the Agent
+ * Dataset Gateway's query adapter — extracted so the two callers can't
+ * drift apart.
+ */
+export async function queryCryptoRates(params: CryptoRatesQueryParams, kv: KVNamespace | undefined): Promise<unknown> {
+  const categoryRaw = params.category;
+  let category: Category | undefined;
+  if (categoryRaw !== undefined) {
+    if (!(VALID_CATEGORIES as readonly string[]).includes(categoryRaw)) {
+      throw new ValidationError(`category must be one of: ${VALID_CATEGORIES.join(", ")} (got "${categoryRaw}")`);
+    }
+    category = categoryRaw as Category;
+  }
+
+  const symbolsRaw = params.symbols;
+  let requestedSymbols: string[] | undefined;
+  if (symbolsRaw !== undefined) {
+    requestedSymbols = symbolsRaw
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
+  }
+
+  const snapshot = await getCryptoRatesSnapshot(kv);
+
+  let tokens: CryptoToken[] = snapshot.tokens;
+
+  if (category) {
+    tokens = tokensForCategory(tokens, category);
+  }
+
+  if (requestedSymbols) {
+    const curatedSymbols = new Set(tokens.map((t) => t.symbol));
+    const anyMatch = requestedSymbols.some((s) => curatedSymbols.has(s));
+    if (!anyMatch) {
+      throw new ValidationError(`None of the requested symbols are in the curated list: ${requestedSymbols.join(", ")}`);
+    }
+    const wanted = new Set(requestedSymbols);
+    tokens = tokens.filter((t) => wanted.has(t.symbol));
+  }
+
+  return {
+    tokens,
+    total_tokens: tokens.length,
+    data_currency: snapshot.static_fallback ? "static-fallback" : "real-time",
+    coingecko_update_frequency: COINGECKO_UPDATE_FREQUENCY_NOTE,
+    attribution: SOURCE_ATTRIBUTION,
+    pacific_priority_tokens: PACIFIC_PRIORITY_SYMBOLS,
+    fetch_warnings: snapshot.fetch_warnings,
+    cached_at: snapshot.cached_at,
+    static_fallback: snapshot.static_fallback,
+    static_fallback_reason: snapshot.static_fallback_reason,
+    prices_as_of: snapshot.prices_as_of,
+  };
 }

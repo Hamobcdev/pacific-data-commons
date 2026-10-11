@@ -5,6 +5,14 @@ import { agentDatasetGatewayRoute } from "../routes/agentDatasetGateway.js";
 import { __resetSamoaCpiCacheForTests } from "../services/samoaCpiService.js";
 import { __resetFisheriesCacheForTests } from "../services/pacificFisheriesPurseSeineService.js";
 import { __resetOceanForecastCacheForTests, HYCOM_POINTER_URL } from "../services/pacificOceanForecastService.js";
+import { __resetFxRateCacheForTests } from "../services/fxRateService.js";
+import { __resetCryptoRatesCacheForTests } from "../services/pacificCryptoRatesService.js";
+import { __resetDexArbitrageCacheForTests } from "../services/pacificDexArbitrageService.js";
+import { __resetRemittanceCacheForTests } from "../services/pacificRemittanceService.js";
+import { __resetOceanClimateCacheForTests } from "../services/pacificOceanClimateService.js";
+import { __resetWaterTemperatureCacheForTests } from "../services/pacificWaterTemperatureService.js";
+import { __resetCoralBleachingCacheForTests } from "../services/pacificCoralBleachingService.js";
+import { __resetWeatherCacheForTests } from "../services/pacificWeatherService.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import { encodeAlgorandAddress } from "../lib/algorandAttestation.js";
 import { createFakeSupabase } from "./testUtils.js";
@@ -41,9 +49,9 @@ function knownWallet(): string {
   return encodeAlgorandAddress(keyPair.publicKey);
 }
 
-function buildTestApp(supabase: ReturnType<typeof createFakeSupabase>) {
+function buildTestApp(supabase: ReturnType<typeof createFakeSupabase>, envOverrides: Partial<Env> = {}) {
   const app = new Hono<AppBindings>();
-  const env = {} as Env;
+  const env = { ...envOverrides } as Env;
 
   app.use("*", async (c, next) => {
     c.set("env", env);
@@ -58,7 +66,7 @@ function buildTestApp(supabase: ReturnType<typeof createFakeSupabase>) {
 }
 
 describe("GET /api/v1/datasets", () => {
-  it("lists the catalog with samoa-cpi marked queryable and others not", async () => {
+  it("lists the catalog with samoa-cpi marked queryable", async () => {
     const app = buildTestApp(createFakeSupabase({}));
     const res = await app.request("/api/v1/datasets");
     expect(res.status).toBe(200);
@@ -69,11 +77,24 @@ describe("GET /api/v1/datasets", () => {
     expect(samoaCpi?.query_endpoint).toBe("/api/v1/datasets/samoa-cpi/query");
 
     const fx = body.datasets.find((d) => d.dataset_id === "fx");
-    expect(fx?.queryable).toBe(false);
-    expect(fx?.query_endpoint).toBeNull();
+    expect(fx?.queryable).toBe(true);
+    expect(fx?.query_endpoint).toBe("/api/v1/datasets/fx/query");
 
     // directory/meta routes are excluded from the dataset catalog
     expect(body.datasets.find((d) => d.dataset_id === "search")).toBeUndefined();
+  });
+
+  it("marks every cataloged dataset as queryable — Stream A Session 3 completeness guard (0 endpoints returning 501)", async () => {
+    const app = buildTestApp(createFakeSupabase({}));
+    const res = await app.request("/api/v1/datasets");
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as { datasets: Array<{ dataset_id: string; queryable: boolean; query_endpoint: string | null }> };
+    expect(body.datasets.length).toBeGreaterThan(0);
+    for (const dataset of body.datasets) {
+      expect(dataset.queryable).toBe(true);
+      expect(dataset.query_endpoint).toBe(`/api/v1/datasets/${dataset.dataset_id}/query`);
+    }
   });
 });
 
@@ -128,16 +149,6 @@ describe("POST /api/v1/datasets/:id/query", () => {
       headers: { "X-Agent-Wallet": knownWallet() },
     });
     expect(res.status).toBe(403);
-  });
-
-  it("501s for a dataset in the catalog that isn't wired into the query adapter yet", async () => {
-    const wallet = knownWallet();
-    const app = buildTestApp(createFakeSupabase({ agents: { data: [{ id: "agent-1", operational_wallet: wallet }] } }));
-    const res = await app.request("/api/v1/datasets/fx/query", {
-      method: "POST",
-      headers: { "X-Agent-Wallet": wallet },
-    });
-    expect(res.status).toBe(501);
   });
 
   it("404s for a dataset id that isn't in the catalog at all", async () => {
@@ -432,5 +443,442 @@ describe("POST /api/v1/datasets/pacific-ocean-forecast/query", () => {
       headers: { "X-Agent-Wallet": wallet },
     });
     expect(res.status).toBe(502);
+  });
+});
+
+// --- Session 3: the remaining 18 cataloged datasets ---------------------
+
+function agentWallet(): { wallet: string; app: ReturnType<typeof buildTestApp> } {
+  const wallet = knownWallet();
+  const app = buildTestApp(createFakeSupabase({ agents: { data: [{ id: "agent-1", operational_wallet: wallet }] } }));
+  return { wallet, app };
+}
+
+async function postQuery(app: ReturnType<typeof buildTestApp>, wallet: string, datasetId: string, params?: Record<string, unknown>) {
+  return app.request(`/api/v1/datasets/${datasetId}/query`, {
+    method: "POST",
+    headers: { "X-Agent-Wallet": wallet, "content-type": "application/json" },
+    body: JSON.stringify({ params }),
+  });
+}
+
+describe("POST /api/v1/datasets/samoa-gdp/query", () => {
+  it("200s with a valid fiscal_year", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "samoa-gdp", { fiscal_year: "2024/25" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string };
+    expect(body.dataset_id).toBe("samoa-gdp");
+  });
+
+  it("400s for an unsupported fiscal_year", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "samoa-gdp", { fiscal_year: "1999/00" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/fiji-gdp/query", () => {
+  it("200s with a valid year", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "fiji-gdp", { year: "2019" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string };
+    expect(body.dataset_id).toBe("fiji-gdp");
+  });
+
+  it("400s when year is missing", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "fiji-gdp", {});
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/fiji-cpi/query", () => {
+  it("200s with no params", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "fiji-cpi");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string };
+    expect(body.dataset_id).toBe("fiji-cpi");
+  });
+
+  it("400s for a malformed from param", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "fiji-cpi", { from: "not-a-date" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/fx/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetFxRateCacheForTests();
+  });
+
+  it("200s, falling back to static-only rates when every live source is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "fx");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { source: string } };
+    expect(body.dataset_id).toBe("fx");
+    expect(body.result.source).toBe("static-only");
+  });
+
+  it("400s when a conversion request is missing amount", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "fx", { from: "WST", to: "USD" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/crypto-rates/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetCryptoRatesCacheForTests();
+  });
+
+  it("200s, falling back to the static token set when CoinGecko is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "crypto-rates");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { static_fallback: boolean } };
+    expect(body.dataset_id).toBe("crypto-rates");
+    expect(body.result.static_fallback).toBe(true);
+  });
+
+  it("400s for an unrecognised category", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "crypto-rates", { category: "not-a-category" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/crypto-history/query", () => {
+  it("200s with an empty point set when no KV binding is available (Node local dev posture)", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "crypto-history", { symbol: "ALGO" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { symbol: string; points: unknown[] } };
+    expect(body.dataset_id).toBe("crypto-history");
+    expect(body.result.symbol).toBe("ALGO");
+    expect(body.result.points).toEqual([]);
+  });
+
+  it("400s when symbol is missing", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "crypto-history", {});
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/arbitrage-signals/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetDexArbitrageCacheForTests();
+  });
+
+  it("502s when every DEX source is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "arbitrage-signals");
+    expect(res.status).toBe(502);
+  });
+
+  it("400s for a non-curated pair", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "arbitrage-signals", { pair: "NOT/APAIR" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/remittance-corridors/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetRemittanceCacheForTests();
+  });
+
+  it("200s, falling back to static corridor costs when World Bank's live feed is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "remittance-corridors");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string };
+    expect(body.dataset_id).toBe("remittance-corridors");
+  });
+
+  it("400s for an unknown corridor", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "remittance-corridors", { corridor: "NOT_A_CORRIDOR" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/ocean-temperature/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetOceanClimateCacheForTests();
+  });
+
+  it("503s (not 500) when Open-Meteo Marine is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "ocean-temperature", { country: "WS" });
+    expect(res.status).toBe(503);
+  });
+
+  it("400s when country is missing", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "ocean-temperature", {});
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/pacific-ocean-temp/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetWaterTemperatureCacheForTests();
+  });
+
+  it("503s (not 500) when NOAA CO-OPS is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-ocean-temp");
+    expect(res.status).toBe(503);
+  });
+
+  it("400s for an unrecognised station", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-ocean-temp", { station: "not-a-station" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/pacific-coral-bleaching/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetCoralBleachingCacheForTests();
+  });
+
+  it("502s (not 500) when the upstream ERDDAP server is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-coral-bleaching");
+    expect(res.status).toBe(502);
+  });
+
+  it("400s for an out-of-range lat", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-coral-bleaching", { lat: 200 });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/pacific-cyclone-history/query", () => {
+  it("200s with a nation filter", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-cyclone-history", { nation: "FJ" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { data: Array<{ nations: string[] }> } };
+    expect(body.dataset_id).toBe("pacific-cyclone-history");
+    expect(body.result.data.every((s) => s.nations.includes("FJ"))).toBe(true);
+  });
+
+  it("200s with no params at all", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-cyclone-history");
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("POST /api/v1/datasets/pacific-enso-index/query", () => {
+  it("200s with a phase filter", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-enso-index", { phase: "elnino" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { data: Array<{ phase: string }> } };
+    expect(body.dataset_id).toBe("pacific-enso-index");
+    expect(body.result.data.every((r) => r.phase === "elnino")).toBe(true);
+  });
+
+  it("200s with no params at all", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-enso-index");
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("POST /api/v1/datasets/pacific-brief/query", () => {
+  it("503s when the intelligence synthesis service is not configured (no ANTHROPIC_API_KEY)", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-brief");
+    expect(res.status).toBe(503);
+  });
+
+  it("400s for an unrecognised topic", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-brief", { topic: "not-a-topic" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/pacific-travel/query", () => {
+  it("503s when the travel intelligence synthesis service is not configured (no ANTHROPIC_API_KEY)", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-travel", { destination: "WS" });
+    expect(res.status).toBe(503);
+  });
+
+  it("400s when destination is missing", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "pacific-travel", {});
+    expect(res.status).toBe(400);
+  });
+});
+
+const GATEWAY_TEST_EVENT = {
+  id: "evt-1",
+  name: "Teuila Tourism Festival",
+  description: "Samoa's premier annual tourism and cultural festival.",
+  category: "festival",
+  subcategory: "cultural",
+  country_code: "WS",
+  country_name: "Samoa",
+  city: "Apia",
+  start_date: "2026-09-01",
+  end_date: "2026-09-05",
+  expected_attendance: 50000,
+  tourism_impact: "very_high",
+  international_visitors: true,
+  diaspora_draw: true,
+  highlights: ["Traditional fiafia nights"],
+  travel_tips: "Book at least 2 months ahead.",
+  booking_lead_time: "2 months ahead",
+  source: "Samoa Tourism Authority",
+  data_quality: "verified",
+};
+
+describe("POST /api/v1/datasets/events/query", () => {
+  it("200s with the configured events", async () => {
+    const wallet = knownWallet();
+    const app = buildTestApp(
+      createFakeSupabase({
+        agents: { data: [{ id: "agent-1", operational_wallet: wallet }] },
+        pacific_events: { data: [GATEWAY_TEST_EVENT] },
+      }),
+    );
+    const res = await postQuery(app, wallet, "events");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { results: unknown[]; count: number } };
+    expect(body.dataset_id).toBe("events");
+    expect(body.result.count).toBe(1);
+  });
+
+  it("400s for an unrecognised country", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "events", { country: "ZZ" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/weather/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __resetWeatherCacheForTests();
+  });
+
+  it("503s (not 500) when Open-Meteo is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network error");
+      }),
+    );
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "weather", { country: "WS" });
+    expect(res.status).toBe(503);
+  });
+
+  it("400s when country is missing", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "weather", {});
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/datasets/wallet-balance/query", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("200s with balances on a valid address and a healthy node", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            amount: 12_500_000,
+            status: "Online",
+            "min-balance": 100_000,
+            assets: [{ "asset-id": 31566704, amount: 100_250_000 }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const wallet = knownWallet();
+    const app = buildTestApp(createFakeSupabase({ agents: { data: [{ id: "agent-1", operational_wallet: wallet }] } }), {
+      ALGORAND_NODE_URL: "https://mainnet-api.4160.nodely.io",
+    });
+    const validTargetAddress = "A".repeat(58);
+
+    const res = await postQuery(app, wallet, "wallet-balance", { address: validTargetAddress });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dataset_id: string; result: { usdc_balance: number } };
+    expect(body.dataset_id).toBe("wallet-balance");
+    expect(body.result.usdc_balance).toBe(100.25);
+  });
+
+  it("400s for a malformed address", async () => {
+    const { wallet, app } = agentWallet();
+    const res = await postQuery(app, wallet, "wallet-balance", { address: "not-a-wallet" });
+    expect(res.status).toBe(400);
   });
 });

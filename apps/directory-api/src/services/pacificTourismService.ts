@@ -9,6 +9,8 @@ import { selfRegisterAgent } from "./agentSelfRegisterService.js";
 import { submitAttribution as submitAttributionRecord } from "./attributionService.js";
 import { getTourismStats, type PacificTourismStats } from "./pacificTourismStatsService.js";
 import { logger } from "../lib/logger.js";
+import { AppError, ValidationError } from "../lib/errors.js";
+import type { Env } from "../lib/env.js";
 
 /**
  * The Pacific Tourism Orchestrator (Session 32; weather + stats added
@@ -527,4 +529,53 @@ export async function generatePacificTravelBrief(params: GeneratePacificTravelBr
     orchestrated_at: orchestratedAt,
     run_id: runId,
   };
+}
+
+const VALID_TRAVEL_DESTINATIONS = new Set(["WS", "FJ", "TO", "PG", "SB", "VU", "CK"]);
+const VALID_TRAVEL_WINDOWS_SET = new Set(["next_30_days", "next_90_days", "christmas_2026", "school_holidays"]);
+
+/**
+ * Shared param validation + config checks + error mapping for
+ * routes/intelligence/pacific-travel.ts and the Agent Dataset Gateway's
+ * query adapter — extracted so the two callers can't drift apart.
+ */
+export async function queryPacificTravelBrief(rawParams: { destination?: string; travelWindow?: string }, env: Env, supabase: SupabaseClient): Promise<PacificTravelBrief> {
+  const destination = rawParams.destination?.toUpperCase();
+  const travelWindow = rawParams.travelWindow?.toLowerCase() ?? "next_90_days";
+
+  if (!destination) {
+    throw new ValidationError("destination is required, e.g. ?destination=WS");
+  }
+  if (!VALID_TRAVEL_DESTINATIONS.has(destination)) {
+    throw new ValidationError(`destination must be a Pacific ISO code: ${Array.from(VALID_TRAVEL_DESTINATIONS).join(", ")}`);
+  }
+  if (!VALID_TRAVEL_WINDOWS_SET.has(travelWindow)) {
+    throw new ValidationError(`travel_window must be one of: ${Array.from(VALID_TRAVEL_WINDOWS_SET).join(", ")}`);
+  }
+
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AppError(503, "service_unavailable", "Travel intelligence synthesis service is not configured.");
+  }
+  if (!env.AGENT_WALLET_KEY) {
+    throw new AppError(503, "service_unavailable", "Orchestrator payment wallet is not configured.");
+  }
+
+  try {
+    return await generatePacificTravelBrief({
+      destination,
+      travelWindow,
+      supabase,
+      agentWalletKey: env.AGENT_WALLET_KEY,
+      network: env.ALGORAND_NETWORK,
+      pilotEndpointUrl: env.PILOT_ENDPOINT_URL,
+      publicUrl: env.PUBLIC_URL,
+      anthropicApiKey: env.ANTHROPIC_API_KEY,
+      claudeModel: env.CLAUDE_MODEL,
+    });
+  } catch (err) {
+    if (err instanceof AllTourismSubEndpointsFailedError) {
+      throw new AppError(503, "endpoints_unavailable", "Pacific data endpoints are temporarily unavailable. Try again shortly.");
+    }
+    throw err;
+  }
 }

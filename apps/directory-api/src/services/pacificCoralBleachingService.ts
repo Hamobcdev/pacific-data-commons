@@ -65,6 +65,8 @@
 // live: happens right at a coastline) — the route layer turns a null
 // into a 502, per this task's explicit instruction.
 
+import { ValidationError } from "../lib/errors.js";
+
 const FETCH_TIMEOUT_MS = 15_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -223,6 +225,46 @@ export async function getCoralBleaching(lat: number, lon: number, radiusDeg: num
 
   cache.set(cacheKey, { data: result, expires: Date.now() + CACHE_TTL_MS });
   return result;
+}
+
+export interface CoralBleachingParams {
+  lat: number;
+  lon: number;
+  radiusDeg: number;
+}
+
+/**
+ * Shared lat/lon/radius_deg validation for
+ * routes/climate/pacific-coral-bleaching.ts and the Agent Dataset
+ * Gateway's query adapter — extracted so the two callers can't drift
+ * apart.
+ */
+export function parseCoralBleachingParams(latRaw: string | number | undefined, lonRaw: string | number | undefined, radiusRaw: string | number | undefined): CoralBleachingParams {
+  let lat = DEFAULT_LAT;
+  if (latRaw !== undefined) {
+    lat = Number(latRaw);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      throw new ValidationError("lat must be a number between -90 and 90");
+    }
+  }
+
+  let lon = DEFAULT_LON;
+  if (lonRaw !== undefined) {
+    lon = Number(lonRaw);
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+      throw new ValidationError("lon must be a number between -180 and 180");
+    }
+  }
+
+  let radiusDeg = DEFAULT_RADIUS_DEG;
+  if (radiusRaw !== undefined) {
+    radiusDeg = Number(radiusRaw);
+    if (!Number.isFinite(radiusDeg) || radiusDeg < 0.1 || radiusDeg > 10) {
+      throw new ValidationError("radius_deg must be a number between 0.1 and 10");
+    }
+  }
+
+  return { lat, lon, radiusDeg };
 }
 
 /** Test-only: clears the in-memory cache between test cases. */

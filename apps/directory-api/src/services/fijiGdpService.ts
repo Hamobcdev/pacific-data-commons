@@ -24,6 +24,8 @@
 // (detail_level discriminant), same "never invent a number" posture as
 // samoaGdpService.ts's null sub-fields for unpublished data.
 
+import { ValidationError } from "../lib/errors.js";
+
 export const SOURCE_ATTRIBUTION = {
   source: "Fiji Bureau of Statistics",
   source_document: "Gross Domestic Product — Rebase to 2019, FBoS Release No. 62",
@@ -186,4 +188,25 @@ export async function getFijiGdp(year: string, measure: FijiGdpMeasure = DEFAULT
     attribution: SOURCE_ATTRIBUTION,
     fetched_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Shared param validation for routes/finance/fiji-gdp.ts and the Agent
+ * Dataset Gateway's query adapter — extracted so the two callers can't
+ * drift apart.
+ */
+export function parseFijiGdpParams(yearRaw: string | undefined, measureRaw: string | undefined): { year: string; measure: FijiGdpMeasure } {
+  if (!yearRaw) {
+    throw new ValidationError(`year is required, e.g. ?year=2019 (supported years: ${SUPPORTED_YEARS.join(", ")})`);
+  }
+  if (!SUPPORTED_YEARS.includes(yearRaw)) {
+    throw new ValidationError(`year must be one of: ${SUPPORTED_YEARS.join(", ")} (got "${yearRaw}")`);
+  }
+
+  const measure = measureRaw ?? DEFAULT_MEASURE;
+  if (!(VALID_MEASURES as readonly string[]).includes(measure)) {
+    throw new ValidationError(`measure must be one of: ${VALID_MEASURES.join(", ")} (got "${measure}")`);
+  }
+
+  return { year: yearRaw, measure: measure as FijiGdpMeasure };
 }

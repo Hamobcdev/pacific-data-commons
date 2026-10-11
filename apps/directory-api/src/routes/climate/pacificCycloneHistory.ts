@@ -1,6 +1,6 @@
 import { Hono } from "hono";
+import { queryCycloneHistory } from "../../services/pacificCycloneHistoryService.js";
 import type { AppBindings } from "../../types.js";
-import ibtracsData from "../../data/ibtracs-sp-processed.json";
 
 // IBTrACS South Pacific Basin — NOAA/NCEI public domain
 // https://www.ncei.noaa.gov/products/international-best-track-archive
@@ -16,73 +16,21 @@ import ibtracsData from "../../data/ibtracs-sp-processed.json";
 //   min_category  — td | c1 | c2 | c3 | c4 | c5
 //   landfall      — true  (only storms that made landfall)
 //   limit         — max results, default 100, max 500
+//
+// Filtering logic lives in services/pacificCycloneHistoryService.ts so
+// the Agent Dataset Gateway's query adapter can reuse it.
 
 export const pacificCycloneHistoryRoute = new Hono<AppBindings>();
 
-interface Storm {
-  id: string;
-  name: string;
-  season: number;
-  basin: string;
-  start: string;
-  end: string;
-  peak_wind_kt: number | null;
-  peak_pres_mb: number | null;
-  landfall: boolean;
-  cat: string;
-  nations: string[];
-  points: number;
-}
-
-const CAT_MIN_WIND: Record<string, number> = {
-  td: 0, c1: 34, c2: 48, c3: 64, c4: 86, c5: 108,
-};
-
 pacificCycloneHistoryRoute.get("/climate/pacific-cyclone-history", async (c) => {
-  const season   = c.req.query("season");
-  const nation   = c.req.query("nation")?.toUpperCase();
-  const minCat   = c.req.query("min_category")?.toLowerCase();
-  const landfall = c.req.query("landfall");
-  const limitStr = c.req.query("limit");
-  const limit    = limitStr ? Math.min(parseInt(limitStr, 10), 500) : 100;
-
-  let storms: Storm[] = (ibtracsData as { storms: Storm[] }).storms;
-
-  if (season) {
-    const yr = parseInt(season, 10);
-    storms = storms.filter((s) => s.season === yr);
-  }
-  if (nation) {
-    storms = storms.filter((s) => s.nations.includes(nation));
-  }
-  if (minCat !== undefined && CAT_MIN_WIND[minCat] !== undefined) {
-    const minWind = CAT_MIN_WIND[minCat] as number;
-    storms = storms.filter((s) => (s.peak_wind_kt ?? 0) >= minWind);
-  }
-  if (landfall === "true") {
-    storms = storms.filter((s) => s.landfall);
-  }
-
-  const paginated = storms.slice(0, limit);
+  const result = queryCycloneHistory({
+    season: c.req.query("season"),
+    nation: c.req.query("nation"),
+    minCategory: c.req.query("min_category"),
+    landfall: c.req.query("landfall"),
+    limit: c.req.query("limit"),
+  });
 
   c.header("Cache-Control", "public, max-age=3600");
-
-  return c.json({
-    data: paginated,
-    meta: {
-      total_matching: storms.length,
-      returned: paginated.length,
-      source: (ibtracsData as { meta: { source: string } }).meta.source,
-      basin: (ibtracsData as { meta: { basin: string } }).meta.basin,
-      license: (ibtracsData as { meta: { license: string } }).meta.license,
-      attribution: (ibtracsData as { meta: { attribution: string } }).meta.attribution,
-      data_url: (ibtracsData as { meta: { url: string } }).meta.url,
-      filters_applied: {
-        season:       season   ?? null,
-        nation:       nation   ?? null,
-        min_category: minCat   ?? null,
-        landfall:     landfall ?? null,
-      },
-    },
-  });
+  return c.json(result);
 });

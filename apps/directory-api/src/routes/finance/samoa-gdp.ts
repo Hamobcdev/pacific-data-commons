@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import { getSamoaGdp, SUPPORTED_FISCAL_YEARS } from "../../services/samoaGdpService.js";
-import { ValidationError } from "../../lib/errors.js";
+import { getSamoaGdp, parseSamoaGdpParams } from "../../services/samoaGdpService.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 1 / $0.01, Decision 42 — governance/
@@ -11,12 +10,7 @@ import type { AppBindings } from "../../types.js";
 export const samoaGdpRoute = new Hono<AppBindings>();
 
 samoaGdpRoute.get("/finance/samoa-gdp", async (c) => {
-  const fiscalYear = c.req.query("fiscal_year");
-  const all = c.req.query("all") === "true";
-
-  if (fiscalYear !== undefined && !SUPPORTED_FISCAL_YEARS.includes(fiscalYear)) {
-    throw new ValidationError(`fiscal_year must be one of: ${SUPPORTED_FISCAL_YEARS.join(", ")}`);
-  }
+  const { fiscalYear, all } = parseSamoaGdpParams(c.req.query("fiscal_year"), c.req.query("all"));
 
   const result = await getSamoaGdp(fiscalYear, all);
 

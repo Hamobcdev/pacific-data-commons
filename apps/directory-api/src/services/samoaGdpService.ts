@@ -18,6 +18,8 @@
 // publishes a new report (same posture as a yearly re-certification, not
 // a TTL cache).
 
+import { ValidationError } from "../lib/errors.js";
+
 export const SOURCE_ATTRIBUTION = {
   source: "Samoa Bureau of Statistics",
   source_document: "Gross Domestic Product — Expenditure Approach, FY2025/26",
@@ -211,4 +213,17 @@ export async function getSamoaGdp(fiscalYear?: string, all = false): Promise<Sam
     fetched_at: new Date().toISOString(),
     attribution: SOURCE_ATTRIBUTION,
   };
+}
+
+/**
+ * Shared param validation for routes/finance/samoa-gdp.ts and the Agent
+ * Dataset Gateway's query adapter — extracted so the two callers can't
+ * drift apart.
+ */
+export function parseSamoaGdpParams(fiscalYearRaw: string | undefined, allRaw: string | boolean | undefined): { fiscalYear: string | undefined; all: boolean } {
+  if (fiscalYearRaw !== undefined && !SUPPORTED_FISCAL_YEARS.includes(fiscalYearRaw)) {
+    throw new ValidationError(`fiscal_year must be one of: ${SUPPORTED_FISCAL_YEARS.join(", ")}`);
+  }
+  const all = allRaw === true || allRaw === "true";
+  return { fiscalYear: fiscalYearRaw, all };
 }

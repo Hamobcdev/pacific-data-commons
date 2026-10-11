@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { getCoralBleaching, DEFAULT_LAT, DEFAULT_LON, DEFAULT_RADIUS_DEG } from "../../services/pacificCoralBleachingService.js";
-import { AppError, ValidationError } from "../../lib/errors.js";
+import { getCoralBleaching, parseCoralBleachingParams } from "../../services/pacificCoralBleachingService.js";
+import { AppError } from "../../lib/errors.js";
 import type { AppBindings } from "../../types.js";
 
 // x402-gated in routeSchemas.ts (Tier 2 / $0.05, Decisions 59/60 — a
@@ -21,32 +21,7 @@ import type { AppBindings } from "../../types.js";
 export const pacificCoralBleachingRoute = new Hono<AppBindings>();
 
 pacificCoralBleachingRoute.get("/climate/pacific-coral-bleaching", async (c) => {
-  const latRaw = c.req.query("lat");
-  let lat = DEFAULT_LAT;
-  if (latRaw !== undefined) {
-    lat = Number(latRaw);
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-      throw new ValidationError("lat must be a number between -90 and 90");
-    }
-  }
-
-  const lonRaw = c.req.query("lon");
-  let lon = DEFAULT_LON;
-  if (lonRaw !== undefined) {
-    lon = Number(lonRaw);
-    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
-      throw new ValidationError("lon must be a number between -180 and 180");
-    }
-  }
-
-  const radiusRaw = c.req.query("radius_deg");
-  let radiusDeg = DEFAULT_RADIUS_DEG;
-  if (radiusRaw !== undefined) {
-    radiusDeg = Number(radiusRaw);
-    if (!Number.isFinite(radiusDeg) || radiusDeg < 0.1 || radiusDeg > 10) {
-      throw new ValidationError("radius_deg must be a number between 0.1 and 10");
-    }
-  }
+  const { lat, lon, radiusDeg } = parseCoralBleachingParams(c.req.query("lat"), c.req.query("lon"), c.req.query("radius_deg"));
 
   const result = await getCoralBleaching(lat, lon, radiusDeg);
   if (!result) {
