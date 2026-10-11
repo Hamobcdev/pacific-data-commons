@@ -39,6 +39,7 @@ from app.qualification.schemas import (
     DomainClassification,
     JevAssessmentOutput,
     JevQuestionResults,
+    RoutingDecision,
     validate_assessment_output,
 )
 from app.qualification.thresholds import DEFAULT_THRESHOLDS, ThresholdConfig, compute_routing
@@ -163,6 +164,23 @@ async def qualify(
     )
 
     routing_decision, routing_rationale = compute_routing(question_results, threshold_config)
+
+    # P0 SAFETY: mock mode must never auto-approve.
+    # Hash-based mock scores are arbitrary and carry no signal about the
+    # actual source. Forcing HUMAN_REVIEW in mock mode ensures no source is
+    # silently advanced without a human in the loop (P9).
+    if jev_client.mock_mode:
+        logger.warning(
+            "JEV_MOCK_MODE=true — overriding routing_decision from %s to "
+            "HUMAN_REVIEW (mock scores are not a valid basis for AUTO_APPROVE). "
+            "source_id=%s",
+            routing_decision.value,
+            source_id,
+        )
+        routing_decision = RoutingDecision.HUMAN_REVIEW
+        routing_rationale = (
+            f"[MOCK MODE OVERRIDE] Original routing: {routing_rationale}"
+        )
 
     raw_output = {
         "extraction_id": extraction_id,

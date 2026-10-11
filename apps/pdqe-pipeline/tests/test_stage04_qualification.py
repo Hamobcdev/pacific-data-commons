@@ -479,3 +479,41 @@ def test_validate_assessment_output_accepts_well_formed_dict():
     }
     output = validate_assessment_output(raw)
     assert output.routing_decision == RoutingDecision.AUTO_APPROVE
+
+
+# ── P0 — mock mode must never auto-approve ───────────────────────────────────
+
+def _forced_auto_approve_patch():
+    """Make compute_routing() return AUTO_APPROVE regardless of the mock scores."""
+    return patch.object(
+        qualifier,
+        "compute_routing",
+        return_value=(RoutingDecision.AUTO_APPROVE, "Auto-approve: forced for test"),
+    )
+
+
+def test_mock_mode_overrides_auto_approve_to_human_review():
+    fetch_patch, write_patch = _mocked_qualify_patches()
+    with fetch_patch, write_patch, _forced_auto_approve_patch():
+        result = asyncio.run(qualify(UUID(EXTRACTION_ID), jev_client=JevClient(mock_mode=True)))
+    assert result.routing_decision == RoutingDecision.HUMAN_REVIEW
+    assert result.auto_approve is False
+    assert result.requires_human_review is True
+    assert result.routing_rationale.startswith("[MOCK MODE OVERRIDE] Original routing: Auto-approve")
+
+
+def test_live_mode_keeps_auto_approve():
+    client = JevClient(mock_mode=True)
+    client.mock_mode = False  # live-mode routing path; answers still come from the mock below
+    real_run = qualifier._run_all_questions
+
+    async def _mock_answers(_client, context):
+        return await real_run(JevClient(mock_mode=True), context)
+
+    fetch_patch, write_patch = _mocked_qualify_patches()
+    with fetch_patch, write_patch, _forced_auto_approve_patch(), patch.object(
+        qualifier, "_run_all_questions", side_effect=_mock_answers
+    ):
+        result = asyncio.run(qualify(UUID(EXTRACTION_ID), jev_client=client))
+    assert result.routing_decision == RoutingDecision.AUTO_APPROVE
+    assert result.auto_approve is True
