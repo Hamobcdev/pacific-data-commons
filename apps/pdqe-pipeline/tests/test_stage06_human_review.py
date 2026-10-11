@@ -409,7 +409,7 @@ def client(monkeypatch):
 
 
 def test_health_reports_current_stage(client):
-    assert client.get("/health").json() == {"status": "ok", "stage": "07-dataset-collection", "version": "0.7.0"}
+    assert client.get("/health").json() == {"status": "ok", "stage": "08-endpoint-generation", "version": "0.8.0"}
 
 
 def test_review_routes_require_key(client, monkeypatch, mock_db):
