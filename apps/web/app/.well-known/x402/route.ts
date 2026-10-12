@@ -319,16 +319,15 @@ function buildEndpoints(): ManifestEndpoint[] {
       // Six endpoints added since this file was first written. All six
       // have no `payToAddress` override in directory-api/routeSchemas.ts,
       // so PdcPaymentGate falls back to its constructor default
-      // (env.AVM_ADDRESS) — the same wallet as /search, /finance/fx, and
-      // (per routeSchemas.ts's own PACIFIC_CRYPTO_RATES_PAYTO /
-      // PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_WALLET)
-      // crypto-rates above. NOTE: PDC_DIRECTORY_WALLET is a *different* env
-      // var name than directory-api's AVM_ADDRESS — this file's existing
-      // crypto-rates entry already assumed they hold the same value rather
-      // than mirroring the distinct var; crypto-history is kept consistent
-      // with that existing (unverified) assumption rather than introducing
-      // a third env var unprompted. Flag to Anthony: confirm
-      // PDC_DIRECTORY_WALLET == AVM_ADDRESS in production, or split this.
+      // (env.AVM_ADDRESS) — the same wallet as /search and /finance/fx.
+      // crypto-rates/crypto-history above previously read a third env var
+      // name (PDC_DIRECTORY_WALLET) there; resolved by the 2026-10-12 env
+      // var alignment audit (confirmed against the Vercel dashboard,
+      // Anthony): PDC_DIRECTORY_WALLET was never a real env var anywhere,
+      // so routeSchemas.ts now reads PDC_DIRECTORY_PAYTO_ADDRESS there too
+      // — the same var this file's own `directoryWallet` already reads
+      // below, so this manifest's existing assumption (both equal the same
+      // wallet) is now literally true in code, not just presumed.
       {
         path: "/finance/crypto-history",
         full_url: `${DIRECTORY_API_URL}/finance/crypto-history`,
