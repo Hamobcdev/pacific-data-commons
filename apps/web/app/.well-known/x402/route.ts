@@ -141,17 +141,6 @@ function buildEndpoints(): ManifestEndpoint[] {
         data_format: "json",
       },
       {
-        path: "/climate/pacific-ocean-temp",
-        full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-temp`,
-        price_usdc: "0.01",
-        description:
-          "Live water temperature at a NOAA CO-OPS Pacific tide station (Pago Pago, American Samoa or Honolulu, Hawaii). Primary-source US federal station reading — see the response's own attribution field.",
-        category: "climate",
-        pay_to: pilotEarningsWallet,
-        trust_tier: "bronze",
-        data_format: "json",
-      },
-      {
         path: "/finance/arbitrage-signals",
         full_url: `${DIRECTORY_API_URL}/finance/arbitrage-signals`,
         price_usdc: "0.05",
@@ -266,7 +255,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, and pacific-enso-index from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, and pacific-enso-index from the discovery manifest",
     );
   }
 
@@ -302,6 +291,23 @@ function buildEndpoints(): ManifestEndpoint[] {
         description:
           "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies, ALGO, and USDC. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=.",
         category: "financial_flows",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      // Moved here from the pilotEarningsWallet block above — canary run
+      // (2026-10-12) confirmed this route actually pays out to the
+      // directory wallet (directory-api/routeSchemas.ts's payToAddress was
+      // wrong and fixed the same day), not PDC_PILOT_EARNINGS_WALLET. This
+      // is a directory-service endpoint (NOAA CO-OPS wrapper), not a
+      // dedicated pilot provider, same category as /search and /finance/fx.
+      {
+        path: "/climate/pacific-ocean-temp",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-temp`,
+        price_usdc: "0.01",
+        description:
+          "Live water temperature at a NOAA CO-OPS Pacific tide station (Pago Pago, American Samoa or Honolulu, Hawaii). Primary-source US federal station reading — see the response's own attribution field.",
+        category: "climate",
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
@@ -398,7 +404,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search, /finance/fx, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, and /intelligence/pacific-travel from the discovery manifest",
+      "x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search, /finance/fx, /climate/pacific-ocean-temp, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, and /intelligence/pacific-travel from the discovery manifest",
     );
   }
 
