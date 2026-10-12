@@ -66,10 +66,21 @@ binding = "CRYPTO_PRICES_KV"
 id = "69654f39fa1343b4a3595ca6aa1fa5c8"
 preview_id = "82d04d89a603471d9eb3bb6bb7a11a27"
 
-# Cron Trigger for cronCryptoPriceFetcher.ts — every 5 minutes. Wired to
+# Cron Trigger for cronCryptoPriceFetcher.ts — every 15 minutes. Wired to
 # worker.ts's `scheduled` export.
+#
+# Second entry, "*/4 * * * *" — keep-warm ping, also wired to the same
+# `scheduled` export (branches on controller.cron). See that branch's own
+# comment for why this may not actually prevent the cold-start hang it's
+# aimed at: it never calls cachedApp.fetch(...), so it doesn't exercise the
+# payment gate's own one-time Bazaar/Ajv self-check or facilitator
+# getSupported() init — the actual slow-to-initialize state (worker.ts's
+# module-level `cachedApp`). It only keeps whatever isolate Cloudflare
+# dispatches this Cron Trigger to generically alive, which per Cloudflare's
+# own Cron Trigger model is not guaranteed to be the same isolate that
+# serves a given public HTTP request from any specific edge PoP.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/15 * * * *", "*/4 * * * *"]
 
 # Secret environment variables remain set via Cloudflare dashboard
 # (Workers & Pages > pdc-directory-api > Settings > Variables and Secrets)

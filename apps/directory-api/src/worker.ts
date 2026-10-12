@@ -49,6 +49,14 @@ export default {
   // fetch run past the point this handler would otherwise return, per the
   // Workers scheduled-handler contract.
   scheduled(controller: ScheduledController, cfEnv: WorkerBindings, ctx: ExecutionContext): void {
+    // Keep-warm ping (wrangler.toml's second [triggers] cron) — fires every
+    // 4 minutes to try to prevent a cold-isolate hang in the x402 payment
+    // gate. Does nothing else, per design: no KV check, no app construction.
+    if (controller.cron === "*/4 * * * *") {
+      logger.info("keep-warm ping");
+      return;
+    }
+
     if (!cfEnv.CRYPTO_PRICES_KV) {
       logger.error("crypto_price_cron_missing_kv_binding", { cron: controller.cron });
       return;
