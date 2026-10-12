@@ -458,6 +458,6 @@ describe("routeSchemas: /finance/crypto-rates payment gate", () => {
   it("is registered as a paid route with the expected Tier 1 price", () => {
     const route = paidRoutes.find((r) => r.path === "/finance/crypto-rates" && r.method === "GET");
     expect(route).toBeDefined();
-    expect(route?.priceUsdc).toBe(0.001);
+    expect(route?.priceUsdc).toBe(0.01);
   });
 });
