@@ -206,9 +206,24 @@ export class FacilitatorTimeoutError extends Error {
   }
 }
 
-function withFacilitatorTimeout<T>(operation: string, run: () => Promise<T>): Promise<T> {
+/**
+ * Races `run()` against a timer, rejecting with whatever `onTimeout()`
+ * builds if the timer wins. Shared by withFacilitatorTimeout (below) and
+ * PdcPaymentGate.middleware()'s outer deadline (PAYMENT_GATE_TIMEOUT_MS) —
+ * same "race, don't abort" rationale as withFacilitatorTimeout's doc
+ * comment: neither the facilitator client's fetch() nor @x402/hono's
+ * middleware chain accepts a signal to cancel, so giving up on waiting is
+ * the only lever available. Exported for direct unit testing of the race
+ * logic in isolation (see packages/pdc-x402-adapter's facilitatorTimeout
+ * test) — the real-world trigger for the outer deadline (the Bazaar/Ajv
+ * discovery-schema self-check hanging under Cloudflare Workers' runtime
+ * restrictions, see bazaarAjvWorkersLogFilter.ts) only reproduces inside
+ * workerd, not Node, so it can't be forced to hang deterministically in a
+ * Node test — this lets the race mechanism itself be verified instead.
+ */
+export function raceWithTimeout<T>(timeoutMs: number, run: () => Promise<T>, onTimeout: () => Error): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new FacilitatorTimeoutError(operation, FACILITATOR_TIMEOUT_MS)), FACILITATOR_TIMEOUT_MS);
+    const timer = setTimeout(() => reject(onTimeout()), timeoutMs);
     run().then(
       (value) => {
         clearTimeout(timer);
@@ -220,6 +235,38 @@ function withFacilitatorTimeout<T>(operation: string, run: () => Promise<T>): Pr
       },
     );
   });
+}
+
+function withFacilitatorTimeout<T>(operation: string, run: () => Promise<T>): Promise<T> {
+  return raceWithTimeout(FACILITATOR_TIMEOUT_MS, run, () => new FacilitatorTimeoutError(operation, FACILITATOR_TIMEOUT_MS));
+}
+
+/**
+ * Outer safety net for PdcPaymentGate.middleware(): bounds the *entire*
+ * @x402/hono request-processing call, not just the facilitator client calls
+ * TimeoutGuardedFacilitatorClient already bounds to FACILITATOR_TIMEOUT_MS.
+ *
+ * Confirmed root cause (live diagnosis, 2026-10-12): @x402/hono's Bazaar/Ajv
+ * discovery-schema self-check (triggered once per cold Worker isolate by any
+ * route registered with extensions.bazaar — see bazaarAjvWorkersLogFilter.ts)
+ * hangs under Cloudflare Workers' runtime restrictions with no timeout bound
+ * of its own, producing multi-minute hangs on the first request a newly
+ * cold isolate serves. FACILITATOR_TIMEOUT_MS does not cover this code path
+ * — it only wraps calls this adapter routes through TimeoutGuardedFacilitator
+ * Client, and the Bazaar self-check never touches the facilitator client.
+ *
+ * Set higher than FACILITATOR_TIMEOUT_MS (8000ms) so a genuine facilitator
+ * hang is still reported as the more specific `payment_facilitator_
+ * unavailable` 503 via findFacilitatorTimeoutError below, rather than being
+ * preempted by this more generic one.
+ */
+const PAYMENT_GATE_TIMEOUT_MS = 12000;
+
+export class PaymentGateTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Payment gate did not complete within ${timeoutMs}ms`);
+    this.name = "PaymentGateTimeoutError";
+  }
 }
 
 /**
@@ -354,10 +401,27 @@ export class PdcPaymentGate {
     // rethrows its own generic Error with `{ cause: <our error> }` rather
     // than propagating the original — confirmed by actually hitting this
     // while testing this fix, not assumed.
+    //
+    // The whole `inner(c, next)` call is additionally raced against
+    // PAYMENT_GATE_TIMEOUT_MS (see that constant's doc comment) — a safety
+    // net for hangs outside the facilitator-client calls the inner timeout
+    // already covers, confirmed live to include @x402/hono's Bazaar/Ajv
+    // self-check under Cloudflare Workers. Checked first in the catch below
+    // only in the sense that PaymentGateTimeoutError and
+    // FacilitatorTimeoutError are mutually exclusive outcomes of the same
+    // race — a facilitator-side hang still resolves via
+    // findFacilitatorTimeoutError below at the shorter 8s mark, since that
+    // rejection reaches this catch before the 12s outer timer ever fires.
     return async (c, next) => {
       try {
-        return await inner(c, next);
+        return await raceWithTimeout(PAYMENT_GATE_TIMEOUT_MS, () => inner(c, next), () => new PaymentGateTimeoutError(PAYMENT_GATE_TIMEOUT_MS));
       } catch (error) {
+        if (error instanceof PaymentGateTimeoutError) {
+          // eslint-disable-next-line no-console
+          console.error("x402_payment_gate_timeout", { message: error.message, path: c.req.path, method: c.req.method });
+          c.header("Retry-After", "5");
+          return c.json({ error: "payment_gate_timeout", retry_after: 5 }, 503);
+        }
         const timeoutError = findFacilitatorTimeoutError(error);
         if (timeoutError) {
           // eslint-disable-next-line no-console
