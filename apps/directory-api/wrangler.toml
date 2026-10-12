@@ -49,6 +49,9 @@ ALGORAND_NODE_URL = "https://mainnet-api.algonode.cloud"
 WEB_APP_URL = "https://pacific-data-commons-web-olive.vercel.app"
 LOG_LEVEL = "info"
 
+[observability]
+enabled = true
+
 # KV-backed live crypto price feed (feat/kv-crypto-cron) — see
 # src/handlers/cronCryptoPriceFetcher.ts and
 # src/services/pacificCryptoRatesService.ts's doc comments for the full
