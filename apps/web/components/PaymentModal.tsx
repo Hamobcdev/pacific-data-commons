@@ -22,7 +22,7 @@ export interface PaymentModalProps {
     endpoint_url: string | null;
   };
   tier: PaymentModalTier;
-  /** process.env.PDC_PILOT_EARNINGS_WALLET, read server-side and passed down — never hardcoded (CLAUDE.md P4/hard rules). Null when not configured. */
+  /** process.env.AVM_ADDRESS, read server-side and passed down — never hardcoded (CLAUDE.md P4/hard rules). Null when not configured. */
   payToAddress: string | null;
   isOpen: boolean;
   onClose: () => void;

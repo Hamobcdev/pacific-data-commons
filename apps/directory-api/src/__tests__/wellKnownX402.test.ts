@@ -66,7 +66,15 @@ describe("GET /.well-known/x402", () => {
     expect(searchEndpoint?.pay_to).toBe(TEST_AVM_ADDRESS);
 
     const cpiEndpoint = body.endpoints.find((e) => e.path === "/finance/samoa-cpi");
-    expect(cpiEndpoint?.pay_to).not.toBe(TEST_AVM_ADDRESS); // pilot-earnings wallet, not the main directory wallet
+    // 2026-10-13 wallet consolidation retired the separate pilot-earnings
+    // wallet — this route now pays AVM_ADDRESS same as every other route.
+    // It still won't equal TEST_AVM_ADDRESS here because routeSchemas.ts
+    // resolves this payToAddress from raw process.env at module-import
+    // time (pre-existing behaviour, same as /finance/crypto-rates and
+    // /climate/pacific-ocean-temp above), not from this test's per-request
+    // Hono env override — so it resolves empty in this test process rather
+    // than to TEST_AVM_ADDRESS specifically.
+    expect(cpiEndpoint?.pay_to).not.toBe(TEST_AVM_ADDRESS);
 
     const seaLevelEndpoint = body.endpoints.find((e) => e.path === "/climate/pacific-sea-level");
     expect(seaLevelEndpoint?.price_usdc).toBe("0.15"); // sourced from paidRoutes, not a flat default

@@ -81,7 +81,7 @@ export default async function DatasetDetailPage({
       <EndpointPricingCard
         endpointTitle={endpoint.title}
         endpointUrl={endpoint.endpoint_url}
-        payToAddress={process.env.PDC_PILOT_EARNINGS_WALLET ?? null}
+        payToAddress={process.env.AVM_ADDRESS ?? null}
         tiers={endpoint.pricing_tiers}
       />
 
