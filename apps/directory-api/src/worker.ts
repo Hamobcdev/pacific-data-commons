@@ -48,12 +48,28 @@ export default {
   // an upstream price API on the request path. ctx.waitUntil() lets the
   // fetch run past the point this handler would otherwise return, per the
   // Workers scheduled-handler contract.
-  scheduled(controller: ScheduledController, cfEnv: WorkerBindings, ctx: ExecutionContext): void {
+  async scheduled(controller: ScheduledController, cfEnv: WorkerBindings, ctx: ExecutionContext): Promise<void> {
     // Keep-warm ping (wrangler.toml's second [triggers] cron) — fires every
-    // 4 minutes to try to prevent a cold-isolate hang in the x402 payment
-    // gate. Does nothing else, per design: no KV check, no app construction.
+    // 4 minutes through the real fetch() path (not just a log-and-return)
+    // so the payment gate's own one-time Bazaar/Ajv self-check and
+    // facilitator getSupported() call actually run on an otherwise-idle
+    // isolate, instead of only ever running on whichever real request
+    // happens to hit a cold one first.
     if (controller.cron === "*/4 * * * *") {
-      logger.info("keep-warm ping");
+      // Build cachedApp if this tick is itself the first thing to run on a
+      // cold isolate — the exact scenario this ping exists to pre-empt.
+      // Calling cachedApp.fetch() while it's still undefined would throw.
+      if (!cachedApp) {
+        const env = loadEnv(cfEnv as unknown as NodeJS.ProcessEnv);
+        cachedApp = createApp(env, cfEnv.CRYPTO_PRICES_KV);
+      }
+      const warmReq = new Request("https://api.synergybcpacific.com/health");
+      try {
+        await cachedApp.fetch(warmReq, cfEnv, ctx);
+        logger.info("keep-warm ping", { status: "ok" });
+      } catch (error) {
+        logger.error("keep-warm ping failed", { error: error instanceof Error ? error.message : String(error) });
+      }
       return;
     }
 
