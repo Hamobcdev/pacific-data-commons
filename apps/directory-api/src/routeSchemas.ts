@@ -602,7 +602,12 @@ const paidRoutesBase: PaidRouteSpec[] = [
     description:
       "Live water temperature at a NOAA CO-OPS Pacific tide station, sourced from NOAA's Tides & Currents Data Getter API — a primary-source US federal station reading, not a Pacific Island national authority's own instrument, see the response's own attribution field. Optional ?station=, one of 1770000 (Pago Pago, American Samoa) or 1617760 (Honolulu, Hawaii — Pacific reference). Default 1770000. 30-minute cache.",
     priceUsdc: PACIFIC_WATER_TEMPERATURE_PRICE_USDC,
-    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    // Canary run (2026-10-12) caught this paying out to PDC_PILOT_EARNINGS_
+    // WALLET (CZLL2VSHUW...) — wrong wallet for this route. This is a
+    // directory-service endpoint (NOAA CO-OPS wrapper, no dedicated pilot
+    // provider), same category as /search and /finance/fx — belongs on the
+    // directory wallet, not the pilot earnings one.
+    payToAddress: process.env.PDC_DIRECTORY_PAYTO_ADDRESS,
     discovery: discoveryFor({
       method: "GET",
       input: { station: "1770000" },
