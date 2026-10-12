@@ -63,7 +63,7 @@ export default {
         const env = loadEnv(cfEnv as unknown as NodeJS.ProcessEnv);
         cachedApp = createApp(env, cfEnv.CRYPTO_PRICES_KV);
       }
-      const warmReq = new Request("https://api.synergybcpacific.com/health");
+      const warmReq = new Request("https://api.synergybcpacific.com/finance/fx");
       try {
         await cachedApp.fetch(warmReq, cfEnv, ctx);
         logger.info("keep-warm ping", { status: "ok" });
