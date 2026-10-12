@@ -88,7 +88,7 @@ async function main(): Promise<void> {
   if (!mnemonic) return out({ outcome: "error", error: "CANARY_WALLET_MNEMONIC not set", ...quote });
   const privateKeyBase64 = Buffer.from(algosdk.mnemonicToSecretKey(mnemonic.trim()).sk).toString("base64");
   if (getManualPaymentAddress(privateKeyBase64) !== job.expectedPayer) {
-    return out({ outcome: "error", error: "CANARY_WALLET_MNEMONIC does not derive to CANARY_WALLET_ADDRESS", ...quote });
+    return out({ outcome: "error", error: "CANARY_WALLET_MNEMONIC does not derive to AGENT_WALLET_ADDRESS", ...quote });
   }
 
   const payingFetch = createManualPaymentFetch({ privateKeyBase64, network: job.network });

@@ -70,9 +70,9 @@ export const SOURCE_ATTRIBUTION = {
   data_quality: "third_party_aggregated" as const,
   disclaimer:
     "This endpoint serves Open-Meteo's own published marine model output via PDC's structured queryable layer. This is not a national meteorology service-, SPC-, or fisheries-authority-certified feed — SBP has not independently verified this data against any national or regional agency, and makes no assessment of fish stock health, safety, or data quality. Do not present this as a certified stock assessment or safety-critical marine forecast.",
-  // Same rationale as samoaCpiService.ts's identical field.
+  // Same rationale/history as samoaCpiService.ts's identical field.
   revenue_tracking_note:
-    "Payments for this endpoint settle to a dedicated wallet tracked separately from SBP's main directory revenue, as part of an institutional/MVP earnings pilot for first-party open-data endpoints (Decision 59/60).",
+    "Payments for this endpoint settle to SBP's standard directory payTo wallet, same as every other PDC endpoint — no separate pilot wallet.",
 };
 
 export interface DayOceanForecast {

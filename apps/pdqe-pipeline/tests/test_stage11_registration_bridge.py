@@ -50,7 +50,7 @@ def _published_record(**overrides) -> EndpointRecord:
 def live_env(monkeypatch):
     """Every auto-canary gate open; individual tests close one."""
     monkeypatch.setenv("CANARY_WALLET_MNEMONIC", "test mnemonic never used")
-    monkeypatch.setenv("CANARY_WALLET_ADDRESS", CANARY)
+    monkeypatch.setenv("AGENT_WALLET_ADDRESS", CANARY)
     monkeypatch.setenv("VITE_FLAG_LIVE_RPC_ACTIVE", "true")
     monkeypatch.setenv("PDQE_ENDPOINT_BASE_URL", BASE_URL)
     monkeypatch.delenv("ALGORAND_NETWORK", raising=False)
@@ -64,7 +64,7 @@ def no_network():
 
 def test_auto_canary_skips_self_payment(live_env, monkeypatch, no_network):
     head, helper = no_network
-    monkeypatch.setenv("CANARY_WALLET_ADDRESS", WALLET)  # payer == endpoint payTo
+    monkeypatch.setenv("AGENT_WALLET_ADDRESS", WALLET)  # payer == endpoint payTo
     outcome = auto_canary.fire_auto_canary(_published_record())
     assert outcome == auto_canary.SKIPPED_SELF_PAYMENT
     head.assert_not_called()

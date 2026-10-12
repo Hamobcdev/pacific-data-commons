@@ -88,9 +88,7 @@ const FIJI_GDP_PRICE_USDC = 0.01;
 // Same Decision 42 reasoning as FIJI_GDP_PRICE_USDC/SAMOA_GDP_PRICE_USDC
 // above — governance/research endpoint over openly-accessible government
 // releases (Fiji Bureau of Statistics' own monthly CPI press releases),
-// Tier 1 capped, underlying releases never paywalled. payTo is declared
-// further down, right after PDC_PILOT_EARNINGS_WALLET itself (used-before-
-// declaration otherwise — this constant is block-scoped further below).
+// Tier 1 capped, underlying releases never paywalled.
 const FIJI_CPI_PRICE_USDC = 0.01;
 
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC/CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC
@@ -110,43 +108,13 @@ const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.01;
 // smaller multiplier since this has no Claude synthesis cost to cover.
 const PACIFIC_PURSE_SEINE_PRICE_USDC = 0.05;
 
-// Dedicated pilot-earnings wallet (user-provided, confirmed USDC-opted-in
-// via the indexer before this was wired up) — payTo for this endpoint,
-// not the main SBP directory wallet every other route above uses.
-// User-confirmed decision: reject reusing the institutional-onboarding
-// wallet (otherwise outbound-only ALGO grants to institutions onboarding)
-// to avoid commingling grant reserves with pilot revenue — this wallet
-// touches nothing else, purpose is exactly and only "pilot/MVP earnings
-// from first-party open-data endpoints" (Decision 59/60's endpoint class).
-// Canary/test traffic and the 3% platform fee still flow to the main
-// directory wallet as before; only this endpoint's real earnings land here.
-// Exported so routes/wellKnownX402.ts can reuse this exact address for its
-// manifest entries rather than re-declaring the literal — single source of
-// truth stays here, same reasoning as every other "never hardcode a wallet
-// twice" instance in this repo.
-export const PDC_PILOT_EARNINGS_WALLET = "CZLL2VSHUW7NB64AY6K3QSYR2GFS3YECTKV3HM5LKPYKOAJZ2MVAKO6KFM";
+// 2026-10-13 wallet consolidation: the dedicated pilot-earnings wallet
+// (formerly exported here as PDC_PILOT_EARNINGS_WALLET, CZLL2VSHUW...) is
+// retired. Every paid route in this file now pays to the single canonical
+// AVM_ADDRESS wallet — see each route's payToAddress below.
+const FIJI_CPI_PAYTO = process.env.AVM_ADDRESS ?? "";
 
-// FIJI_CPI_PRICE_USDC's payTo — declared here, not next to the price
-// constant above, since PDC_PILOT_EARNINGS_WALLET itself isn't declared
-// until this point in the file.
-const FIJI_CPI_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
-
-// This session's build brief required this new route's payTo to read from
-// process.env.PDC_PILOT_EARNINGS_WALLET specifically ("never hardcode
-// wallet addresses"). That's in tension with the literal constant
-// directly above, which 3 already-shipped routes (samoa-cpi, samoa-gdp,
-// climate/ocean-temperature, climate/water-temperature) deliberately use
-// as-is, per that constant's own doc comment recording a prior explicit
-// user decision. Resolved without touching those 3 routes: this route
-// reads the env var first and falls back to the existing literal if unset,
-// so it satisfies the new instruction exactly when the env var is
-// configured, never breaks (unset payTo) if it isn't, and never diverges
-// from the other 3 routes' wallet unless someone deliberately sets the
-// env var to something else. nodejs_compat is enabled for this Worker
-// (wrangler.toml) and routes/discovery.ts already reads process.env
-// directly for non-critical config, so this is a known-working pattern
-// here, not a new one.
-const PACIFIC_PURSE_SEINE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_PURSE_SEINE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Decision 59/60 first-party wrapper over HYCOM's openly-accessible
 // THREDDS/OPeNDAP forecast product. Tier 2, same reasoning as
@@ -154,11 +122,7 @@ const PACIFIC_PURSE_SEINE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_P
 // regional-mean computation per request, not a single-value lookup.
 const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.05;
 
-// Same env-first-then-literal-fallback resolution as
-// PACIFIC_PURSE_SEINE_PAYTO directly above, for the same reason (see that
-// constant's doc comment) — this route's build brief carried the same
-// "always process.env.PDC_PILOT_EARNINGS_WALLET" instruction.
-const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Decision 59/60 first-party wrapper over NOAA Coral Reef Watch's
 // openly-accessible CoralTemp product (via ERDDAP — see
@@ -168,17 +132,15 @@ const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PD
 // PACIFIC_OCEAN_FORECAST_PRICE_USDC above.
 const PACIFIC_CORAL_BLEACHING_PRICE_USDC = 0.05;
 
-// Same env-first-then-literal-fallback resolution as
-// PACIFIC_OCEAN_FORECAST_PAYTO directly above, for the same reason.
-const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.AVM_ADDRESS ?? "";
 
-// IBTrACS SP cyclone track history — $0.05, PDC_PILOT_EARNINGS_WALLET.
+// IBTrACS SP cyclone track history — $0.05, AVM_ADDRESS.
 // Priced at coral-bleaching tier: static reference data with no commercial
 // equivalent for the South Pacific basin. Swiss Re/RMS comparable data costs
 // $0.50-$5.00/location; $0.05 is the early-adopter floor pending institutional
 // buyer validation. Raise on next pricing review (Decision logged below).
 const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.05;
-const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Priced above the other static-bundle first-party rows ($0.05) per this
 // endpoint's own build brief ($0.15) — a multi-station (8 Pacific nations),
@@ -186,12 +148,12 @@ const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? P
 // scripts/preprocess-sea-level.mjs) monthly aggregate, not a single-value
 // lookup.
 const PACIFIC_SEA_LEVEL_PRICE_USDC = 0.15;
-const PACIFIC_SEA_LEVEL_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_SEA_LEVEL_PAYTO = process.env.AVM_ADDRESS ?? "";
 // NOAA PSL MEI.v2 static bundle — same tier/payTo reasoning as
 // PACIFIC_CYCLONE_HISTORY_PRICE_USDC directly above: static reference data,
 // no live upstream refetch, same $0.05 early-adopter floor.
 const PACIFIC_ENSO_INDEX_PRICE_USDC = 0.05;
-const PACIFIC_ENSO_INDEX_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_ENSO_INDEX_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
 // free public API. Tier 1 — a high-volume single-value-per-token price
@@ -202,29 +164,19 @@ const PACIFIC_ENSO_INDEX_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PI
 // reaches this route via middleware/dashboardBypass.ts, not x402.
 const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.01;
 
-// This route's build brief said payTo should read an env var for
-// conceptually the same wallet every other "directory service" route
-// above already uses via env.AVM_ADDRESS inside directory-api (mirrored
-// as PDC_DIRECTORY_PAYTO_ADDRESS in apps/web's manifest). The brief's
-// literal var name, PDC_DIRECTORY_WALLET, was never a real env var
-// anywhere — confirmed against the Vercel dashboard (2026-10-12 env var
-// alignment audit, Anthony) — so this always evaluated to undefined in
-// production. Resolved the same way /finance/fx resolves it: passing
-// undefined `payToAddress` here lets PdcPaymentGate fall back to its own
-// constructor default (env.AVM_ADDRESS, see createApp() above) — the
-// correct behaviour for "this is a directory service endpoint," not a
-// dedicated pilot wallet. Renamed to the canonical PDC_DIRECTORY_PAYTO_
-// ADDRESS so this still takes effect as an explicit override if this
-// Worker's env is ever given that var (it is not, as of this audit — only
-// apps/web's Vercel deployment has it set) — same "undefined is a safe,
-// intentional fallback" behaviour either way, no production change.
-const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
+// 2026-10-13 wallet consolidation: reads the single canonical AVM_ADDRESS
+// wallet — the same var directory-api's own PdcPaymentGate constructor
+// default already uses (createApp() above) and the same var apps/web's
+// manifest reads for this route. (Previously PDC_DIRECTORY_PAYTO_ADDRESS,
+// a second name for this same wallet, now retired — see git history for
+// the 2026-10-12 PDC_DIRECTORY_WALLET naming incident this replaces.)
+const PACIFIC_CRYPTO_RATES_PAYTO = process.env.AVM_ADDRESS;
 
 // Same KV-backed data as /finance/crypto-rates, just windowed into a time
 // series — same tier/payTo reasoning as PACIFIC_CRYPTO_RATES_PRICE_USDC/
 // PACIFIC_CRYPTO_RATES_PAYTO directly above applies identically here.
 const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.01;
-const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
+const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.AVM_ADDRESS;
 
 // Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's
 // openly-accessible public APIs (not the 4 dead sources this route's
@@ -234,10 +186,7 @@ const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
 // same reasoning as the other Tier 2 first-party endpoints above.
 const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.05;
 
-// Same env-first-then-literal-fallback resolution as
-// PACIFIC_CORAL_BLEACHING_PAYTO above, for the same reason (this route's
-// own build brief carried the same "always process.env.PDC_PILOT_EARNINGS_WALLET" instruction).
-const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Decision 59/60 first-party wrapper over World Bank Remittance Prices
 // Worldwide (confirmed live to be entirely Cloudflare-blocked for
@@ -248,9 +197,7 @@ const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC
 // rows.
 const PACIFIC_REMITTANCE_PRICE_USDC = 0.01;
 
-// Same env-first-then-literal-fallback resolution as
-// PACIFIC_DEX_ARBITRAGE_PAYTO directly above, for the same reason.
-const PACIFIC_REMITTANCE_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PILOT_EARNINGS_WALLET;
+const PACIFIC_REMITTANCE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Session 24 — same discoveryFor pattern as apps/pilot-endpoint (see that
 // app's routeSchemas.ts for why declareDiscoveryExtension is used directly
@@ -423,7 +370,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     description:
       "Samoa Consumer Price Index and annual inflation rate, sourced from World Bank Open Data (FP.CPI.TOTL / FP.CPI.TOTL.ZG) — not a Samoa Bureau of Statistics- or government-certified feed, see the response's own attribution field. Optional ?years= (default 15, max 60). 24-hour cache — annual data, updated at most yearly upstream.",
     priceUsdc: SAMOA_CPI_PRICE_USDC,
-    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
       input: { years: 15 },
@@ -456,7 +403,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     description:
       "Pacific sea surface temperature and wave/swell conditions, sourced from Open-Meteo's Marine Weather API — not a national meteorology-, SPC-, or fisheries-authority-certified feed, see the response's own attribution field. Requires ?country=, one of WS, FJ, TO, PG, SB, VU, CK. Returns current sea surface temperature, wave height/period/direction, ocean current velocity, and a 7-day wave forecast. 3-hour cache.",
     priceUsdc: CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC,
-    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
       input: { country: "WS" },
@@ -496,7 +443,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     description:
       "Samoa GDP, expenditure approach, transcribed from the Samoa Bureau of Statistics' own published FY2025/26 report — not a third-party-aggregated feed, see the response's own attribution field. FY2025/26: real GDP -8.1%, nominal -4.7%. Optional ?fiscal_year=2025/26|2024/25 to filter to one year, or ?all=true for both. Default: latest year only. Updated at most yearly, no fixed schedule.",
     priceUsdc: SAMOA_GDP_PRICE_USDC,
-    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
       input: { fiscal_year: "2025/26" },
@@ -529,7 +476,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     description:
       "Fiji GDP by industry, transcribed from the Fiji Bureau of Statistics' own published rebase release (FBoS Release No. 62, 3 Sep 2025, GDP rebased to 2019 base) — not a third-party-aggregated feed, see the response's own attribution field. Required ?year=, one of 2019-2024. Optional ?measure=nominal|real_growth, default nominal. Industry-level breakdown is published only for 2019 (the rebase base year); 2020-2024 return total GDP plus real growth rate only (2024 is preliminary) — see the response's own detail_level field.",
     priceUsdc: FIJI_GDP_PRICE_USDC,
-    payToAddress: PDC_PILOT_EARNINGS_WALLET,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
       input: { year: "2019" },
@@ -602,12 +549,12 @@ const paidRoutesBase: PaidRouteSpec[] = [
     description:
       "Live water temperature at a NOAA CO-OPS Pacific tide station, sourced from NOAA's Tides & Currents Data Getter API — a primary-source US federal station reading, not a Pacific Island national authority's own instrument, see the response's own attribution field. Optional ?station=, one of 1770000 (Pago Pago, American Samoa) or 1617760 (Honolulu, Hawaii — Pacific reference). Default 1770000. 30-minute cache.",
     priceUsdc: PACIFIC_WATER_TEMPERATURE_PRICE_USDC,
-    // Canary run (2026-10-12) caught this paying out to PDC_PILOT_EARNINGS_
-    // WALLET (CZLL2VSHUW...) — wrong wallet for this route. This is a
-    // directory-service endpoint (NOAA CO-OPS wrapper, no dedicated pilot
-    // provider), same category as /search and /finance/fx — belongs on the
-    // directory wallet, not the pilot earnings one.
-    payToAddress: process.env.PDC_DIRECTORY_PAYTO_ADDRESS,
+    // Canary run (2026-10-12) caught this paying out to the then-separate
+    // pilot-earnings wallet — wrong wallet for this route at the time. This
+    // is a directory-service endpoint (NOAA CO-OPS wrapper, no dedicated
+    // pilot provider), same category as /search and /finance/fx. Moot as of
+    // the 2026-10-13 consolidation: every route now pays AVM_ADDRESS anyway.
+    payToAddress: process.env.AVM_ADDRESS,
     discovery: discoveryFor({
       method: "GET",
       input: { station: "1770000" },

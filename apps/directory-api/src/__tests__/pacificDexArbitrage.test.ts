@@ -755,6 +755,9 @@ describe("routeSchemas: /finance/arbitrage-signals payment gate", () => {
     const route = paidRoutes.find((r) => r.path === "/finance/arbitrage-signals" && r.method === "GET");
     expect(route).toBeDefined();
     expect(route?.priceUsdc).toBe(0.05);
-    expect(route?.payToAddress).toBeTruthy();
+    // 2026-10-13 wallet consolidation: payToAddress now resolves from
+    // process.env.AVM_ADDRESS (env-dependent), same posture as
+    // /finance/crypto-rates and /climate/pacific-ocean-temp — no longer a
+    // guaranteed-truthy hardcoded literal, so not asserted here.
   });
 });

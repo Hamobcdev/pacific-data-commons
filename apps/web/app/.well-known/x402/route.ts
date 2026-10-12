@@ -87,14 +87,12 @@ interface ManifestEndpoint {
 function buildEndpoints(): ManifestEndpoint[] {
   const endpoints: ManifestEndpoint[] = [];
 
-  // Decision 59/60 first-party open-data endpoints. Both actually live on
-  // directory-api (api.synergybcpacific.com/finance/samoa-cpi and
-  // /climate/ocean-temperature) — not on apps/pilot-endpoint, which only
-  // serves the 5-tier fisheries pilot routes. Both share directory-api's
-  // PDC_PILOT_EARNINGS_WALLET payTo address (see that service's
-  // routeSchemas.ts), mirrored here via env var rather than the literal
-  // constant that file uses, per this route's no-hardcoding requirement.
-  const pilotEarningsWallet = process.env.PDC_PILOT_EARNINGS_WALLET;
+  // 2026-10-13 wallet consolidation: the dedicated pilot-earnings wallet
+  // (formerly PDC_PILOT_EARNINGS_WALLET) is retired. These endpoints now
+  // pay to the same canonical AVM_ADDRESS wallet as every other route in
+  // this manifest (directoryWallet below) — kept as a separate variable
+  // here only because this file's two push() blocks aren't merged.
+  const pilotEarningsWallet = process.env.AVM_ADDRESS ?? "";
   if (pilotEarningsWallet) {
     endpoints.push(
       {
@@ -205,8 +203,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       // fiji-cpi, pacific-sea-level, pacific-enso-index, and
       // pacific-cyclone-history all landed after this manifest's initial
       // build) — same payToAddress pattern in directory-api/routeSchemas.ts
-      // (process.env.PDC_PILOT_EARNINGS_WALLET ?? the hardcoded fallback
-      // constant), so they belong in this same pilotEarningsWallet block.
+      // (now AVM_ADDRESS), so they belong in this same block.
       {
         path: "/finance/fiji-cpi",
         full_url: `${DIRECTORY_API_URL}/finance/fiji-cpi`,
@@ -255,15 +252,14 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, and pacific-enso-index from the discovery manifest",
+      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, and pacific-enso-index from the discovery manifest",
     );
   }
 
   // directory-api's own $0.01 directory search, payTo'd to its AVM_ADDRESS
-  // wallet. Named distinctly here (not AVM_ADDRESS) because apps/web is a
-  // separate service with its own env vars — this must be kept equal to
-  // directory-api's AVM_ADDRESS value.
-  const directoryWallet = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
+  // wallet. apps/web is a separate service with its own env vars, so this
+  // must be kept equal to directory-api's AVM_ADDRESS value.
+  const directoryWallet = process.env.AVM_ADDRESS;
   if (directoryWallet) {
     endpoints.push(
       {
@@ -279,12 +275,10 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         // directory-api/src/routeSchemas.ts declares no payToAddress for
         // this route, so PdcPaymentGate falls back to its constructor
-        // default (env.AVM_ADDRESS) — the same wallet as /search above,
-        // not PDC_PILOT_EARNINGS_WALLET (that's only for the Decision
-        // 59/60 endpoints pushed in the block above this one). Mirrored
-        // here via PDC_DIRECTORY_PAYTO_ADDRESS, same as /search, per this
-        // route's no-hardcoding requirement (CLAUDE.md P4/§18) — this must
-        // be kept equal to directory-api's own AVM_ADDRESS value.
+        // default (env.AVM_ADDRESS) — the same wallet as /search above and,
+        // since the 2026-10-13 consolidation, every route in this manifest.
+        // Mirrored here via AVM_ADDRESS per this route's no-hardcoding
+        // requirement (CLAUDE.md P4/§18).
         path: "/finance/fx",
         full_url: `${DIRECTORY_API_URL}/finance/fx`,
         price_usdc: "0.001",
@@ -298,9 +292,10 @@ function buildEndpoints(): ManifestEndpoint[] {
       // Moved here from the pilotEarningsWallet block above — canary run
       // (2026-10-12) confirmed this route actually pays out to the
       // directory wallet (directory-api/routeSchemas.ts's payToAddress was
-      // wrong and fixed the same day), not PDC_PILOT_EARNINGS_WALLET. This
-      // is a directory-service endpoint (NOAA CO-OPS wrapper), not a
-      // dedicated pilot provider, same category as /search and /finance/fx.
+      // wrong and fixed the same day). This is a directory-service
+      // endpoint (NOAA CO-OPS wrapper), not a dedicated pilot provider,
+      // same category as /search and /finance/fx. (2026-10-13: both blocks
+      // now resolve to the same AVM_ADDRESS wallet regardless.)
       {
         path: "/climate/pacific-ocean-temp",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-temp`,
@@ -325,15 +320,8 @@ function buildEndpoints(): ManifestEndpoint[] {
       // Six endpoints added since this file was first written. All six
       // have no `payToAddress` override in directory-api/routeSchemas.ts,
       // so PdcPaymentGate falls back to its constructor default
-      // (env.AVM_ADDRESS) — the same wallet as /search and /finance/fx.
-      // crypto-rates/crypto-history above previously read a third env var
-      // name (PDC_DIRECTORY_WALLET) there; resolved by the 2026-10-12 env
-      // var alignment audit (confirmed against the Vercel dashboard,
-      // Anthony): PDC_DIRECTORY_WALLET was never a real env var anywhere,
-      // so routeSchemas.ts now reads PDC_DIRECTORY_PAYTO_ADDRESS there too
-      // — the same var this file's own `directoryWallet` already reads
-      // below, so this manifest's existing assumption (both equal the same
-      // wallet) is now literally true in code, not just presumed.
+      // (env.AVM_ADDRESS) — the same wallet as /search and /finance/fx, and,
+      // since the 2026-10-13 consolidation, every route in this manifest.
       {
         path: "/finance/crypto-history",
         full_url: `${DIRECTORY_API_URL}/finance/crypto-history`,
@@ -404,7 +392,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search, /finance/fx, /climate/pacific-ocean-temp, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, and /intelligence/pacific-travel from the discovery manifest",
+      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting /search, /finance/fx, /climate/pacific-ocean-temp, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, and /intelligence/pacific-travel from the discovery manifest",
     );
   }
 

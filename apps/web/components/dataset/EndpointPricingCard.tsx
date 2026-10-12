@@ -9,7 +9,7 @@ import type { PricingTier } from "@pdc/shared-types";
 export interface EndpointPricingCardProps {
   endpointTitle: string;
   endpointUrl: string | null;
-  /** process.env.PDC_PILOT_EARNINGS_WALLET, read server-side by the page and passed down — never hardcoded (CLAUDE.md P4/hard rules). */
+  /** process.env.AVM_ADDRESS, read server-side by the page and passed down — never hardcoded (CLAUDE.md P4/hard rules). */
   payToAddress: string | null;
   tiers: PricingTier[];
 }

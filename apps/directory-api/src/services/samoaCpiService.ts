@@ -38,11 +38,12 @@ export const SOURCE_ATTRIBUTION = {
   data_quality: "third_party_aggregated" as const,
   disclaimer:
     "This endpoint serves World Bank Open Data's own published Samoa CPI series via PDC's structured queryable layer. World Bank attributes the underlying figures to Samoa Bureau of Statistics, but this is not an SBS-certified or Samoa-government-certified data feed — SBP has not confirmed this data with SBS directly. Do not present this as a primary-source or government-certified statistic.",
-  // Not required for function — documents intent for future reference
-  // (routeSchemas.ts's PDC_PILOT_EARNINGS_WALLET doc comment has the wallet
-  // rationale; this is the same note surfaced in the response itself).
+  // 2026-10-13: the dedicated pilot-earnings wallet this note described has
+  // been retired — this endpoint now settles to the same AVM_ADDRESS wallet
+  // as every other PDC route. Kept as a factual note rather than removed
+  // outright, since this field is surfaced live in the API response.
   revenue_tracking_note:
-    "Payments for this endpoint settle to a dedicated wallet tracked separately from SBP's main directory revenue, as part of an institutional/MVP earnings pilot for first-party open-data endpoints (Decision 59/60).",
+    "Payments for this endpoint settle to SBP's standard directory payTo wallet, same as every other PDC endpoint — no separate pilot wallet.",
 };
 
 interface WorldBankObservation {

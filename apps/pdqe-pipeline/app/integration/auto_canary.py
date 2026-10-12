@@ -16,7 +16,7 @@ Skips (logged at WARNING), in order:
   * CANARY_WALLET_MNEMONIC empty (dev/CI default);
   * VITE_FLAG_LIVE_RPC_ACTIVE not "true" (same runtime-only live switch as
     x402_client; always false in committed code);
-  * CANARY_WALLET_ADDRESS missing or not an Algorand address;
+  * AGENT_WALLET_ADDRESS missing or not an Algorand address;
   * no served URL: PDQE_ENDPOINT_BASE_URL unset (pdqe.endpoints stores only
     the path, /pacific/{domain}/{slug});
   * canary wallet == endpoint payTo (self-payment);
@@ -25,7 +25,7 @@ Skips (logged at WARNING), in order:
     payTo is the payer) or cannot run.
 
 Environment (Render; never committed):
-  CANARY_WALLET_ADDRESS   canary payer address (sbp-agent wallet)
+  AGENT_WALLET_ADDRESS    canary payer address (sbp-agent wallet)
   CANARY_WALLET_MNEMONIC  canary payer mnemonic (classified)
   PDQE_ENDPOINT_BASE_URL  https base URL that serves PDQE endpoint paths
   CANARY_HELPER_DIR       optional; defaults to the repo's apps/directory-api/test
@@ -59,7 +59,7 @@ from app.integration.x402_client import _live_rpc_active
 
 logger = logging.getLogger(__name__)
 
-ADDRESS_ENV = "CANARY_WALLET_ADDRESS"
+ADDRESS_ENV = "AGENT_WALLET_ADDRESS"
 BASE_URL_ENV = "PDQE_ENDPOINT_BASE_URL"
 HELPER_DIR_ENV = "CANARY_HELPER_DIR"
 NETWORK_ENV = "ALGORAND_NETWORK"
@@ -117,7 +117,7 @@ def _fire(endpoint: EndpointRecord) -> str:
     payer = os.getenv(ADDRESS_ENV, "").strip()
     network = os.getenv(NETWORK_ENV, "mainnet").strip() or "mainnet"
     if not _ALGORAND_ADDRESS.match(payer) or network not in CAIP2:
-        logger.warning("auto-canary %s: %s (CANARY_WALLET_ADDRESS / ALGORAND_NETWORK)", eid, SKIPPED_BAD_CONFIG)
+        logger.warning("auto-canary %s: %s (AGENT_WALLET_ADDRESS / ALGORAND_NETWORK)", eid, SKIPPED_BAD_CONFIG)
         return SKIPPED_BAD_CONFIG
 
     url = served_url(endpoint)
