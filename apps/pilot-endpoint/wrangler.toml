@@ -27,6 +27,9 @@ LOG_LEVEL = "info"
 # versioned var rather than a dashboard-only click-op).
 AVM_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY"
 
+[observability]
+enabled = true
+
 [observability.logs]
 enabled = true
 head_sampling_rate = 1
