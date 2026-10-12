@@ -196,8 +196,11 @@ const PACIFIC_ENSO_INDEX_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PI
 // Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
 // free public API. Tier 1 — a high-volume single-value-per-token price
 // lookup, same tier as the other first-party Tier 1 endpoints above, not
-// Tier 2 like the multi-variable regional computations.
-const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.001;
+// Tier 2 like the multi-variable regional computations. $0.01 — the
+// Decision 60 Tier 1 cap for first-party open-data wrappers, matching the
+// other Tier 1 routes (was $0.001). The SBP dashboard is unaffected: it
+// reaches this route via middleware/dashboardBypass.ts, not x402.
+const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.01;
 
 // This route's build brief said payTo should read
 // process.env.PDC_DIRECTORY_WALLET — a third env var name for
@@ -218,7 +221,7 @@ const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_WALLET;
 // Same KV-backed data as /finance/crypto-rates, just windowed into a time
 // series — same tier/payTo reasoning as PACIFIC_CRYPTO_RATES_PRICE_USDC/
 // PACIFIC_CRYPTO_RATES_PAYTO directly above applies identically here.
-const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.001;
+const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.01;
 const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_WALLET;
 
 // Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's

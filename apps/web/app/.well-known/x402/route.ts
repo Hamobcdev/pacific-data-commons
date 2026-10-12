@@ -259,7 +259,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/crypto-rates",
         full_url: `${DIRECTORY_API_URL}/finance/crypto-rates`,
-        price_usdc: "0.001",
+        price_usdc: "0.01",
         description: "Real-time prices for 67 curated crypto tokens, Pacific-priority weighted (ALGO, XRP, XLM). CoinGecko source.",
         category: "financial_flows",
         pay_to: directoryWallet,
