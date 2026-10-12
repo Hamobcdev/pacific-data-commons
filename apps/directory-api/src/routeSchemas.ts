@@ -202,27 +202,29 @@ const PACIFIC_ENSO_INDEX_PAYTO = process.env.PDC_PILOT_EARNINGS_WALLET ?? PDC_PI
 // reaches this route via middleware/dashboardBypass.ts, not x402.
 const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.01;
 
-// This route's build brief said payTo should read
-// process.env.PDC_DIRECTORY_WALLET — a third env var name for
+// This route's build brief said payTo should read an env var for
 // conceptually the same wallet every other "directory service" route
-// above already uses two different names for (env.AVM_ADDRESS inside
-// directory-api; PDC_DIRECTORY_PAYTO_ADDRESS in apps/web's manifest,
-// mirroring it). Introducing a fourth differently-named var for the same
-// wallet would fragment configuration further. Resolved the same way
-// /finance/fx resolves it: passing undefined `payToAddress` here lets
-// PdcPaymentGate fall back to its own constructor default
-// (env.AVM_ADDRESS, see createApp() above) — the correct behaviour for
-// "this is a directory service endpoint," not a dedicated pilot wallet.
-// process.env.PDC_DIRECTORY_WALLET still takes effect as an explicit
-// override if someone sets it, satisfying this brief's literal
-// instruction without a new permanent env var when nothing's set.
-const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_WALLET;
+// above already uses via env.AVM_ADDRESS inside directory-api (mirrored
+// as PDC_DIRECTORY_PAYTO_ADDRESS in apps/web's manifest). The brief's
+// literal var name, PDC_DIRECTORY_WALLET, was never a real env var
+// anywhere — confirmed against the Vercel dashboard (2026-10-12 env var
+// alignment audit, Anthony) — so this always evaluated to undefined in
+// production. Resolved the same way /finance/fx resolves it: passing
+// undefined `payToAddress` here lets PdcPaymentGate fall back to its own
+// constructor default (env.AVM_ADDRESS, see createApp() above) — the
+// correct behaviour for "this is a directory service endpoint," not a
+// dedicated pilot wallet. Renamed to the canonical PDC_DIRECTORY_PAYTO_
+// ADDRESS so this still takes effect as an explicit override if this
+// Worker's env is ever given that var (it is not, as of this audit — only
+// apps/web's Vercel deployment has it set) — same "undefined is a safe,
+// intentional fallback" behaviour either way, no production change.
+const PACIFIC_CRYPTO_RATES_PAYTO = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
 
 // Same KV-backed data as /finance/crypto-rates, just windowed into a time
 // series — same tier/payTo reasoning as PACIFIC_CRYPTO_RATES_PRICE_USDC/
 // PACIFIC_CRYPTO_RATES_PAYTO directly above applies identically here.
 const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.01;
-const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_WALLET;
+const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.PDC_DIRECTORY_PAYTO_ADDRESS;
 
 // Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's
 // openly-accessible public APIs (not the 4 dead sources this route's

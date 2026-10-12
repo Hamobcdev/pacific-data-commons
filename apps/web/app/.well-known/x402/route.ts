@@ -212,11 +212,61 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      // Four endpoints added since this file was first written (git log:
+      // fiji-cpi, pacific-sea-level, pacific-enso-index, and
+      // pacific-cyclone-history all landed after this manifest's initial
+      // build) — same payToAddress pattern in directory-api/routeSchemas.ts
+      // (process.env.PDC_PILOT_EARNINGS_WALLET ?? the hardcoded fallback
+      // constant), so they belong in this same pilotEarningsWallet block.
+      {
+        path: "/finance/fiji-cpi",
+        full_url: `${DIRECTORY_API_URL}/finance/fiji-cpi`,
+        price_usdc: "0.01",
+        description:
+          "Fiji Consumer Price Index, transcribed from Fiji Bureau of Statistics' monthly CPI press releases. Optional ?year=, ?from=/?to= (YYYY-MM range).",
+        category: "financial_flows",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/climate/pacific-cyclone-history",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-cyclone-history`,
+        price_usdc: "0.05",
+        description:
+          "Historical tropical cyclone tracks for the South Pacific basin, 1960-present (IBTrACS v04r01, NOAA/NCEI public domain). 851 storms indexed — peak wind, pressure, landfall, category, affected nations.",
+        category: "disaster_risk",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/climate/pacific-sea-level",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-sea-level`,
+        price_usdc: "0.15",
+        description:
+          "Pacific sea level monitoring — monthly mean sea level for 8 UHSLC tide gauge stations across Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Kiribati, Tuvalu, and Papua New Guinea.",
+        category: "climate",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/climate/pacific-enso-index",
+        full_url: `${DIRECTORY_API_URL}/climate/pacific-enso-index`,
+        price_usdc: "0.05",
+        description:
+          "Pacific ENSO / El Nino index (MEI.v2), bimonthly values 1979-present (NOAA PSL, public domain). Positive = El Nino, negative = La Nina conditions.",
+        category: "climate",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, and remittance-corridors from the discovery manifest",
+      "x402_wellknown_manifest: PDC_PILOT_EARNINGS_WALLET is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, water-temperature, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, and pacific-enso-index from the discovery manifest",
     );
   }
 
@@ -266,10 +316,90 @@ function buildEndpoints(): ManifestEndpoint[] {
         trust_tier: "bronze",
         data_format: "json",
       },
+      // Six endpoints added since this file was first written. All six
+      // have no `payToAddress` override in directory-api/routeSchemas.ts,
+      // so PdcPaymentGate falls back to its constructor default
+      // (env.AVM_ADDRESS) — the same wallet as /search and /finance/fx.
+      // crypto-rates/crypto-history above previously read a third env var
+      // name (PDC_DIRECTORY_WALLET) there; resolved by the 2026-10-12 env
+      // var alignment audit (confirmed against the Vercel dashboard,
+      // Anthony): PDC_DIRECTORY_WALLET was never a real env var anywhere,
+      // so routeSchemas.ts now reads PDC_DIRECTORY_PAYTO_ADDRESS there too
+      // — the same var this file's own `directoryWallet` already reads
+      // below, so this manifest's existing assumption (both equal the same
+      // wallet) is now literally true in code, not just presumed.
+      {
+        path: "/finance/crypto-history",
+        full_url: `${DIRECTORY_API_URL}/finance/crypto-history`,
+        price_usdc: "0.01",
+        description:
+          "Historical price points for 7 KV-tracked crypto symbols (ALGO, BTC, ETH, XRP, XLM, USDC, USDT), windowed by timeframe. Required ?symbol=.",
+        category: "financial_flows",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/algorand/wallet-balance",
+        full_url: `${DIRECTORY_API_URL}/algorand/wallet-balance`,
+        price_usdc: "0.005",
+        description:
+          "Algorand wallet balance lookup — ALGO balance, USDC balance, USDC opt-in status, and account existence for any Algorand address. Nodely primary, AlgoNode fallback.",
+        category: "other",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/intelligence/pacific-brief",
+        full_url: `${DIRECTORY_API_URL}/intelligence/pacific-brief`,
+        price_usdc: "0.05",
+        description:
+          "Pacific Intelligence Orchestrator: autonomously pays 3 live PDC sub-endpoints via x402, then synthesises a structured intelligence brief using Claude. One payment triggers multiple sub-payments on Algorand Mainnet.",
+        category: "other",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/pacific/events",
+        full_url: `${DIRECTORY_API_URL}/pacific/events`,
+        price_usdc: "0.002",
+        description:
+          "Upcoming Pacific Island events — festivals, concerts, sporting events, cultural celebrations, national days. Filter by country, days ahead, and category.",
+        category: "tourism",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/pacific/weather",
+        full_url: `${DIRECTORY_API_URL}/pacific/weather`,
+        price_usdc: "0.002",
+        description:
+          "Real-time weather and 7-day forecast for Pacific Island destinations, with daily tourism ratings. Open-Meteo (ECMWF model) source, updated hourly.",
+        category: "tourism",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
+      {
+        path: "/intelligence/pacific-travel",
+        full_url: `${DIRECTORY_API_URL}/intelligence/pacific-travel`,
+        price_usdc: "0.1",
+        description:
+          "Pacific Travel Intelligence Orchestrator: autonomously queries events, exchange rates, weather, tourism statistics, and marine conditions, then synthesises a travel intelligence brief using Claude.",
+        category: "tourism",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+      },
     );
   } else {
     // eslint-disable-next-line no-console
-    console.warn("x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search, /finance/fx, and /finance/crypto-rates from the discovery manifest");
+    console.warn(
+      "x402_wellknown_manifest: PDC_DIRECTORY_PAYTO_ADDRESS is not set — omitting /search, /finance/fx, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, and /intelligence/pacific-travel from the discovery manifest",
+    );
   }
 
   return endpoints;
