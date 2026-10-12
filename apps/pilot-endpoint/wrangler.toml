@@ -38,6 +38,18 @@ enabled = true
 head_sampling_rate = 1
 persist = true
 
+# Keep-warm cron — same pattern as apps/directory-api's own [triggers]
+# (PR #143): fires scheduled() every 4 minutes so the payment gate's
+# one-time Bazaar/Ajv discovery-schema self-check and facilitator
+# getSupported() call (see @pdc/x402-adapter's PAYMENT_GATE_TIMEOUT_MS doc
+# comment) already ran on an otherwise-idle isolate, instead of only ever
+# running on whichever real buyer request happens to hit a cold one first.
+# This service never had a keep-warm cron before — unlike directory-api,
+# which got one in PR #141-143 — and its own 503s during the 2026-10-12
+# canary sweep match that same documented cold-start failure mode.
+[triggers]
+crons = ["*/4 * * * *"]
+
 
 # 2026-09-22 outage: this worker was serving 500 on every route (including
 # /health) because AVM_ADDRESS and SUPABASE_URL were never actually set —
