@@ -27,7 +27,11 @@ import { type DataCategory } from "./dataCategories.js";
  */
 
 export interface AgentDatasetMetadata {
-  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand";
+  // "demographics" added for /demographics/pacific-population — the first
+  // dataset under that path prefix. lib/dataCategories.ts's DATA_CATEGORIES
+  // already had "demographics" as a valid category; nothing here used it
+  // before this one.
+  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics";
   dataCurrency: string;
   upstreamSource: string;
   reportingLagNote?: string;
@@ -71,6 +75,9 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
   "/pacific/events": { category: "tourism", dataCurrency: "on-demand", upstreamSource: "SPTO + tourism authorities" },
   "/pacific/weather": { category: "tourism", dataCurrency: "hourly", upstreamSource: "Open-Meteo (ECMWF model)" },
   "/algorand/wallet-balance": { category: "algorand", dataCurrency: "real-time", upstreamSource: "Nodely (primary) / AlgoNode (fallback)" },
+  "/finance/pacific-gdp": { category: "finance", dataCurrency: "annual", upstreamSource: "World Bank Open Data (NY.GDP.MKTP.CD)" },
+  "/demographics/pacific-population": { category: "demographics", dataCurrency: "annual", upstreamSource: "World Bank Open Data (SP.POP.TOTL)" },
+  "/finance/pacific-cpi": { category: "finance", dataCurrency: "annual", upstreamSource: "Pacific Community (SPC) SDMX data service (DF_CPI)" },
 };
 
 /**
@@ -107,6 +114,9 @@ const QUERYABLE_DATASET_IDS = new Set([
   "events",
   "weather",
   "wallet-balance",
+  "pacific-gdp",
+  "pacific-population",
+  "pacific-cpi",
 ]);
 
 export interface AgentDataset {
@@ -183,6 +193,7 @@ const CATEGORY_TO_DATA_CATEGORY: Record<AgentDatasetMetadata["category"], DataCa
   tourism: "tourism",
   intelligence: "other",
   algorand: "other",
+  demographics: "demographics",
 };
 
 export function catalogCategoryToDataCategory(category: AgentDatasetMetadata["category"]): DataCategory {
