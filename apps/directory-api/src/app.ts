@@ -143,6 +143,13 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
     payToAddress: env.AVM_ADDRESS,
     facilitatorUrl: env.FACILITATOR_URL,
     network: env.ALGORAND_NETWORK,
+    merchantIdentity: {
+      serviceName: "Pacific Data Commons",
+      description: "Sovereign data marketplace for Pacific Island nations and institutions. Payment-gated endpoints delivering climate, fisheries, trade, and economic data for AI agents and researchers. Built on Algorand. Data sovereignty enforced — providers control their own infrastructure.",
+      url: "https://pdc.synergybcpacific.com",
+      iconUrl: "https://pdc.synergybcpacific.com/images/sbp-logo.png",
+      tags: ["data-marketplace", "pacific", "sovereign-infrastructure", "ai-agents", "sids", "climate-data", "fisheries"],
+    },
   });
 
   // discoveryFor + paidRoutes (imported above) moved into ./routeSchemas.ts —
