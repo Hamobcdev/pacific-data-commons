@@ -39,7 +39,7 @@ describe("GET /.well-known/x402-directory.json", () => {
     };
 
     expect(body.endpoints.length).toBe(AGENT_DATASET_CATALOG.length);
-    expect(body.endpoints.length).toBe(22);
+    expect(body.endpoints.length).toBe(25);
 
     for (const dataset of AGENT_DATASET_CATALOG) {
       const entry = body.endpoints.find((e) => e.path === dataset.path);

@@ -46,6 +46,9 @@ import { pacificBriefRoute } from "./routes/intelligence/pacific-brief.js";
 import { pacificEventsRoute } from "./routes/pacific/events.js";
 import { pacificWeatherRoute } from "./routes/pacific/weather.js";
 import { pacificTravelRoute } from "./routes/intelligence/pacific-travel.js";
+import { pacificGdpRoute } from "./routes/finance/pacific-gdp.js";
+import { pacificPopulationRoute } from "./routes/demographics/pacific-population.js";
+import { pacificCpiRoute } from "./routes/finance/pacific-cpi.js";
 import { agentDatasetGatewayRoute } from "./routes/agentDatasetGateway.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
@@ -234,6 +237,9 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificEventsRoute);
   app.route("/", pacificWeatherRoute);
   app.route("/", pacificTravelRoute);
+  app.route("/", pacificGdpRoute);
+  app.route("/", pacificPopulationRoute);
+  app.route("/", pacificCpiRoute);
   app.route("/", agentDatasetGatewayRoute);
 
   // /api/data/* -> canonical route aliases — see API_DATA_ROUTE_ALIASES'

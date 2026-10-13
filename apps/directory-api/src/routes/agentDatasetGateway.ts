@@ -23,6 +23,9 @@ import { queryPacificTravelBrief } from "../services/pacificTourismService.js";
 import { queryEvents } from "../services/pacificEventsService.js";
 import { getPacificWeather, parseWeatherCountry } from "../services/pacificWeatherService.js";
 import { getAlgorandWalletBalance, isValidAlgorandAddress } from "../services/algorandBalanceService.js";
+import { getPacificGdp, parseYearsParam as parsePacificGdpYearsParam } from "../services/worldBankPacificGdpService.js";
+import { getPacificPopulation, parseYearsParam as parsePacificPopulationYearsParam } from "../services/worldBankPacificPopulationService.js";
+import { getPacificCpi } from "../services/spcPacificCpiService.js";
 import { AppError, NotFoundError, NotImplementedError, ValidationError } from "../lib/errors.js";
 import type { AgentDataset } from "../lib/agentDatasetCatalog.js";
 import type { AppBindings } from "../types.js";
@@ -130,6 +133,9 @@ const QUERY_PARAM_SCHEMAS: Record<string, Record<string, string>> = {
   },
   weather: { country: "string, required — ISO 3166-1 alpha-2: WS, FJ, TO, PG, SB, VU, CK" },
   "wallet-balance": { address: "string, required — 58-character Algorand address" },
+  "pacific-gdp": { years: "integer, optional, 1-60, default 15" },
+  "pacific-population": { years: "integer, optional, 1-60, default 10" },
+  "pacific-cpi": {},
 };
 
 agentDatasetGatewayRoute.get("/api/v1/manifests/:id", (c) => {
@@ -338,6 +344,20 @@ async function runDatasetQuery(c: Context<AppBindings>, dataset: AgentDataset, p
         throw new ValidationError(`"${address}" is not a valid 58-character Algorand address`);
       }
       return getAlgorandWalletBalance(address, c.get("env"));
+    }
+
+    case "pacific-gdp": {
+      const years = parsePacificGdpYearsParam(params?.years as number | string | undefined);
+      return getPacificGdp(years);
+    }
+
+    case "pacific-population": {
+      const years = parsePacificPopulationYearsParam(params?.years as number | string | undefined);
+      return getPacificPopulation(years);
+    }
+
+    case "pacific-cpi": {
+      return getPacificCpi();
     }
 
     default:

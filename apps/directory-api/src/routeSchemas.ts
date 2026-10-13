@@ -63,6 +63,16 @@ const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
 // gateway's pass-through price can never drift from this route's price.
 export const SAMOA_CPI_PRICE_USDC = 0.01;
 
+// Decision 59/60 — same Tier 1 cap, first-party wrappers over genuinely
+// open (no-auth, free) aggregator APIs: World Bank Open Data (GDP,
+// population) and SPC's SDMX data service (CPI/inflation). All three
+// confirmed live 2026-10-13 before writing the services behind them —
+// see worldBankPacificGdpService.ts / worldBankPacificPopulationService.ts
+// / spcPacificCpiService.ts for the full sourcing doc comments.
+const PACIFIC_GDP_PRICE_USDC = 0.01;
+const PACIFIC_POPULATION_PRICE_USDC = 0.01;
+const PACIFIC_CPI_PRICE_USDC = 0.01;
+
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
 // source (see pacificOceanClimateService.ts's doc comment for the live
@@ -1190,6 +1200,88 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
+  {
+    method: "GET",
+    path: "/finance/pacific-gdp",
+    description:
+      "Annual GDP (current US$) for 6 Pacific Island nations — Fiji, Papua New Guinea, Solomon Islands, Tonga, Vanuatu, Samoa — sourced from World Bank Open Data, not a national-statistics-office-certified feed, see the response's own attribution field. Optional ?years= (default 15, max 60).",
+    priceUsdc: PACIFIC_GDP_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { years: 15 },
+      inputSchema: {
+        properties: {
+          years: { type: "integer", description: "How many most-recent years per country to return — optional, default 15, max 60" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          countries: ["WSM", "FJI", "TON", "VUT", "SLB", "PNG"],
+          observations: [{ country_iso3: "FJI", country_name: "Fiji", year: 2025, gdp_current_usd: 6198013062.07 }],
+          latest_by_country: { FJI: { country_iso3: "FJI", country_name: "Fiji", year: 2025, gdp_current_usd: 6198013062.07 } },
+          attribution: {
+            source: "World Bank Open Data",
+            original_source: "National statistics offices of each listed country, as compiled by the World Bank",
+            data_quality: "third_party_aggregated",
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/demographics/pacific-population",
+    description:
+      "Annual total population for 6 Pacific Island nations — Fiji, Papua New Guinea, Solomon Islands, Tonga, Vanuatu, Samoa — sourced from World Bank Open Data, not a national-statistics-office-certified feed, see the response's own attribution field. Optional ?years= (default 10, max 60).",
+    priceUsdc: PACIFIC_POPULATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { years: 10 },
+      inputSchema: {
+        properties: {
+          years: { type: "integer", description: "How many most-recent years per country to return — optional, default 10, max 60" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          countries: ["WSM", "FJI", "TON", "VUT", "SLB", "PNG"],
+          observations: [{ country_iso3: "FJI", country_name: "Fiji", year: 2025, population_total: 933154 }],
+          latest_by_country: { FJI: { country_iso3: "FJI", country_name: "Fiji", year: 2025, population_total: 933154 } },
+          attribution: {
+            source: "World Bank Open Data",
+            original_source: "National statistics offices of each listed country, as compiled by the World Bank",
+            data_quality: "third_party_aggregated",
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/finance/pacific-cpi",
+    description:
+      "Consumer Price Index and inflation rate for 6 Pacific Island nations — Fiji, Papua New Guinea, Solomon Islands, Tonga, Vanuatu, Samoa — sourced from the Pacific Community (SPC)'s SDMX data service, not a national-statistics-office-certified feed, see the response's own attribution field. Annual, 2016-present.",
+    priceUsdc: PACIFIC_CPI_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          countries: ["Fiji", "Papua New Guinea", "Solomon Islands", "Tonga", "Vanuatu", "Samoa"],
+          observations: [{ country_iso2: "FJ", country_name: "Fiji", year: 2025, indicator: "inflation_rate_pct", value: 2.3 }],
+          attribution: {
+            source: "Pacific Community (SPC) — SDMX data service",
+            original_source: "National statistics offices of each listed country, as compiled by SPC",
+            data_quality: "third_party_aggregated",
+          },
+        },
+      },
+    }),
+  },
 ];
 
 /**
@@ -1244,6 +1336,9 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/pacific/events",
   "/pacific/weather",
   "/algorand/wallet-balance",
+  "/finance/pacific-gdp",
+  "/demographics/pacific-population",
+  "/finance/pacific-cpi",
 ];
 
 function datasetIdFromDirectPath(path: string): string {
