@@ -28,6 +28,14 @@ const CAIP2_NETWORK = ALGORAND_NETWORK === "testnet" ? ALGORAND_TESTNET_CAIP2 : 
 const DIRECTORY_API_URL = process.env.NEXT_PUBLIC_DIRECTORY_API_URL || "https://api.synergybcpacific.com";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://pdc-web.onrender.com";
 
+// PR #147 — pilot-endpoint's own domain, so its 9 paid routes (previously
+// absent from every discovery manifest) can be listed here too alongside
+// directory-api's. Same wallet (AVM_ADDRESS, confirmed identical to
+// directory-api's), different host — pilot-endpoint has no Next.js runtime
+// of its own to serve this manifest from, so it's mirrored here as well as
+// in its own apps/pilot-endpoint/.well-known/x402 (PR #147 Part 2).
+const PILOT_ENDPOINT_URL = "https://pdc-pilot-endpoint.synergyblockchaintf.workers.dev";
+
 // Decision 8 — $0.01 per directory search. Not an env var: this is a
 // published price, same posture as apps/directory-api/discovery.ts's own
 // DIRECTORY_QUERY_PRICE_USDC constant.
@@ -75,7 +83,19 @@ interface ManifestEndpoint {
   pay_to: string;
   trust_tier: "bronze" | "directory";
   data_format: "json";
+  /** x402 Bazaar discovery metadata (PR #147) — up to 5 relevant tags per endpoint. */
+  tags: string[];
+  serviceName: string;
+  iconUrl: string;
 }
+
+// PR #147 — every entry below shares the same service identity and icon;
+// declared once rather than repeated 32 times. ICON_URL points at the real
+// logo asset (apps/web/public/images/sbp-logo.png) — the same file
+// apps/directory-api/src/routes/branding.ts already uses for its own
+// og:image, not a nonexistent /og-image.png.
+const SERVICE_NAME = "Pacific Data Commons";
+const ICON_URL = `${APP_URL}/images/sbp-logo.png`;
 
 /**
  * Wallet addresses are read from environment variables only, never
@@ -105,6 +125,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "samoa", "finance", "cpi", "inflation"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/climate/ocean-temperature",
@@ -116,6 +139,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "ocean", "sst", "open-meteo"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/finance/samoa-gdp",
@@ -126,6 +152,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "samoa", "finance", "gdp", "economy"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/finance/fiji-gdp",
@@ -137,6 +166,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "fiji", "finance", "gdp", "economy"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/finance/arbitrage-signals",
@@ -147,6 +179,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "finance", "dex", "algorand", "arbitrage"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/finance/remittance-corridors",
@@ -158,6 +193,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "finance", "remittance", "algorand", "crypto"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/fisheries/pacific-purse-seine",
@@ -169,6 +207,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "fisheries", "tuna", "wcpfc", "catch"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/climate/pacific-ocean-forecast",
@@ -180,6 +221,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "ocean", "forecast", "hycom"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         // This route's build brief specified a `price: {amount, currency}`
@@ -198,6 +242,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "coral", "noaa", "reef"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       // Four endpoints added since this file was first written (git log:
       // fiji-cpi, pacific-sea-level, pacific-enso-index, and
@@ -214,6 +261,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "fiji", "finance", "cpi", "inflation"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/climate/pacific-cyclone-history",
@@ -225,6 +275,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "cyclone", "disaster-risk", "ibtracs"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/climate/pacific-sea-level",
@@ -236,6 +289,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "sea-level", "uhslc", "ocean"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/climate/pacific-enso-index",
@@ -247,12 +303,139 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: pilotEarningsWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "enso", "ocean", "noaa"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      // PR #147 Part 1b — pilot-endpoint's 9 paid routes, previously absent
+      // from every discovery manifest (23 + 9 = 32 total entries). Same
+      // pilotEarningsWallet (= AVM_ADDRESS, confirmed identical to
+      // pilot-endpoint's own wallet), different host — see
+      // PILOT_ENDPOINT_URL above. Also mirrored in pilot-endpoint's own
+      // /.well-known/x402 (Part 2) for crawlers that hit that domain
+      // directly.
+      {
+        path: "/summary",
+        full_url: `${PILOT_ENDPOINT_URL}/summary`,
+        price_usdc: "0.01",
+        description: "Pacific tuna fisheries stock-status summary — species coverage, zones, key findings. Synthetic demo dataset.",
+        category: "fisheries",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "fisheries", "tuna", "stock-assessment", "demo"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/slice",
+        full_url: `${PILOT_ENDPOINT_URL}/slice`,
+        price_usdc: "0.50",
+        description: "Filtered tuna data slice by species/year/zone. Synthetic demo dataset.",
+        category: "fisheries",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "fisheries", "tuna", "filtered", "demo"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/full",
+        full_url: `${PILOT_ENDPOINT_URL}/full`,
+        price_usdc: "25.00",
+        description: "Complete synthetic tuna dataset — all records, species, years, zones.",
+        category: "fisheries",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "fisheries", "tuna", "dataset", "demo"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/expert",
+        full_url: `${PILOT_ENDPOINT_URL}/expert`,
+        price_usdc: "200.00",
+        description: "Full tuna dataset plus methodology notes and citation-ready stock assessment interpretation.",
+        category: "fisheries",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "fisheries", "tuna", "methodology", "demo"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/commission",
+        full_url: `${PILOT_ENDPOINT_URL}/commission`,
+        price_usdc: "1000.00",
+        description: "Custom commissioned Pacific fisheries analysis — payment confirms your request; SBP follows up within 48 hours.",
+        category: "fisheries",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "fisheries", "custom", "commission", "analysis"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/research/law-before-code",
+        full_url: `${PILOT_ENDPOINT_URL}/research/law-before-code`,
+        price_usdc: "0.01",
+        description: 'Structured metadata for "Law Before Code" — Samoa digital public infrastructure governance sequencing. Abstract, policy gaps, citation.',
+        category: "governance",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "governance", "policy", "samoa", "digital-infrastructure"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/research/cryptographic-continuity",
+        full_url: `${PILOT_ENDPOINT_URL}/research/cryptographic-continuity`,
+        price_usdc: "0.01",
+        description: 'Structured metadata for "Cryptographic Continuity" — why Pacific digital infrastructure requires a standing security mandate. Abstract, incidents, citation.',
+        category: "governance",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "governance", "security", "cryptography", "policy"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/research/invisible-infrastructure",
+        full_url: `${PILOT_ENDPOINT_URL}/research/invisible-infrastructure`,
+        price_usdc: "0.01",
+        description: "Structured metadata for the third SBP working paper — fraudulent schemes, DLT-based standards, policy gaps, recommendations, citation.",
+        category: "governance",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "governance", "dlt", "fraud", "standards"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/pacific/blockchain-adoption",
+        full_url: `${PILOT_ENDPOINT_URL}/pacific/blockchain-adoption`,
+        price_usdc: "0.01",
+        description: "Pacific Blockchain and Digital Asset Adoption Landscape — regulatory sandboxes, CBDC research, digital economy strategies by nation.",
+        category: "governance",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "blockchain", "adoption", "cbdc", "digital-economy"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
     );
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, and pacific-enso-index from the discovery manifest",
+      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, pacific-enso-index, and the 9 pilot-endpoint routes from the discovery manifest",
     );
   }
 
@@ -271,6 +454,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "directory",
         data_format: "json",
+        tags: ["pacific", "directory", "search", "discovery", "metadata"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         // directory-api/src/routeSchemas.ts declares no payToAddress for
@@ -288,6 +474,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "finance", "fx", "currency", "algorand"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       // Moved here from the pilotEarningsWallet block above — canary run
       // (2026-10-12) confirmed this route actually pays out to the
@@ -306,6 +495,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "climate", "ocean", "temperature", "noaa"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/finance/crypto-rates",
@@ -316,6 +508,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "finance", "crypto", "algorand", "coingecko"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       // Six endpoints added since this file was first written. All six
       // have no `payToAddress` override in directory-api/routeSchemas.ts,
@@ -332,6 +527,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "finance", "crypto", "algorand", "history"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/algorand/wallet-balance",
@@ -343,6 +541,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["algorand", "wallet", "balance", "usdc", "blockchain"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/intelligence/pacific-brief",
@@ -354,6 +555,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "intelligence", "orchestrator", "claude", "brief"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/pacific/events",
@@ -365,6 +569,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "tourism", "events", "culture", "festivals"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/pacific/weather",
@@ -376,6 +583,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "tourism", "weather", "forecast", "open-meteo"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
       {
         path: "/intelligence/pacific-travel",
@@ -387,6 +597,9 @@ function buildEndpoints(): ManifestEndpoint[] {
         pay_to: directoryWallet,
         trust_tier: "bronze",
         data_format: "json",
+        tags: ["pacific", "tourism", "intelligence", "travel", "orchestrator"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
       },
     );
   } else {

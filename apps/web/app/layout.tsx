@@ -20,6 +20,20 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Pacific Data Commons",
   description: "Sovereign data exchange infrastructure for the Pacific.",
+  openGraph: {
+    siteName: "Pacific Data Commons",
+    title: "Pacific Data Commons",
+    description: "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers. Built on Algorand.",
+    url: "https://pdc.synergybcpacific.com",
+    images: [{ url: "https://pdc.synergybcpacific.com/images/sbp-logo.png" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Pacific Data Commons",
+    description: "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers.",
+    images: ["https://pdc.synergybcpacific.com/images/sbp-logo.png"],
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
