@@ -32,7 +32,7 @@ wellKnownX402Route.get("/.well-known/x402", (c) => {
   // ${publicUrl}/images/sbp-logo.png would 404. Reuses directory-api's
   // already-live copy instead, the same URL this app's own
   // merchantIdentity.iconUrl already uses (see createApp() above).
-  const iconUrl = "https://api.synergybcpacific.com/images/sbp-logo.png";
+  const iconUrl = "https://pdc.synergybcpacific.com/images/sbp-logo.png";
 
   const entry = (path: string, price: number, description: string, category: string, tags: string[]) => ({
     path,

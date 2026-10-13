@@ -93,6 +93,7 @@ wellKnownX402Route.get("/.well-known/x402", async (c) => {
     facilitator: env.FACILITATOR_URL,
     leaderboard_tag: "x402-global-challenge",
     contact: "anthony@synergybcpacific.com",
+    website: "https://pdc.synergybcpacific.com",
     docs: webAppUrl ? `${webAppUrl}/en/developers` : null,
     directory_manifest: `${publicUrl}/.well-known/x402-directory.json`,
     rating_api: `${publicUrl}/rate`,
