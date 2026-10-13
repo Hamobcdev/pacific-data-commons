@@ -19,6 +19,7 @@ import { integrityRoute } from "./routes/free/integrity.js";
 import { schemaRoute } from "./routes/free/schema.js";
 import { skillsAgentmarketRoute } from "./routes/free/skills-am.js";
 import { skillsPdpRoute } from "./routes/free/skills-pdp.js";
+import { wellKnownX402Route } from "./routes/free/wellKnownX402.js";
 import { summaryRoute } from "./routes/paid/summary.js";
 import { sliceRoute } from "./routes/paid/slice.js";
 import { fullRoute } from "./routes/paid/full.js";
@@ -221,6 +222,7 @@ export async function createApp(env: Env): Promise<Hono<AppBindings>> {
   app.route("/", schemaRoute);
   app.route("/", skillsAgentmarketRoute);
   app.route("/", skillsPdpRoute);
+  app.route("/", wellKnownX402Route);
 
   app.route("/", summaryRoute);
   app.route("/", sliceRoute);
