@@ -4,6 +4,7 @@ import { logger } from "../lib/logger.js";
 
 export const errorHandler: ErrorHandler = (err, c) => {
   if (err instanceof AppError) {
+    if (err.status === 503) c.header("Retry-After", "5");
     return c.json({ error: err.code, message: err.message }, err.status as never);
   }
 

@@ -25,6 +25,7 @@ psrRoute.get("/psr/v1/spec", (c) => {
 
   if (!PSR_SPEC) {
     logger.error("psr_spec_missing");
+    c.header("Retry-After", "5");
     return c.json({ error: "psr_spec_unavailable", message: "PSR specification is temporarily unavailable." }, 503);
   }
 
@@ -37,6 +38,7 @@ psrRoute.get("/psr/v1/schema", (c) => {
 
   if (!PSR_ENDPOINT_SCHEMA) {
     logger.error("psr_schema_missing");
+    c.header("Retry-After", "5");
     return c.json({ error: "psr_schema_unavailable", message: "PSR endpoint schema is temporarily unavailable." }, 503);
   }
 
@@ -57,6 +59,7 @@ psrRoute.get("/psr/v1/nodes", (c) => {
 
   if (!PSR_SPEC.platform_nodes) {
     logger.error("psr_nodes_missing");
+    c.header("Retry-After", "5");
     return c.json({ error: "psr_nodes_unavailable", message: "PSR node registry is temporarily unavailable." }, 503);
   }
 
