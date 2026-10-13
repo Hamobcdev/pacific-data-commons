@@ -307,6 +307,50 @@ function buildEndpoints(): ManifestEndpoint[] {
         serviceName: SERVICE_NAME,
         iconUrl: ICON_URL,
       },
+      // PR #151 — three new first-party endpoints live on GoPlausible Bazaar
+      // as of 2026-10-13. All at $0.01, same AVM_ADDRESS wallet.
+      {
+        path: "/finance/pacific-gdp",
+        full_url: `${DIRECTORY_API_URL}/finance/pacific-gdp`,
+        price_usdc: "0.01",
+        description:
+          "Pacific GDP — annual GDP (current USD) for 6 nations: Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Papua New Guinea. World Bank Open Data (NY.GDP.MKTP.CD).",
+        category: "financial_flows",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "finance", "gdp", "economy", "world-bank"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/demographics/pacific-population",
+        full_url: `${DIRECTORY_API_URL}/demographics/pacific-population`,
+        price_usdc: "0.01",
+        description:
+          "Pacific Population — annual total population for 6 nations: Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Papua New Guinea. World Bank Open Data (SP.POP.TOTL).",
+        category: "demographics",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "demographics", "population", "world-bank", "census"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/finance/pacific-cpi",
+        full_url: `${DIRECTORY_API_URL}/finance/pacific-cpi`,
+        price_usdc: "0.01",
+        description:
+          "Pacific CPI & Inflation — annual CPI and inflation rate for 6 nations: Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Papua New Guinea. Pacific Community (SPC) SDMX data service (DF_CPI).",
+        category: "financial_flows",
+        pay_to: pilotEarningsWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "finance", "cpi", "inflation", "spc"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
       // PR #147 Part 1b — pilot-endpoint's 9 paid routes, previously absent
       // from every discovery manifest (23 + 9 = 32 total entries). Same
       // pilotEarningsWallet (= AVM_ADDRESS, confirmed identical to
@@ -435,7 +479,7 @@ function buildEndpoints(): ManifestEndpoint[] {
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, pacific-enso-index, and the 9 pilot-endpoint routes from the discovery manifest",
+      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, pacific-enso-index, pacific-gdp, pacific-population, pacific-cpi, and the 9 pilot-endpoint routes from the discovery manifest",
     );
   }
 
