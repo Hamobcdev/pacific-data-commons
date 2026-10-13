@@ -118,6 +118,40 @@ class TestNormalExtraction:
         assert result.extracted.tables[0].table_ref == "Table 3"
         assert result.extracted.tables[0].row_count_estimate == 240
 
+    def test_new_v1_1_fields_accepted(self):
+        """
+        Stage 03/04 combined-output fields (pdqe-extraction-v1 extension) are
+        all Optional — validate without error alongside the standard fields.
+        Additive, backwards compatible; schema_version is unchanged.
+        """
+        output = {
+            **MINIMAL_VALID_OUTPUT,
+            "description_generated": "Auto-generated description.",
+            "publisher_type": "government",
+            "data_as_of": "2024-03-01",
+            "data_period": {"start": "2020-01-01", "end": "2024-12-31"},
+            "geography": {"countries": ["Fiji", "Tonga"], "regions": ["Pacific Ocean"]},
+            "multi_document_sources": ["SPC Tuna Bulletin 2024"],
+            "security_flags": [],
+            "domain": "FISHERIES",
+            "domain_confidence": 0.9,
+            "domain_reasoning": "Document discusses tuna catch data.",
+            "jev_dimensions": {"accuracy": {"score": 5}, "completeness": {"score": 3}},
+            "jev_scores": {"total": 8},
+            "temporal_profile": {"frequency": "annual"},
+            "pacific_context": {"sids_relevant": True},
+            "cross_endpoint_relationships": [],
+            "routing_decision": "AUTO_APPROVE",
+            "routing_reasons": ["High confidence extraction"],
+            "routing_thresholds_applied": {"min_confidence": 0.7},
+            "suggested_price_tier": "tier1",
+            "suggested_price_reasoning": "Public domain government report.",
+        }
+        result = validate_extraction_output(output)
+        assert result.passed is True
+        assert result.extracted.domain == "FISHERIES"
+        assert result.extracted.jev_scores == {"total": 8}
+
     def test_run_extraction_validated_path(self):
         """End-to-end mock: run_extraction returns VALIDATED and writes to Supabase."""
         from app.extraction.extractor import run_extraction

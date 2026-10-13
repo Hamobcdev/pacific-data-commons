@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 
 from app.validation.schemas import ValidatorResult
 
-CURRENT_VALIDATOR_VERSION = "v1.0"
+CURRENT_VALIDATOR_VERSION = "v1.1"
 
 # Licence statuses (pdqe.licence_status, migration 20261008000002) that a
 # deterministic check may treat as confirmed. UNKNOWN is not approval;
@@ -202,6 +202,96 @@ def validate_licence_confirmed(extraction: dict, source: dict) -> ValidatorResul
     return _result("licence_confirmed", False, f"Licence status {status} requires human sign-off")
 
 
+# ── v1.1 — Stage 03/04 combined-output routing consistency validators ────────
+# Session: PDQE now runs a combined extraction + qualification pass (Pass A +
+# Pass B) in one Claude call, so validated_output can carry the model's own
+# routing_decision/jev_dimensions/jev_scores/security_flags/domain alongside
+# the standard extraction fields. Same "never rely on a model to validate its
+# own output" principle as the rest of this file: these four check that the
+# model's self-reported routing claim is actually consistent with its own
+# other self-reported fields, never the other way around. Each is backwards
+# compatible — an extraction predating these fields (none of them present)
+# passes rather than failing on a field that was never there to check.
+
+
+def validate_jev_score_arithmetic(extraction: dict, source: dict) -> ValidatorResult:
+    """
+    jev_scores.total must equal the sum of every dimension's "score" in
+    jev_dimensions. Skips (passes) when either field is absent.
+    """
+    validated = _validated_output(extraction)
+    jev_dimensions = validated.get("jev_dimensions")
+    jev_scores = validated.get("jev_scores")
+    if not isinstance(jev_dimensions, dict) or not isinstance(jev_scores, dict):
+        return _result("jev_score_arithmetic", True, "jev_dimensions/jev_scores absent — skipped")
+
+    try:
+        computed_total = sum(dim["score"] for dim in jev_dimensions.values())
+    except (KeyError, TypeError) as exc:
+        return _result("jev_score_arithmetic", False, f"Malformed jev_dimensions: {exc}")
+
+    reported_total = jev_scores.get("total")
+    if reported_total is None:
+        return _result("jev_score_arithmetic", False, "jev_scores.total is missing")
+    if abs(computed_total - reported_total) > 1e-9:
+        return _result(
+            "jev_score_arithmetic",
+            False,
+            f"jev_scores.total ({reported_total}) does not equal sum of dimension scores ({computed_total})",
+        )
+    return _result("jev_score_arithmetic", True, f"jev_scores.total matches sum of dimension scores ({computed_total})")
+
+
+def validate_security_flags_routing_consistency(extraction: dict, source: dict) -> ValidatorResult:
+    """An extraction with any security_flags must never self-report AUTO_APPROVE."""
+    validated = _validated_output(extraction)
+    security_flags = validated.get("security_flags") or []
+    routing_decision = validated.get("routing_decision")
+    if security_flags and routing_decision == "AUTO_APPROVE":
+        return _result(
+            "security_flags_routing_consistency",
+            False,
+            f"security_flags present ({len(security_flags)}) but routing_decision is AUTO_APPROVE",
+        )
+    return _result("security_flags_routing_consistency", True, "No AUTO_APPROVE/security_flags conflict")
+
+
+def validate_culture_heritage_routing(extraction: dict, source: dict) -> ValidatorResult:
+    """CULTURE_HERITAGE domain must always require human review, never AUTO_APPROVE."""
+    validated = _validated_output(extraction)
+    domain = validated.get("domain")
+    routing_decision = validated.get("routing_decision")
+    if domain == "CULTURE_HERITAGE" and routing_decision == "AUTO_APPROVE":
+        return _result(
+            "culture_heritage_routing",
+            False,
+            "domain is CULTURE_HERITAGE but routing_decision is AUTO_APPROVE — always requires human review",
+        )
+    return _result("culture_heritage_routing", True, "No CULTURE_HERITAGE/AUTO_APPROVE conflict")
+
+
+def validate_licence_risk_routing(extraction: dict, source: dict) -> ValidatorResult:
+    """
+    A licence.risk_score of community_controlled/restricted_proprietary/unknown
+    must never self-report AUTO_APPROVE. Passes (skipped) when risk_score is
+    absent.
+    """
+    validated = _validated_output(extraction)
+    licence = validated.get("licence")
+    risk_score = licence.get("risk_score") if isinstance(licence, dict) else None
+    if risk_score is None:
+        return _result("licence_risk_routing", True, "licence.risk_score absent — skipped")
+
+    routing_decision = validated.get("routing_decision")
+    if risk_score in ("community_controlled", "restricted_proprietary", "unknown") and routing_decision == "AUTO_APPROVE":
+        return _result(
+            "licence_risk_routing",
+            False,
+            f"licence.risk_score is '{risk_score}' but routing_decision is AUTO_APPROVE",
+        )
+    return _result("licence_risk_routing", True, f"licence.risk_score '{risk_score}' compatible with routing_decision")
+
+
 # Registry — every validator runs on every non-REJECT path; none short-circuit,
 # so pdqe.validations always holds the full picture for the reviewer.
 VALIDATOR_REGISTRY: tuple[Validator, ...] = (
@@ -213,4 +303,8 @@ VALIDATOR_REGISTRY: tuple[Validator, ...] = (
     validate_source_url,
     validate_licence_not_excluded,
     validate_licence_confirmed,
+    validate_jev_score_arithmetic,
+    validate_security_flags_routing_consistency,
+    validate_culture_heritage_routing,
+    validate_licence_risk_routing,
 )

@@ -226,6 +226,28 @@ class ExtractionOutput(BaseModel):
         ),
     )
 
+    # Stage 03/04 combined output — new fields (pdqe-extraction-v1 extension)
+    description_generated: str | None = None
+    publisher_type: str | None = None
+    data_as_of: str | None = None
+    data_period: dict | None = None
+    geography: dict | None = None
+    multi_document_sources: list | None = None
+    security_flags: list = Field(default_factory=list)
+    domain: str | None = None
+    domain_confidence: float | None = None
+    domain_reasoning: str | None = None
+    jev_dimensions: dict | None = None
+    jev_scores: dict | None = None
+    temporal_profile: dict | None = None
+    pacific_context: dict | None = None
+    cross_endpoint_relationships: list | None = None
+    routing_decision: str | None = None
+    routing_reasons: list | None = None
+    routing_thresholds_applied: dict | None = None
+    suggested_price_tier: str | None = None
+    suggested_price_reasoning: str | None = None
+
 
 # ── Layer 4 validation envelope ───────────────────────────────────────────────
 
