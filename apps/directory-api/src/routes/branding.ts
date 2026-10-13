@@ -9,7 +9,7 @@ const OG_TITLE = "Pacific Data Commons — Synergy Blockchain Pacific";
 // rather than inventing new wording.
 const OG_DESCRIPTION = "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers";
 
-const PDC_WEB_URL = "https://pacific-data-commons-web-olive.vercel.app/en";
+const PDC_WEB_URL = "https://pdc.synergybcpacific.com";
 
 /**
  * GET / — human/crawler-facing HTML with og:* tags (GoPlausible's Bazaar
