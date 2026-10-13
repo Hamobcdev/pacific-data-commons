@@ -34,10 +34,14 @@ from app.validation.schemas import (
 from app.validation.validators import (
     CURRENT_VALIDATOR_VERSION,
     VALIDATOR_REGISTRY,
+    validate_culture_heritage_routing,
     validate_extraction_status,
+    validate_jev_score_arithmetic,
     validate_licence_confirmed,
     validate_licence_not_excluded,
+    validate_licence_risk_routing,
     validate_no_prompt_injection_markers,
+    validate_security_flags_routing_consistency,
     validate_source_url,
     validate_title_present,
 )
@@ -191,6 +195,71 @@ def test_extraction_status_not_validated_fails():
     result = validate_extraction_status(row, GOOD_SOURCE)
     assert result.passed is False
     assert "EXTRACTED" in result.reason
+
+
+# ── 1b. v1.1 — Stage 03/04 combined-output routing validators ────────────────
+
+
+def test_jev_score_sum_mismatch_fails():
+    row = _extraction(
+        jev_dimensions={"accuracy": {"score": 5}, "completeness": {"score": 3}},
+        jev_scores={"total": 10},  # 5 + 3 = 8, not 10
+    )
+    assert validate_jev_score_arithmetic(row, GOOD_SOURCE).passed is False
+
+
+def test_jev_score_sum_matches_passes():
+    row = _extraction(
+        jev_dimensions={"accuracy": {"score": 5}, "completeness": {"score": 3}},
+        jev_scores={"total": 8},
+    )
+    assert validate_jev_score_arithmetic(row, GOOD_SOURCE).passed is True
+
+
+def test_jev_score_fields_absent_passes():
+    # Backwards compatible — extraction predates jev_dimensions/jev_scores.
+    assert validate_jev_score_arithmetic(GOOD_EXTRACTION, GOOD_SOURCE).passed is True
+
+
+def test_security_flags_nonempty_auto_approve_fails():
+    row = _extraction(security_flags=["prompt_injection_suspected"], routing_decision="AUTO_APPROVE")
+    assert validate_security_flags_routing_consistency(row, GOOD_SOURCE).passed is False
+
+
+def test_security_flags_empty_auto_approve_passes():
+    row = _extraction(security_flags=[], routing_decision="AUTO_APPROVE")
+    assert validate_security_flags_routing_consistency(row, GOOD_SOURCE).passed is True
+
+
+def test_security_flags_nonempty_human_review_passes():
+    row = _extraction(security_flags=["prompt_injection_suspected"], routing_decision="HUMAN_REVIEW")
+    assert validate_security_flags_routing_consistency(row, GOOD_SOURCE).passed is True
+
+
+def test_culture_heritage_auto_approve_fails():
+    row = _extraction(domain="CULTURE_HERITAGE", routing_decision="AUTO_APPROVE")
+    assert validate_culture_heritage_routing(row, GOOD_SOURCE).passed is False
+
+
+def test_culture_heritage_human_review_passes():
+    row = _extraction(domain="CULTURE_HERITAGE", routing_decision="HUMAN_REVIEW")
+    assert validate_culture_heritage_routing(row, GOOD_SOURCE).passed is True
+
+
+def test_licence_risk_community_controlled_auto_approve_fails():
+    row = _extraction(licence={"risk_score": "community_controlled"}, routing_decision="AUTO_APPROVE")
+    assert validate_licence_risk_routing(row, GOOD_SOURCE).passed is False
+
+
+def test_licence_risk_open_attribution_auto_approve_passes():
+    row = _extraction(licence={"risk_score": "open_attribution"}, routing_decision="AUTO_APPROVE")
+    assert validate_licence_risk_routing(row, GOOD_SOURCE).passed is True
+
+
+def test_licence_risk_absent_auto_approve_passes():
+    # Backwards compatible — extraction predates licence.risk_score.
+    row = _extraction(routing_decision="AUTO_APPROVE")
+    assert validate_licence_risk_routing(row, GOOD_SOURCE).passed is True
 
 
 # ── 2. Prompt-injection detection ─────────────────────────────────────────────
@@ -361,7 +430,7 @@ def test_all_validator_ids_unique():
 
 def test_validator_results_complete():
     output = _run("HUMAN_REVIEW")
-    assert output.validators_run == len(VALIDATOR_REGISTRY) == 8
+    assert output.validators_run == len(VALIDATOR_REGISTRY) == 12
     assert {r.validator_id for r in output.validator_results} == {
         "extraction_status",
         "extraction_schema",
@@ -371,6 +440,10 @@ def test_validator_results_complete():
         "source_url",
         "licence_not_excluded",
         "licence_confirmed",
+        "jev_score_arithmetic",
+        "security_flags_routing_consistency",
+        "culture_heritage_routing",
+        "licence_risk_routing",
     }
 
 
