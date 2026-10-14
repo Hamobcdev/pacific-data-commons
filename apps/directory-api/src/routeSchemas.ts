@@ -1447,7 +1447,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     method: "GET",
     path: "/invest/pacific-setup-checklist",
     description:
-      "Complete sequential setup checklist for a specified Pacific nation — forms required, fees at each step, agencies to contact, estimated timelines. Replaces hours of navigation across government websites. Required: ?nation= (ws|fj|vu|pg|to|sb). Optional: ?entity_type= (company|sole_trader|partnership, default: company).",
+      "Complete sequential setup checklist for a specified Pacific nation (or all 6, if nation is omitted) — forms required, fees at each step, agencies to contact, estimated timelines. Replaces hours of navigation across government websites. Optional: ?nation= (ws|fj|vu|pg|to|sb, default: all 6 nations). Optional: ?entity_type= (company|sole_trader|partnership, default: company).",
     priceUsdc: PACIFIC_SETUP_CHECKLIST_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
@@ -1455,10 +1455,10 @@ const paidRoutesBase: PaidRouteSpec[] = [
       input: { nation: "ws", entity_type: "company" },
       inputSchema: {
         properties: {
-          nation: { type: "string", description: "ISO country code — ws (Samoa), fj (Fiji), vu (Vanuatu), pg (PNG), to (Tonga), sb (Solomon Islands). REQUIRED." },
+          nation: { type: "string", description: "ISO country code — ws (Samoa), fj (Fiji), vu (Vanuatu), pg (PNG), to (Tonga), sb (Solomon Islands). Optional — omitting it returns all 6 nations." },
           entity_type: { type: "string", description: "Entity type — company (default), sole_trader, partnership." },
         },
-        required: ["nation"],
+        required: [],
       },
       output: {
         example: {
