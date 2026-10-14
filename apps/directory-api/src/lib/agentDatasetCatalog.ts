@@ -31,7 +31,7 @@ export interface AgentDatasetMetadata {
   // dataset under that path prefix. lib/dataCategories.ts's DATA_CATEGORIES
   // already had "demographics" as a valid category; nothing here used it
   // before this one.
-  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics";
+  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics" | "investment";
   dataCurrency: string;
   upstreamSource: string;
   reportingLagNote?: string;
@@ -206,6 +206,7 @@ const CATEGORY_TO_DATA_CATEGORY: Record<AgentDatasetMetadata["category"], DataCa
   intelligence: "other",
   algorand: "other",
   demographics: "demographics",
+  investment: "trade",
 };
 
 export function catalogCategoryToDataCategory(category: AgentDatasetMetadata["category"]): DataCategory {

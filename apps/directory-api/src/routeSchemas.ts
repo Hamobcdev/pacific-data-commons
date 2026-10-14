@@ -1530,6 +1530,12 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/finance/pacific-gdp",
   "/demographics/pacific-population",
   "/finance/pacific-cpi",
+  "/invest/pacific-setup-comparison",
+  "/invest/pacific-tax-comparison",
+  "/invest/pacific-land-tenure",
+  "/invest/pacific-sector-restrictions",
+  "/invest/pacific-regulatory-scores",
+  "/invest/pacific-setup-checklist",
 ];
 
 function datasetIdFromDirectPath(path: string): string {
