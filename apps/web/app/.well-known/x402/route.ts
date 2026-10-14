@@ -601,11 +601,95 @@ function buildEndpoints(): ManifestEndpoint[] {
         serviceName: SERVICE_NAME,
         iconUrl: ICON_URL,
       },
+      {
+        path: "/invest/pacific-setup-comparison",
+        full_url: `${DIRECTORY_API_URL}/invest/pacific-setup-comparison`,
+        price_usdc: "0.50",
+        description:
+          "Structured comparison of business setup requirements across Samoa, Fiji, Vanuatu, PNG, Tonga, and Solomon Islands: registration timelines, fees, foreign ownership rules, FIC processes, and entity types. SBP synthesis of 6 national investment authority datasets.",
+        category: "trade",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "investment", "business-setup", "regulation", "foreign-investment", "synthesis"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/invest/pacific-tax-comparison",
+        full_url: `${DIRECTORY_API_URL}/invest/pacific-tax-comparison`,
+        price_usdc: "0.30",
+        description:
+          "Side-by-side tax rate comparison across 6 Pacific nations: corporate tax, VAT/GST, withholding tax, income tax, payroll levies, and double tax agreements. Vanuatu is a zero-income-tax jurisdiction. SBP synthesis of national revenue authority data.",
+        category: "trade",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "investment", "tax", "corporate-tax", "vat", "double-tax-agreement", "synthesis"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/invest/pacific-land-tenure",
+        full_url: `${DIRECTORY_API_URL}/invest/pacific-land-tenure`,
+        price_usdc: "0.30",
+        description:
+          "Land tenure system comparison across 6 Pacific nations: customary vs freehold vs government land percentages, lease terms, foreign land access rules, and land board processes. Information only — customary land is excluded from collateralisation per SBP policy.",
+        category: "trade",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "investment", "land-tenure", "customary-land", "leasehold", "foreign-investment"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/invest/pacific-sector-restrictions",
+        full_url: `${DIRECTORY_API_URL}/invest/pacific-sector-restrictions`,
+        price_usdc: "0.40",
+        description:
+          "By-sector matrix of foreign investment restrictions across 6 Pacific nations: reserved (citizens-only), restricted with equity caps, joint-venture-required, approval-required, or fully open. Filter by sector keyword (fisheries, tourism, retail, etc.).",
+        category: "trade",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "investment", "sector-restrictions", "foreign-investment", "reserved-activities"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/invest/pacific-regulatory-scores",
+        full_url: `${DIRECTORY_API_URL}/invest/pacific-regulatory-scores`,
+        price_usdc: "0.50",
+        description:
+          "Proprietary SBP regulatory ease scores for 6 Pacific nations across 6 dimensions: setup cost, setup speed, foreign ownership openness, tax burden, land access, and regulatory complexity. Ranked output. Not investment advice.",
+        category: "trade",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "investment", "regulatory-scores", "ease-of-doing-business", "ranking", "synthesis"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
+      {
+        path: "/invest/pacific-setup-checklist",
+        full_url: `${DIRECTORY_API_URL}/invest/pacific-setup-checklist`,
+        price_usdc: "0.50",
+        description:
+          "Complete sequential step-by-step business setup checklist for a specific Pacific nation and entity type (company/sole_trader/partnership): required forms, fees, agencies, timelines. Requires ?nation= (ws|fj|vu|pg|to|sb).",
+        category: "trade",
+        pay_to: directoryWallet,
+        trust_tier: "bronze",
+        data_format: "json",
+        tags: ["pacific", "investment", "business-setup", "checklist", "step-by-step", "company-registration"],
+        serviceName: SERVICE_NAME,
+        iconUrl: ICON_URL,
+      },
     );
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting /search, /finance/fx, /climate/pacific-ocean-temp, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, and /intelligence/pacific-travel from the discovery manifest",
+      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting /search, /finance/fx, /climate/pacific-ocean-temp, /finance/crypto-rates, /finance/crypto-history, /algorand/wallet-balance, /intelligence/pacific-brief, /pacific/events, /pacific/weather, /intelligence/pacific-travel, and /invest/* from the discovery manifest",
     );
   }
 

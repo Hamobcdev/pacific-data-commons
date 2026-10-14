@@ -78,6 +78,12 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
   "/finance/pacific-gdp": { category: "finance", dataCurrency: "annual", upstreamSource: "World Bank Open Data (NY.GDP.MKTP.CD)" },
   "/demographics/pacific-population": { category: "demographics", dataCurrency: "annual", upstreamSource: "World Bank Open Data (SP.POP.TOTL)" },
   "/finance/pacific-cpi": { category: "finance", dataCurrency: "annual", upstreamSource: "Pacific Community (SPC) SDMX data service (DF_CPI)" },
+  "/invest/pacific-setup-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: MCIL Samoa, Investment Fiji, VFIPA Vanuatu, IPA PNG, MFEM Tonga, MCITP Solomon Islands" },
+  "/invest/pacific-tax-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa VAGST Act, FRCA Fiji, Vanuatu VFIPA, IRC PNG, Tonga MoR, Solomon Islands IRD" },
+  "/invest/pacific-land-tenure": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa Land Corporation, iTaukei Land Trust Board Fiji, Vanuatu Custom Land Act, PNG Land Act, Tonga Land Act, Solomon Islands Land & Titles Act" },
+  "/invest/pacific-sector-restrictions": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: national investment authority reserved activities lists — MCIL Samoa, Investment Fiji, VFIPA Vanuatu, IPA PNG, MFEM Tonga, MCITP Solomon Islands" },
+  "/invest/pacific-regulatory-scores": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP proprietary 6-dimension regulatory scoring model — all 6 Pacific nation investment authority sources" },
+  "/invest/pacific-setup-checklist": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: per-nation step-by-step from national registrar, tax authority, investment authority, and sector regulators" },
 };
 
 /**
@@ -117,6 +123,12 @@ const QUERYABLE_DATASET_IDS = new Set([
   "pacific-gdp",
   "pacific-population",
   "pacific-cpi",
+  "pacific-setup-comparison",
+  "pacific-tax-comparison",
+  "pacific-land-tenure",
+  "pacific-sector-restrictions",
+  "pacific-regulatory-scores",
+  "pacific-setup-checklist",
 ]);
 
 export interface AgentDataset {

@@ -26,6 +26,16 @@ import { getAlgorandWalletBalance, isValidAlgorandAddress } from "../services/al
 import { getPacificGdp, parseYearsParam as parsePacificGdpYearsParam } from "../services/worldBankPacificGdpService.js";
 import { getPacificPopulation, parseYearsParam as parsePacificPopulationYearsParam } from "../services/worldBankPacificPopulationService.js";
 import { getPacificCpi } from "../services/spcPacificCpiService.js";
+import {
+  getSetupComparison,
+  getTaxComparison,
+  getLandTenureComparison,
+  getSectorRestrictions,
+  getRegulatoryScores,
+  getSetupChecklist,
+  ALL_NATION_CODES,
+  type NationCode,
+} from "../services/pacificInvestmentService.js";
 import { AppError, NotFoundError, NotImplementedError, ValidationError } from "../lib/errors.js";
 import type { AgentDataset } from "../lib/agentDatasetCatalog.js";
 import type { AppBindings } from "../types.js";
@@ -136,6 +146,18 @@ const QUERY_PARAM_SCHEMAS: Record<string, Record<string, string>> = {
   "pacific-gdp": { years: "integer, optional, 1-60, default 15" },
   "pacific-population": { years: "integer, optional, 1-60, default 10" },
   "pacific-cpi": {},
+  "pacific-setup-comparison": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)" },
+  "pacific-tax-comparison": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)" },
+  "pacific-land-tenure": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)" },
+  "pacific-sector-restrictions": {
+    sector: "string, optional — keyword filter e.g. fisheries, tourism, retail, construction",
+    nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)",
+  },
+  "pacific-regulatory-scores": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all, ranked by composite score DESC)" },
+  "pacific-setup-checklist": {
+    nation: "string, required — ws|fj|vu|pg|to|sb",
+    entity_type: "string, optional — company|sole_trader|partnership (default: company)",
+  },
 };
 
 agentDatasetGatewayRoute.get("/api/v1/manifests/:id", (c) => {
@@ -358,6 +380,74 @@ async function runDatasetQuery(c: Context<AppBindings>, dataset: AgentDataset, p
 
     case "pacific-cpi": {
       return getPacificCpi();
+    }
+
+    case "pacific-setup-comparison": {
+      const nationsStr = params?.nations as string | undefined;
+      const codes = nationsStr
+        ? (nationsStr.split(",").map((s) => s.trim().toLowerCase()) as NationCode[]).filter((c) =>
+            (ALL_NATION_CODES as string[]).includes(c)
+          )
+        : undefined;
+      return getSetupComparison(codes);
+    }
+
+    case "pacific-tax-comparison": {
+      const nationsStr = params?.nations as string | undefined;
+      const codes = nationsStr
+        ? (nationsStr.split(",").map((s) => s.trim().toLowerCase()) as NationCode[]).filter((c) =>
+            (ALL_NATION_CODES as string[]).includes(c)
+          )
+        : undefined;
+      return getTaxComparison(codes);
+    }
+
+    case "pacific-land-tenure": {
+      const nationsStr = params?.nations as string | undefined;
+      const codes = nationsStr
+        ? (nationsStr.split(",").map((s) => s.trim().toLowerCase()) as NationCode[]).filter((c) =>
+            (ALL_NATION_CODES as string[]).includes(c)
+          )
+        : undefined;
+      return getLandTenureComparison(codes);
+    }
+
+    case "pacific-sector-restrictions": {
+      const sectorKeyword = params?.sector as string | undefined;
+      const nationsStr = params?.nations as string | undefined;
+      const codes = nationsStr
+        ? (nationsStr.split(",").map((s) => s.trim().toLowerCase()) as NationCode[]).filter((c) =>
+            (ALL_NATION_CODES as string[]).includes(c)
+          )
+        : undefined;
+      return getSectorRestrictions(sectorKeyword, codes);
+    }
+
+    case "pacific-regulatory-scores": {
+      const nationsStr = params?.nations as string | undefined;
+      const codes = nationsStr
+        ? (nationsStr.split(",").map((s) => s.trim().toLowerCase()) as NationCode[]).filter((c) =>
+            (ALL_NATION_CODES as string[]).includes(c)
+          )
+        : undefined;
+      return getRegulatoryScores(codes);
+    }
+
+    case "pacific-setup-checklist": {
+      const nation = (params?.nation as string | undefined ?? "").toLowerCase() as NationCode;
+      if (!(ALL_NATION_CODES as string[]).includes(nation)) {
+        throw new ValidationError(`Invalid or missing "nation" param. Valid values: ${ALL_NATION_CODES.join(", ")}`);
+      }
+      const entityType = (params?.entity_type as string | undefined ?? "company") as
+        | "company"
+        | "sole_trader"
+        | "partnership";
+      if (!["company", "sole_trader", "partnership"].includes(entityType)) {
+        throw new ValidationError(`Invalid "entity_type". Valid values: company, sole_trader, partnership`);
+      }
+      const checklist = getSetupChecklist(nation, entityType);
+      if (!checklist) throw new NotFoundError(`No checklist data for nation "${nation}"`);
+      return checklist;
     }
 
     default:
