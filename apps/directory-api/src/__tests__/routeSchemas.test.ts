@@ -71,7 +71,7 @@ describe("routeSchemas: Agent Dataset Gateway per-dataset pricing", () => {
   it("registers exactly one POST /api/v1/datasets/:id/query entry per cataloged dataset — no flat shared-price entry survives", () => {
     const gatewayPostRoutes = paidRoutes.filter((r) => r.method === "POST" && r.path.startsWith("/api/v1/datasets/"));
     expect(gatewayPostRoutes.length).toBe(AGENT_DATASET_CATALOG.length);
-    expect(gatewayPostRoutes.length).toBe(25);
+    expect(gatewayPostRoutes.length).toBe(29);
 
     // The old flat entry used a literal ":id" path segment — confirms it's gone.
     expect(paidRoutes.some((r) => r.path === "/api/v1/datasets/:id/query")).toBe(false);

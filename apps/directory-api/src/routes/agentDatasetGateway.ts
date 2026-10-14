@@ -26,6 +26,13 @@ import { getAlgorandWalletBalance, isValidAlgorandAddress } from "../services/al
 import { getPacificGdp, parseYearsParam as parsePacificGdpYearsParam } from "../services/worldBankPacificGdpService.js";
 import { getPacificPopulation, parseYearsParam as parsePacificPopulationYearsParam } from "../services/worldBankPacificPopulationService.js";
 import { getPacificCpi } from "../services/spcPacificCpiService.js";
+import {
+  getEntitySetup,
+  getComplianceStatus,
+  getServiceProviders,
+  getBankingSetup,
+  parseEntityType,
+} from "../services/samoaSifaService.js";
 import { AppError, NotFoundError, NotImplementedError, ValidationError } from "../lib/errors.js";
 import type { AgentDataset } from "../lib/agentDatasetCatalog.js";
 import type { AppBindings } from "../types.js";
@@ -136,6 +143,10 @@ const QUERY_PARAM_SCHEMAS: Record<string, Record<string, string>> = {
   "pacific-gdp": { years: "integer, optional, 1-60, default 15" },
   "pacific-population": { years: "integer, optional, 1-60, default 10" },
   "pacific-cpi": {},
+  "samoa-entity-setup": { entity_type: "string, optional — ibc|trust|foundation|international_bank|insurance|partnership|mutual_fund|all, default all" },
+  "samoa-compliance-status": {},
+  "samoa-service-providers": {},
+  "samoa-banking-setup": {},
 };
 
 agentDatasetGatewayRoute.get("/api/v1/manifests/:id", (c) => {
@@ -358,6 +369,28 @@ async function runDatasetQuery(c: Context<AppBindings>, dataset: AgentDataset, p
 
     case "pacific-cpi": {
       return getPacificCpi();
+    }
+
+    case "samoa-entity-setup": {
+      const rawEntityType = params?.entity_type as string | undefined;
+      try {
+        const entityType = parseEntityType(rawEntityType);
+        return getEntitySetup(entityType);
+      } catch (err) {
+        throw new ValidationError(err instanceof Error ? err.message : "Invalid entity_type parameter");
+      }
+    }
+
+    case "samoa-compliance-status": {
+      return getComplianceStatus();
+    }
+
+    case "samoa-service-providers": {
+      return getServiceProviders();
+    }
+
+    case "samoa-banking-setup": {
+      return getBankingSetup();
     }
 
     default:

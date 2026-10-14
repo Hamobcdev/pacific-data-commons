@@ -49,6 +49,10 @@ import { pacificTravelRoute } from "./routes/intelligence/pacific-travel.js";
 import { pacificGdpRoute } from "./routes/finance/pacific-gdp.js";
 import { pacificPopulationRoute } from "./routes/demographics/pacific-population.js";
 import { pacificCpiRoute } from "./routes/finance/pacific-cpi.js";
+import { samoaEntitySetupRoute } from "./routes/pacific/samoa-entity-setup.js";
+import { samoaComplianceStatusRoute } from "./routes/pacific/samoa-compliance-status.js";
+import { samoaServiceProvidersRoute } from "./routes/pacific/samoa-service-providers.js";
+import { samoaBankingSetupRoute } from "./routes/pacific/samoa-banking-setup.js";
 import { agentDatasetGatewayRoute } from "./routes/agentDatasetGateway.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
@@ -240,6 +244,10 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificGdpRoute);
   app.route("/", pacificPopulationRoute);
   app.route("/", pacificCpiRoute);
+  app.route("/", samoaEntitySetupRoute);
+  app.route("/", samoaComplianceStatusRoute);
+  app.route("/", samoaServiceProvidersRoute);
+  app.route("/", samoaBankingSetupRoute);
   app.route("/", agentDatasetGatewayRoute);
 
   // /api/data/* -> canonical route aliases — see API_DATA_ROUTE_ALIASES'

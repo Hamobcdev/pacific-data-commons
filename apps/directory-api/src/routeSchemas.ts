@@ -73,6 +73,16 @@ const PACIFIC_GDP_PRICE_USDC = 0.01;
 const PACIFIC_POPULATION_PRICE_USDC = 0.01;
 const PACIFIC_CPI_PRICE_USDC = 0.01;
 
+// Decision 61 — Pacific Data Registry first-party regulatory intelligence
+// endpoints. Curated, structured data compiled from SIFA Act, MCIL registry,
+// and EU/FATF/OECD compliance sources — PDC sells the agent-ready layer.
+// Priced at Decision 60 Tier 1 cap ($0.01 USDC) as the safe default.
+// Repricing above this cap requires a formal Decision Register entry noting
+// that these Decision 61 endpoints (curated layer, not a live open API
+// wrapper) may warrant a different price ceiling than pure Decision 59/60
+// open-API wrappers. Do not change this constant without that decision.
+const SIFA_REGULATORY_PRICE_USDC = 0.01;
+
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
 // source (see pacificOceanClimateService.ts's doc comment for the live
@@ -1282,6 +1292,109 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
+  // ─── SIFA Regulatory Intelligence Endpoints ──────────────────────────────
+  // Decision 61 — Pacific Data Registry first-party curated regulatory layer.
+  // Priced at SIFA_REGULATORY_PRICE_USDC ($0.01, Decision 60 safe default).
+  {
+    method: "GET",
+    path: "/pacific/samoa-entity-setup",
+    description:
+      "Samoa international entity formation requirements — structured regulatory intelligence for IBC, international trust, foundation, international banking licence, insurance, partnership, and mutual fund structures. Includes director/shareholder requirements, minimum capital, tax treatment, UBO disclosure obligations, formation timeline, and typical fee ranges. Query param: entity_type (ibc|trust|foundation|international_bank|insurance|partnership|mutual_fund|all). Source: SIFA Act 2005, International Companies Act 1987.",
+    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          query: { entity_type: "ibc" },
+          results: [{
+            entity_type: "ibc",
+            entity_type_label: "International Business Company (IBC)",
+            governing_legislation: "International Companies Act 1987",
+            minimum_shareholders: 1,
+            minimum_directors: 1,
+            minimum_paid_up_capital_usd: null,
+            ubo_disclosure_threshold_pct: 25,
+            ubo_disclosure_public: false,
+            tax_treatment: "Zero tax on income earned outside Samoa",
+            formation_timeline_typical: "1–3 business days",
+            annual_fee_usd_approx: 300,
+          }],
+          aml_cfct_mandatory_notice: "MANDATORY: All entity types require UBO disclosure of any beneficial owner with ≥25% interest to the Financial Intelligence Unit (FIU) Samoa.",
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/samoa-compliance-status",
+    description:
+      "Samoa's current regulatory compliance status across EU, FATF, OECD, and TIEA networks — structured for AI due diligence agents. Includes EU blacklist status (removed 17 February 2026), FATF APG membership and mutual evaluation, OECD Global Forum peer review rating (Largely Compliant), TIEA partner network count and key partners, AML/CFT legislative framework, FIU Samoa details, and SIFA overview. Returns a structured due_diligence_signal (low_risk/medium_risk/high_risk) field for programmatic use.",
+    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          compliance_status: {
+            jurisdiction: "Samoa (Independent State of)",
+            iso_code: "WS",
+            eu_blacklist: { status: "not_listed", removed_from_list_date: "2026-02-17" },
+            fatf_status: { status: "compliant" },
+            oecd_peer_review: { rating: "Largely Compliant" },
+            due_diligence_signal: "low_risk",
+          },
+          summary: "Samoa (WS) presents a LOW RISK regulatory profile as of October 2026.",
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/samoa-service-providers",
+    description:
+      "Directory of all SIFA-licensed trustee companies in Samoa — the 9 licensed registered agents required by law for any Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider. Disclosure: SBP has a commercial referral relationship with Pacific Fiduciaries (Samoa) Limited, which is listed neutrally alongside all other SIFA-licensed providers; this relationship is disclosed at pdc.synergybcpacific.com/disclosures.",
+    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Samoa",
+          regulator: "SIFA",
+          total_licensed_trustee_companies: 9,
+          providers: [{ name: "Pacific Fiduciaries (Samoa) Limited", address: "Le Sanalele Complex, Vaea Street, Apia", phone: "+685 29067" }],
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/samoa-banking-setup",
+    description:
+      "Samoa International Banking Licence requirements under the International Banking Act 2005 — USD 1M minimum capital, director qualifications, full MLPA 2007-compliant AML/CFT programme, SIFA fit-and-proper assessment process, 8-step application timeline (3–6 months total), annual obligations, and permitted vs restricted activities. Includes specific CBS consultation note for USDC and digital asset banking activities.",
+    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          banking_setup: {
+            licence_type: "International Banking Licence",
+            minimum_paid_up_capital_usd: 1000000,
+            minimum_directors: 2,
+            application_process: { total_timeline_estimate: "3–6 months from initial engagement of registered agent" },
+            cbdc_digital_asset_note: "USDC and other digital asset activities require CBS written position before launch.",
+          },
+          executive_summary: "An International Banking Licence from SIFA requires USD 1,000,000 minimum paid-up capital.",
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
 ];
 
 /**
@@ -1339,6 +1452,10 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/finance/pacific-gdp",
   "/demographics/pacific-population",
   "/finance/pacific-cpi",
+  "/pacific/samoa-entity-setup",
+  "/pacific/samoa-compliance-status",
+  "/pacific/samoa-service-providers",
+  "/pacific/samoa-banking-setup",
 ];
 
 function datasetIdFromDirectPath(path: string): string {
