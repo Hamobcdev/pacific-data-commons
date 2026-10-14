@@ -13,29 +13,19 @@ export const pacificSetupChecklistRoute = new Hono<AppBindings>();
 /**
  * GET /invest/pacific-setup-checklist
  * Complete sequential checklist for setting up a business in a Pacific nation.
- * ?nation=ws|fj|vu|pg|to|sb  (REQUIRED)
+ * ?nation=ws|fj|vu|pg|to|sb  (optional — omitting it returns all 6 nations,
+ *   matching the other 5 /invest/* endpoints' "all nations by default" pattern)
  * ?entity_type=company|sole_trader|partnership  (default: company)
  */
 pacificSetupChecklistRoute.get("/invest/pacific-setup-checklist", (c) => {
   c.header("Cache-Control", "public, max-age=86400");
   c.header("X-Data-Currency", "2026-10");
 
-  const nationParam = (c.req.query("nation") ?? "").toLowerCase() as NationCode;
+  const nationParam = (c.req.query("nation") ?? "").toLowerCase();
   const entityType = (c.req.query("entity_type") ?? "company") as
     | "company"
     | "sole_trader"
     | "partnership";
-
-  if (!(ALL_NATION_CODES as string[]).includes(nationParam)) {
-    return c.json(
-      {
-        error: "Invalid or missing nation parameter.",
-        valid_values: ALL_NATION_CODES,
-        example: "/invest/pacific-setup-checklist?nation=ws&entity_type=company",
-      },
-      400,
-    );
-  }
 
   if (!["company", "sole_trader", "partnership"].includes(entityType)) {
     return c.json(
@@ -46,7 +36,35 @@ pacificSetupChecklistRoute.get("/invest/pacific-setup-checklist", (c) => {
     );
   }
 
-  const checklist = getSetupChecklist(nationParam, entityType);
+  if (!nationParam) {
+    const checklists = ALL_NATION_CODES.map((code) => getSetupChecklist(code, entityType)).filter(
+      (entry): entry is NonNullable<typeof entry> => entry !== null,
+    );
+
+    return c.json({
+      data: checklists,
+      meta: {
+        data_currency: "October 2026",
+        nations_included: ALL_NATION_CODES,
+        disclaimer: SOURCE_ATTRIBUTION.disclaimer,
+        sources: SOURCE_ATTRIBUTION.sources,
+        publisher: SOURCE_ATTRIBUTION.publisher,
+      },
+    });
+  }
+
+  if (!(ALL_NATION_CODES as string[]).includes(nationParam)) {
+    return c.json(
+      {
+        error: "Invalid nation parameter.",
+        valid_values: ALL_NATION_CODES,
+        example: "/invest/pacific-setup-checklist?nation=ws&entity_type=company",
+      },
+      400,
+    );
+  }
+
+  const checklist = getSetupChecklist(nationParam as NationCode, entityType);
 
   if (!checklist) {
     return c.json({ error: "Nation data unavailable." }, 500);

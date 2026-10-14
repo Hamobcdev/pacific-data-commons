@@ -226,12 +226,20 @@ describe("GET /invest/pacific-regulatory-scores", () => {
 describe("GET /invest/pacific-setup-checklist", () => {
   const app = buildTestApp(pacificSetupChecklistRoute);
 
-  it("returns 400 when nation param is missing", async () => {
+  it("returns 200 with all 6 nations' checklists when nation param is omitted", async () => {
     const res = await app.request("/invest/pacific-setup-checklist");
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string; valid_values: string[] };
-    expect(body.error).toBeTruthy();
-    expect(body.valid_values).toContain("ws");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { nation: string; entity_type: string; steps: unknown[] }[];
+      meta: { nations_included: string[] };
+    };
+    expect(body.data).toHaveLength(6);
+    expect(body.meta.nations_included).toHaveLength(6);
+    for (const entry of body.data) {
+      expect(entry.entity_type).toBe("company");
+      expect(Array.isArray(entry.steps)).toBe(true);
+      expect(entry.steps.length).toBeGreaterThan(0);
+    }
   });
 
   it("returns 400 for an invalid nation code", async () => {

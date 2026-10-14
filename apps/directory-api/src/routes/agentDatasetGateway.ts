@@ -155,7 +155,7 @@ const QUERY_PARAM_SCHEMAS: Record<string, Record<string, string>> = {
   },
   "pacific-regulatory-scores": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all, ranked by composite score DESC)" },
   "pacific-setup-checklist": {
-    nation: "string, required — ws|fj|vu|pg|to|sb",
+    nation: "string, optional — ws|fj|vu|pg|to|sb (default: all 6 nations)",
     entity_type: "string, optional — company|sole_trader|partnership (default: company)",
   },
 };
@@ -434,10 +434,7 @@ async function runDatasetQuery(c: Context<AppBindings>, dataset: AgentDataset, p
     }
 
     case "pacific-setup-checklist": {
-      const nation = (params?.nation as string | undefined ?? "").toLowerCase() as NationCode;
-      if (!(ALL_NATION_CODES as string[]).includes(nation)) {
-        throw new ValidationError(`Invalid or missing "nation" param. Valid values: ${ALL_NATION_CODES.join(", ")}`);
-      }
+      const nation = (params?.nation as string | undefined ?? "").toLowerCase();
       const entityType = (params?.entity_type as string | undefined ?? "company") as
         | "company"
         | "sole_trader"
@@ -445,7 +442,15 @@ async function runDatasetQuery(c: Context<AppBindings>, dataset: AgentDataset, p
       if (!["company", "sole_trader", "partnership"].includes(entityType)) {
         throw new ValidationError(`Invalid "entity_type". Valid values: company, sole_trader, partnership`);
       }
-      const checklist = getSetupChecklist(nation, entityType);
+      if (!nation) {
+        return ALL_NATION_CODES.map((code) => getSetupChecklist(code, entityType)).filter(
+          (entry): entry is NonNullable<typeof entry> => entry !== null,
+        );
+      }
+      if (!(ALL_NATION_CODES as string[]).includes(nation)) {
+        throw new ValidationError(`Invalid "nation" param. Valid values: ${ALL_NATION_CODES.join(", ")}`);
+      }
+      const checklist = getSetupChecklist(nation as NationCode, entityType);
       if (!checklist) throw new NotFoundError(`No checklist data for nation "${nation}"`);
       return checklist;
     }
