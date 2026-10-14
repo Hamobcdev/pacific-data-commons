@@ -73,6 +73,18 @@ const PACIFIC_GDP_PRICE_USDC = 0.01;
 const PACIFIC_POPULATION_PRICE_USDC = 0.01;
 const PACIFIC_CPI_PRICE_USDC = 0.01;
 
+// Pacific Investment Intelligence suite — 6 synthesis endpoints.
+// Decision 23 Bronze ceiling ($0.50 max) applies. Decision 60 does NOT apply —
+// these are SBP proprietary synthesis (multi-source regulatory data aggregated
+// from 6 national authorities), not raw wrappers of a single no-auth free API.
+// Decision 59: PDC is first-party publisher of its own aggregation layer.
+const PACIFIC_SETUP_COMPARISON_PRICE_USDC = 0.50;  // flagship — 6-nation comparison
+const PACIFIC_TAX_COMPARISON_PRICE_USDC   = 0.30;  // tax rates across all nations
+const PACIFIC_LAND_TENURE_PRICE_USDC      = 0.30;  // land tenure systems
+const PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC = 0.40; // by-sector restriction matrix
+const PACIFIC_REGULATORY_SCORES_PRICE_USDC = 0.50; // proprietary SBP scoring model
+const PACIFIC_SETUP_CHECKLIST_PRICE_USDC  = 0.50;  // per-nation step-by-step checklist
+
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
 // source (see pacificOceanClimateService.ts's doc comment for the live
@@ -1282,6 +1294,185 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
+
+  // ─── Pacific Investment Intelligence suite ─────────────────────────────────
+  // SBP first-party synthesis layer — regulatory data from 6 Pacific national
+  // investment authorities aggregated October 2026. Decision 59 (first-party
+  // publisher). Decision 23 Bronze ceiling ($0.50 max). Decision 60 does NOT
+  // apply — multi-source synthesis, not a single no-auth open API wrapper.
+
+  {
+    method: "GET",
+    path: "/invest/pacific-setup-comparison",
+    description:
+      "Structured comparison of business setup requirements across 6 Pacific nations (Samoa, Fiji, Vanuatu, PNG, Tonga, Solomon Islands) — registration fees, timelines, foreign ownership rules, tax summary, land tenure summary, and SBP regulatory score. Optional ?nations= (comma-separated: ws,fj,vu,pg,to,sb). SBP first-party synthesis of October 2026 national authority data.",
+    priceUsdc: PACIFIC_SETUP_COMPARISON_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: {
+            type: "string",
+            description: "Comma-separated ISO country codes to compare — ws (Samoa), fj (Fiji), vu (Vanuatu), pg (PNG), to (Tonga), sb (Solomon Islands). Default: all 6.",
+          },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            {
+              nation: "vu",
+              name: "Vanuatu",
+              setup: { company_registration_fee: "Contact registry", estimated_total_timeline: "2–4 weeks", fully_foreign_owned: true },
+              tax: { corporate_tax_pct: 0, zero_tax_jurisdiction: true },
+              score: { composite: 8.2, standout_advantage: "Zero income tax jurisdiction — unique in Pacific" },
+            },
+          ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-tax-comparison",
+    description:
+      "Side-by-side tax rates across 6 Pacific nations — corporate tax, VAT/GST, withholding tax, income tax, payroll levies, double tax agreements. Vanuatu is a zero-income-tax jurisdiction. Optional ?nations= filter. SBP first-party synthesis of October 2026 national revenue authority data.",
+    priceUsdc: PACIFIC_TAX_COMPARISON_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            { nation: "vu", name: "Vanuatu", corporate_tax_pct: 0, vat_gst_pct: 15, double_tax_agreements: [] },
+            { nation: "ws", name: "Samoa", corporate_tax_pct: 27, vat_gst_pct: 15, double_tax_agreements: ["Australia", "New Zealand", "Japan"] },
+          ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-land-tenure",
+    description:
+      "Land tenure comparison across 6 Pacific nations — customary vs freehold vs government percentages, foreign ownership rules, lease terms, land boards. Land is the #1 variable in Pacific investment decisions. Optional ?nations= filter. Information only — customary land is NOT available for collateral/tokenisation.",
+    priceUsdc: PACIFIC_LAND_TENURE_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            { nation: "ws", name: "Samoa", customary_pct: 81, freehold_pct: 4, foreign_freehold_allowed: false, lease_typical_term_years: "20–30" },
+            { nation: "to", name: "Tonga", customary_pct: 0, government_pct: 100, foreign_freehold_allowed: false },
+          ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-sector-restrictions",
+    description:
+      "By-sector matrix of foreign investment restrictions across 6 Pacific nations — reserved (citizens only), restricted (equity cap or JV required), requires approval, or open. Optional ?sector= keyword filter (e.g. fisheries, tourism, retail) and ?nations= filter. Essential pre-investment due diligence.",
+    priceUsdc: PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { sector: "fisheries", nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          sector: { type: "string", description: "Keyword to filter sectors by (e.g. fisheries, tourism, retail, construction, mining). Optional — returns all sectors if omitted." },
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: {
+            sector_query: "fisheries",
+            results: [
+              { nation: "ws", name: "Samoa", matching_restrictions: [{ sector: "Commercial fishing", status: "restricted_equity_cap", foreign_equity_cap_pct: 40 }], has_restrictions: true },
+              { nation: "vu", name: "Vanuatu", matching_restrictions: [], has_restrictions: false },
+            ],
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-regulatory-scores",
+    description:
+      "Proprietary SBP regulatory ease scores for 6 Pacific nations across 6 dimensions (setup cost, speed, foreign ownership openness, tax burden, land access, regulatory complexity). Composite 1–10 score, ranked highest first. NOT investment advice. Optional ?nations= filter.",
+    priceUsdc: PACIFIC_REGULATORY_SCORES_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6, ranked by composite score." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            { nation: "vu", name: "Vanuatu", composite_score: 8.2, standout_advantage: "Zero income tax jurisdiction — unique in Pacific", dimensions: { tax_burden_score: 10, setup_speed_score: 9 } },
+            { nation: "ws", name: "Samoa", composite_score: 6.2 },
+          ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-setup-checklist",
+    description:
+      "Complete sequential setup checklist for a specified Pacific nation — forms required, fees at each step, agencies to contact, estimated timelines. Replaces hours of navigation across government websites. Required: ?nation= (ws|fj|vu|pg|to|sb). Optional: ?entity_type= (company|sole_trader|partnership, default: company).",
+    priceUsdc: PACIFIC_SETUP_CHECKLIST_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nation: "ws", entity_type: "company" },
+      inputSchema: {
+        properties: {
+          nation: { type: "string", description: "ISO country code — ws (Samoa), fj (Fiji), vu (Vanuatu), pg (PNG), to (Tonga), sb (Solomon Islands). REQUIRED." },
+          entity_type: { type: "string", description: "Entity type — company (default), sole_trader, partnership." },
+        },
+        required: ["nation"],
+      },
+      output: {
+        example: {
+          data: {
+            nation: "ws",
+            name: "Samoa",
+            entity_type: "company",
+            estimated_timeline: "3–6 weeks",
+            steps: ["Reserve company name at MCIL", "Register company (SAT$250)", "Apply for FIC — SAT$100 total"],
+          },
+        },
+      },
+    }),
+  },
 ];
 
 /**
@@ -1339,6 +1530,12 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/finance/pacific-gdp",
   "/demographics/pacific-population",
   "/finance/pacific-cpi",
+  "/invest/pacific-setup-comparison",
+  "/invest/pacific-tax-comparison",
+  "/invest/pacific-land-tenure",
+  "/invest/pacific-sector-restrictions",
+  "/invest/pacific-regulatory-scores",
+  "/invest/pacific-setup-checklist",
 ];
 
 function datasetIdFromDirectPath(path: string): string {
