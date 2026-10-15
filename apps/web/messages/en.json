@@ -785,6 +785,7 @@
     "agentMarketplace": "Agent Marketplace",
     "walletGuide": "Wallet Guide",
     "faq": "FAQ",
+    "disclosures": "Disclosures",
     "contact": "Contact SBP",
     "allRights": "All rights reserved"
   },
@@ -836,6 +837,27 @@
     "contactBody": "Contact SBP directly — we respond to every message.",
     "contactLink": "Email anthony@synergybcpacific.com"
   },
+  "Disclosures": {
+    "title": "Disclosures",
+    "section1Title": "Platform Role",
+    "section1Body": "Pacific Data Commons is a directory and payment infrastructure operator only. SBP is not a data processor, quality assessor, financial intermediary, or dispute arbitrator. SBP verifies provider identity and records community ratings — it makes no quality judgments. All disputes are between the data provider and buyer directly.",
+    "section2Title": "Regulatory Intelligence Service",
+    "section2Body": "Samoa Jurisdiction Intelligence endpoints provide structured, machine-readable summaries of publicly available regulatory frameworks for Samoa's international financial services sector. Data is sourced from official publications (SIFA, samoaibfc.ws, FATF, PacLII) and reflects the regulatory position at the date stated in each endpoint response. Pacific Data Commons is not a law firm and does not provide legal advice. Information provided does not constitute legal, financial, or compliance advice. Users must verify current requirements directly with the relevant regulatory authority before making decisions.",
+    "section3Title": "Government Processes and Case-by-Case Decisions",
+    "section3Body": "Regulatory frameworks described on this platform represent general published requirements. Pacific Island governments and their ministries retain the right to make independent, case-by-case decisions on individual applications at any time. Processing timelines, requirements, and outcomes may vary between applicants. Government officials may request additional information, impose additional conditions, or decline applications at their discretion regardless of published frameworks. Pacific Data Commons makes no representation regarding the outcome of any individual application or regulatory interaction.",
+    "section4Title": "Commercial Relationships",
+    "section4Body": "Pacific Data Commons lists regulated service providers (trustee companies, law firms, licensed institutions) as factual directory information only. Listing does not constitute an endorsement, referral, or recommendation by SBP or Pacific Data Commons. SBP has no commercial referral relationship with any listed service provider. Users engage service providers entirely at their own discretion.",
+    "section5Title": "Contact and Enquiries",
+    "section5Body": "For enquiries about Pacific Data Commons, partnership opportunities, or data provider registration, use the form below.",
+    "formNameLabel": "Name",
+    "formEmailLabel": "Email",
+    "formOrganisationLabel": "Organisation (optional)",
+    "formMessageLabel": "Message",
+    "formSubmit": "Submit",
+    "formSubmitting": "Sending…",
+    "formSuccess": "Thank you — we'll be in touch.",
+    "formErrorGeneric": "Something went wrong. Please try again."
+  },
   "Welcome": {
     "title": "Welcome to Pacific Data Commons",
     "question": "What would you like to do?",
@@ -866,7 +888,10 @@
     "allCategories": "All categories",
     "searchButton": "Search",
     "noResults": "No datasets match your search yet.",
-    "fromPrice": "From ${price} per query"
+    "fromPrice": "From ${price} per query",
+    "regulatoryNoticeLabel": "Regulatory intelligence notice:",
+    "regulatoryNoticeBody": "This data reflects publicly available regulatory frameworks at time of publication. Government policies and processing requirements may change without notice. Always verify with the relevant authority before making decisions.",
+    "regulatoryNoticeLink": "Full disclosures →"
   },
   "Breadcrumb": {
     "getStarted": "Get Started",
