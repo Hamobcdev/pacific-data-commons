@@ -1,44 +1,21 @@
-"use client";
-
-import { useState } from "react";
 import { GlobalNav } from "@/components/nav/GlobalNav";
 import { GlobalFooter } from "@/components/nav/GlobalFooter";
 import { HeaderBand } from "@/components/layout/HeaderBand";
 import { PacificSidePanel } from "@/components/layout/PacificSidePanel";
 import { InstitutionalPanel } from "@/components/register/InstitutionalPanel";
+import DisclosuresForm from "./DisclosuresForm";
 
 // Disclosures page — five required sections per brief, plus a lead-capture
 // form at the foot. Content is hardcoded English (same approach as FAQ and
 // the finance office brief). No i18n namespace needed for content; surrounding
 // chrome labels match the footer link text directly.
 //
-// "use client" is required for the form submission state (useState).
-// All layout components above are server-compatible and render fine inside
-// a client component.
+// This is a Server Component — GlobalFooter calls getTranslations() and
+// cannot be imported into a Client Component module. Only the form's
+// interactive state (useState/handleSubmit) lives client-side, split out
+// into DisclosuresForm.tsx.
 
 export default function DisclosuresPage() {
-  const [formState, setFormState] = useState<"idle" | "submitting" | "success" | "error">("idle");
-  const [form, setForm] = useState({ name: "", email: "", organisation: "", message: "" });
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormState("submitting");
-    try {
-      const res = await fetch("/api/disclosures/enquiry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        setFormState("success");
-      } else {
-        setFormState("error");
-      }
-    } catch {
-      setFormState("error");
-    }
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <GlobalNav provider={null} />
@@ -129,87 +106,7 @@ export default function DisclosuresPage() {
                 registration, use the form below.
               </p>
 
-              {formState === "success" ? (
-                <div className="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-green-800 text-sm font-medium">
-                  Thank you — we&apos;ll be in touch.
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={200}
-                        value={form.name}
-                        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean/40 focus:border-ocean"
-                        placeholder="Your name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        maxLength={200}
-                        value={form.email}
-                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean/40 focus:border-ocean"
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Organisation
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={200}
-                      value={form.organisation}
-                      onChange={(e) => setForm((f) => ({ ...f, organisation: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean/40 focus:border-ocean"
-                      placeholder="Your organisation (optional)"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Message <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      required
-                      maxLength={500}
-                      rows={4}
-                      value={form.message}
-                      onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean/40 focus:border-ocean resize-none"
-                      placeholder="Your message..."
-                    />
-                  </div>
-
-                  {formState === "error" && (
-                    <p className="text-sm text-red-600">
-                      Something went wrong — please try again or email anthony@synergybcpacific.com directly.
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={formState === "submitting"}
-                    className="inline-block px-5 py-2.5 bg-ocean text-white rounded-lg text-sm font-medium hover:bg-navy transition-colors disabled:opacity-60"
-                  >
-                    {formState === "submitting" ? "Sending…" : "Send Enquiry"}
-                  </button>
-                </form>
-              )}
+              <DisclosuresForm />
             </section>
           </div>
         </main>
