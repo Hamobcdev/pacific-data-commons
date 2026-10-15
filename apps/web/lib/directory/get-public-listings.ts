@@ -64,6 +64,7 @@ export async function listPublicEndpoints(filters: { category?: string; q?: stri
         .eq("endpoint_id", endpoint.id)
         .eq("rating", "positive")
         .eq("query_verified", true);
+
       return {
         providerSlug: slugify(provider.institution_name),
         datasetSlug: slugify(endpoint.title),

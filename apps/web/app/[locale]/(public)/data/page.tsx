@@ -54,6 +54,7 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
   const t = await getTranslations("BrowseData");
   const provider = await getResumedProvider();
   const listings = await listPublicEndpoints({ q: searchParams.q, category: searchParams.category });
+  const showGovernanceNotice = searchParams.category === "governance" || listings.some((listing) => listing.category === "governance");
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -105,6 +106,15 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
                 {t("searchButton")}
               </Button>
             </form>
+
+            {showGovernanceNotice && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <strong>{t("regulatoryNoticeLabel")}</strong> {t("regulatoryNoticeBody")}{" "}
+                <Link href="/disclosures" className="underline">
+                  {t("regulatoryNoticeLink")}
+                </Link>
+              </div>
+            )}
 
             {listings.length === 0 ? (
               <p className="text-sm text-gray-500">{t("noResults")}</p>

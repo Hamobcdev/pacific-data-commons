@@ -179,3 +179,52 @@ export async function sendDeploymentReceipt(params: DeploymentReceiptParams): Pr
     });
   }
 }
+
+export interface DisclosuresEnquiryParams {
+  to: string;
+  name: string;
+  email: string;
+  organisation: string;
+  message: string;
+}
+
+/** Disclosures page lead-capture form. Unlike Emails A/B/C above — which
+ * notify alongside a database write that has already succeeded — this
+ * send IS the entire effect of the form submission (no DB row is written
+ * for the enquiry). A failure here must therefore surface to the caller
+ * rather than being silently swallowed, so the route can tell the
+ * submitter their enquiry did not go through instead of showing a false
+ * confirmation. `to` is resolved by the caller (RESEND_TO_EMAIL with a
+ * fallback) rather than hardcoded here. */
+export async function sendDisclosuresEnquiry(params: DisclosuresEnquiryParams): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("[disclosures_enquiry_email_skipped_no_provider]", { email: params.email });
+    return false;
+  }
+
+  try {
+    const resend = getClient(apiKey);
+    await resend.emails.send({
+      from: getFromAddress(),
+      to: params.to,
+      replyTo: params.email,
+      subject: `[PDC Enquiry] ${params.name} — ${params.organisation || "No org"}`,
+      text: [
+        `Name: ${params.name}`,
+        `Email: ${params.email}`,
+        `Organisation: ${params.organisation || "No org"}`,
+        ``,
+        `Message:`,
+        params.message,
+      ].join("\n"),
+    });
+    return true;
+  } catch (err) {
+    console.error("[disclosures_enquiry_email_send_failed]", {
+      email: params.email,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
