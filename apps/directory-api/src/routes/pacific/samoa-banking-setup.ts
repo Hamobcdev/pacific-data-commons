@@ -14,8 +14,8 @@ import type { AppBindings } from "../../types.js";
  * Includes a specific note on CBS consultation requirements for any
  * USDC or digital asset banking activities.
  *
- * Decision 61 — Pacific Data Registry first-party endpoint.
- * Priced at $0.01 USDC (Decision 60 safe default).
+ * Decision 63 — Samoa Jurisdiction Intelligence (SBP-curated regulatory
+ * intelligence, not a Decision 60 open-data wrapper). Priced at $5.00 USDC.
  */
 export const samoaBankingSetupRoute = new Hono<AppBindings>();
 

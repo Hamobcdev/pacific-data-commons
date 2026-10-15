@@ -12,8 +12,8 @@ import type { AppBindings } from "../../types.js";
  * membership and mutual evaluation status, OECD peer review rating,
  * TIEA partner network, AML/CFT framework, and SIFA overview.
  *
- * Decision 61 — Pacific Data Registry first-party endpoint.
- * Priced at $0.01 USDC (Decision 60 safe default).
+ * Decision 63 — Samoa Jurisdiction Intelligence (SBP-curated regulatory
+ * intelligence, not a Decision 60 open-data wrapper). Priced at $1.00 USDC.
  */
 export const samoaComplianceStatusRoute = new Hono<AppBindings>();
 

@@ -1462,7 +1462,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     method: "GET",
     path: "/pacific/samoa-service-providers",
     description:
-      "Directory of all SIFA-licensed trustee companies in Samoa — the 10 licensed registered agents required by law for any Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider. Register count/names sourced via samoaibfc.ws (sifa.ws itself blocks automated access) — see register_as_of and register_source in the response. Disclosure: SBP has a commercial referral relationship with Pacific Fiduciaries (Samoa) Limited, which is listed neutrally alongside all other SIFA-licensed providers; this relationship is disclosed at pdc.synergybcpacific.com/disclosures.",
+      "Directory of SIFA-licensed trustee companies in Samoa — the 10 registered agents required by law for Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider, listed neutrally in the register's own source order. Register verified 2026-10-15 via samoaibfc.ws (sifa.ws itself blocks automated access — see register_as_of and register_source in the response).",
     priceUsdc: SAMOA_SERVICE_PROVIDERS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
@@ -1474,7 +1474,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
           total_licensed_trustee_companies: 10,
           register_as_of: "2026-10-15",
           register_source: "samoaibfc.ws (mirror — sifa.ws blocks automated access)",
-          providers: [{ name: "Pacific Fiduciaries (Samoa) Limited", address: "Le Sanalele Complex, Vaea Street, Apia", phone: "+685 29067" }],
+          providers: [{ name: "Asiaciti Trust Samoa Limited", address: "Saleufi, Apia", phone: null }],
           official_documents: [
             {
               title: "International Banking Act 2005 (2025 consolidation)",

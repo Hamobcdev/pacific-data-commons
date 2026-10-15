@@ -368,18 +368,16 @@ export interface SifaTrusteeCompany {
 // phone/website retained from the prior (9-company) verification pass
 // where the company also appears there; entries without a prior record
 // (Sertus Incorporations) carry only what the register itself lists.
+//
+// Listed in the register's own source order (not alphabetised, not
+// re-ordered by SBP) — every entry, including Pacific Fiduciaries
+// (Samoa) Limited, is a neutral, equally-listed SIFA-licensed trustee
+// company. No entry receives special placement, commentary, or
+// disclosure treatment different from any other.
 export const REGISTER_AS_OF = "2026-10-15";
 export const REGISTER_SOURCE = "samoaibfc.ws (mirror — sifa.ws blocks automated access)";
 
 export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
-  {
-    name: "Pacific Fiduciaries (Samoa) Limited",
-    address: "Le Sanalele Complex, Vaea Street, Apia",
-    phone: "+685 29067",
-    website: null,
-    specialisations: ["IBC formation", "Trust administration", "Registered agent services"],
-    notes: "Long-established Apia-based SIFA-licensed trustee company. Locally managed.",
-  },
   {
     name: "Asiaciti Trust Samoa Limited",
     address: "Saleufi, Apia",
@@ -387,6 +385,14 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     website: "https://www.asiaciti.com",
     specialisations: ["IBC formation", "Trust administration", "International foundations", "Wealth planning"],
     notes: "Part of the Asiaciti Trust group, an established Pacific and Asian trust company.",
+  },
+  {
+    name: "Gold-In (Samoa) Co. Limited",
+    address: "Vaea Street, Apia",
+    phone: null,
+    website: null,
+    specialisations: ["IBC formation", "Registered agent services"],
+    notes: "SIFA-licensed provider offering registered agent and formation services.",
   },
   {
     name: "Intershore Consult (Samoa) Limited",
@@ -405,20 +411,12 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "SIFA-licensed trustee company operating from central Apia.",
   },
   {
-    name: "Portcullis (Samoa) Ltd",
-    address: "Taufusi, Apia",
+    name: "Maystar (Samoa) Limited",
+    address: "Maystar Chambers, Apia",
     phone: null,
-    website: "https://www.portcullis.co",
-    specialisations: ["IBC formation", "Trust administration", "Fund administration", "Corporate services"],
-    notes: "Part of the Portcullis Group, with offices across Southeast Asia and the Pacific.",
-  },
-  {
-    name: "Vistra (Samoa) Limited",
-    address: "Beach Road, Apia",
-    phone: null,
-    website: "https://www.vistra.com",
-    specialisations: ["IBC formation", "Trust administration", "Fund administration", "Compliance"],
-    notes: "Global corporate services provider — Vistra Group operates in 45+ jurisdictions.",
+    website: null,
+    specialisations: ["IBC formation", "Trust administration", "Registered agent services"],
+    notes: "Locally focused Apia-based provider.",
   },
   {
     name: "Acclime (Samoa) Limited",
@@ -429,20 +427,20 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "Part of the Acclime Group with a presence across Asia-Pacific.",
   },
   {
-    name: "Maystar (Samoa) Limited",
-    address: "Maystar Chambers, Apia",
-    phone: null,
+    name: "Pacific Fiduciaries (Samoa) Limited",
+    address: "Le Sanalele Complex, Vaea Street, Apia",
+    phone: "+685 29067",
     website: null,
     specialisations: ["IBC formation", "Trust administration", "Registered agent services"],
-    notes: "Locally focused Apia-based provider.",
+    notes: "Long-established Apia-based SIFA-licensed trustee company. Locally managed.",
   },
   {
-    name: "Gold-In (Samoa) Co. Limited",
-    address: "Vaea Street, Apia",
+    name: "Portcullis (Samoa) Ltd",
+    address: "Taufusi, Apia",
     phone: null,
-    website: null,
-    specialisations: ["IBC formation", "Registered agent services"],
-    notes: "SIFA-licensed provider offering registered agent and formation services.",
+    website: "https://www.portcullis.co",
+    specialisations: ["IBC formation", "Trust administration", "Fund administration", "Corporate services"],
+    notes: "Part of the Portcullis Group, with offices across Southeast Asia and the Pacific.",
   },
   {
     name: "Sertus Incorporations (Samoa) Limited",
@@ -451,6 +449,14 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     website: null,
     specialisations: ["IBC formation", "Registered agent services"],
     notes: "Listed on the SIFA trustee company register as of the 2026-10-15 verification pass. Address/phone/website not yet independently confirmed — verify directly with the company before engaging.",
+  },
+  {
+    name: "Vistra (Samoa) Limited",
+    address: "Beach Road, Apia",
+    phone: null,
+    website: "https://www.vistra.com",
+    specialisations: ["IBC formation", "Trust administration", "Fund administration", "Compliance"],
+    notes: "Global corporate services provider — Vistra Group operates in 45+ jurisdictions.",
   },
 ];
 

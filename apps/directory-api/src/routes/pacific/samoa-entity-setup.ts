@@ -17,9 +17,8 @@ import type { AppBindings } from "../../types.js";
  *                "insurance" | "partnership" | "mutual_fund" | "all"
  *                Default: "all"
  *
- * Decision 61 — Pacific Data Registry first-party endpoint.
- * Priced at $0.01 USDC (Decision 60 safe default — repricing above this
- * cap requires a formal Decision Register entry).
+ * Decision 63 — Samoa Jurisdiction Intelligence (SBP-curated regulatory
+ * intelligence, not a Decision 60 open-data wrapper). Priced at $3.00 USDC.
  */
 export const samoaEntitySetupRoute = new Hono<AppBindings>();
 
