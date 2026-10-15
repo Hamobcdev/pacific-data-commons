@@ -79,6 +79,53 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
               </p>
             </div>
 
+            {/* Quick-filter pills — top 5 categories surfaced for one-click access.
+                Full category list is still available in the dropdown below.
+                Active pill = current searchParams.category (or "all" when absent). */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "All", value: "" },
+                { label: "Governance", value: "governance" },
+                { label: "Fisheries", value: "fisheries" },
+                { label: "Climate", value: "climate" },
+                { label: "Trade", value: "trade" },
+                { label: "Financial", value: "financial_flows" },
+              ].map(({ label, value }) => {
+                const active = (searchParams.category ?? "") === value;
+                return (
+                  <Link
+                    key={value}
+                    href={value ? `/data?category=${value}` : "/data"}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      active
+                        ? "bg-ocean text-white border-ocean"
+                        : "bg-white text-gray-600 border-gray-300 hover:border-ocean hover:text-ocean"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Governance notice — shown when governance category is active or
+                any listing in results is governance-category data. */}
+            {(searchParams.category === "governance" ||
+              listings.some((l) => l.category === "governance")) && (
+              <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <span className="mt-0.5 flex-shrink-0 text-amber-500 text-sm">⚠</span>
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  <span className="font-medium">Regulatory intelligence notice:</span> This data reflects publicly
+                  available regulatory frameworks at time of publication. Government policies and processing
+                  requirements may change without notice. Always verify with the relevant authority before making
+                  decisions.{" "}
+                  <Link href="/disclosures" className="underline hover:text-amber-900">
+                    Full disclosures →
+                  </Link>
+                </p>
+              </div>
+            )}
+
             <form method="get" className="flex flex-col gap-3 sm:flex-row">
               <Input
                 type="search"
@@ -116,12 +163,32 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
                       <CardHeader>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{listing.category}</span>
+                          {/* Sub-category label — show when it differs from the category */}
+                          {(() => {
+                            const sub = "dataSubCategory" in listing ? (listing as Record<string, unknown>).dataSubCategory : undefined;
+                            if (typeof sub !== "string" || !sub || sub === listing.category) return null;
+                            return (
+                              <span className="text-xs text-gray-400">
+                                {sub.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                              </span>
+                            );
+                          })()}
                           <TrustTierBadge tier={listing.trustTier} upvoteCount={listing.upvoteCount} />
+                          {/* Update frequency badge */}
+                          {(() => {
+                            const freq = "updateFrequency" in listing ? (listing as Record<string, unknown>).updateFrequency : undefined;
+                            if (typeof freq !== "string" || !freq) return null;
+                            return (
+                              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5">
+                                {freq.replace(/_/g, " ")}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <CardTitle className="mt-2">{listing.title}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="line-clamp-2">{listing.description}</p>
+                        <p className="line-clamp-3">{listing.description}</p>
                         <p className="mt-3 text-xs text-gray-500">
                           {listing.institutionName} · {listing.country}
                         </p>
