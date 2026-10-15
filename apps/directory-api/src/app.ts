@@ -60,6 +60,8 @@ import { pacificLandTenureRoute } from "./routes/invest/pacific-land-tenure.js";
 import { pacificSectorRestrictionsRoute } from "./routes/invest/pacific-sector-restrictions.js";
 import { pacificRegulatoryScoresRoute } from "./routes/invest/pacific-regulatory-scores.js";
 import { pacificSetupChecklistRoute } from "./routes/invest/pacific-setup-checklist.js";
+import { paymentRoutes } from "./routes/payment.js";
+import { internalDataFetchRoute } from "./routes/internal/data-fetch.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
@@ -200,6 +202,22 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   });
 
   app.use("*", rateLimit({ windowMs: 60_000, max: 300 }));
+
+  // Human payment rail (competition, simplified flow) — registered here,
+  // after the Variables bootstrap + rate limiter above, but BEFORE the
+  // payment gate below. Neither /payment/verify nor /internal/data/* is
+  // ever passed to paymentGate.addRoute(), so the gate would pass them
+  // through untouched regardless of mount order anyway (see the comment
+  // just below: unregistered paths already skip the gate's enforcement).
+  // Mounting them before the gate's own middleware is the stronger,
+  // defense-in-depth version of that same guarantee: in Hono's model, a
+  // request's matching handlers run in registration order, and neither of
+  // these two handlers ever calls next() — they fully resolve their own
+  // response. So the gate middleware (registered after) is never even
+  // invoked for these two paths, rather than relying on it to correctly
+  // no-op for an unregistered path at request time.
+  app.route("/", paymentRoutes);
+  app.route("/", internalDataFetchRoute);
 
   // Payment gate is mounted globally but only intercepts the paths
   // registered via addRoute() above — everything else passes through.

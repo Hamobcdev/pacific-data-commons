@@ -80,6 +80,78 @@ export async function sendIntegrityFlagEmail(env: Env, params: IntegrityFlagEmai
   }
 }
 
+export interface DownloadTokenEmailParams {
+  buyerEmail: string;
+  downloadToken: string;
+  referenceId: string;
+  algoTxId: string;
+}
+
+/**
+ * Human payment rail (competition, simplified flow) — sends the one-time
+ * download link after POST /payment/verify confirms the on-chain payment.
+ *
+ * Unlike sendIntegrityFlagEmail/sendDatasetUpdatedEmail above, this
+ * function reports success/failure back to its caller instead of only
+ * logging and swallowing: for those two, the email is a convenience
+ * notification on top of state that's already durably recorded elsewhere.
+ * Here, the email *is* the only delivery path for the download link the
+ * buyer just paid for — payment_intents.download_token exists in the
+ * database either way, but the buyer has no way to look it up themselves,
+ * so the caller (routes/payment.ts) needs to know whether the send
+ * actually went out, to log an operator-actionable warning rather than
+ * silently telling a paying buyer "check your email" when none was sent.
+ * Still never throws.
+ *
+ * pdc.synergybcpacific.com is hardcoded rather than built from
+ * env.WEB_APP_URL: that var's current wrangler.toml value is a stale
+ * Vercel preview URL (see CLAUDE.md Section 26.6 — apps/web now lives at
+ * the synergybcpacific.com custom domain), and this email's link must be
+ * correct regardless of that var ever being cleaned up.
+ */
+export async function sendDownloadTokenEmail(env: Env, params: DownloadTokenEmailParams): Promise<boolean> {
+  if (!env.RESEND_API_KEY) {
+    logger.warn("download_token_email_skipped_no_provider", {
+      reason: "RESEND_API_KEY not configured — see CLAUDE.md Section 26.4",
+      buyerEmail: params.buyerEmail,
+      referenceId: params.referenceId,
+    });
+    return false;
+  }
+
+  const downloadUrl = `https://pdc.synergybcpacific.com/en/data/download?token=${params.downloadToken}`;
+
+  try {
+    const resend = getClient(env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: env.EMAIL_FROM,
+      to: params.buyerEmail,
+      subject: "Your Pacific Data Commons download is ready",
+      text: [
+        "Your payment has been verified on the Algorand blockchain.",
+        "",
+        "Your one-time download link:",
+        downloadUrl,
+        "",
+        "This link expires in 24 hours and can only be used once.",
+        "",
+        `Reference ID: ${params.referenceId}`,
+        `Transaction ID: ${params.algoTxId}`,
+        "",
+        "Pacific Data Commons",
+      ].join("\n"),
+    });
+    return true;
+  } catch (err) {
+    logger.error("download_token_email_send_failed", {
+      buyerEmail: params.buyerEmail,
+      referenceId: params.referenceId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 const UPDATE_CATEGORY_LABEL: Record<DatasetUpdatedNotificationPayload["update_category"], string> = {
   initial_certification: "Initial certification",
   additive: "Additive",

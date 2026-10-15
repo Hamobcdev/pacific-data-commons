@@ -101,3 +101,11 @@ crons = ["*/15 * * * *", "*/4 * * * *"]
 # PILOT_ENDPOINT_URL
 # ANTHROPIC_API_KEY
 # CLAUDE_MODEL
+#
+# ALGORAND_INDEXER_URL — human payment rail (routes/payment.ts), set as a
+# Cloudflare Secret, not a [vars] entry, same posture as NODELY_API_TOKEN
+# above (lib/env.ts defaults it to the free public
+# https://mainnet-idx.algonode.cloud if unset, so this is optional to add
+# but recommended for production — a dedicated/paid indexer avoids the
+# free tier's rate limits under real payment-confirmation traffic).
+# ALGORAND_INDEXER_URL
