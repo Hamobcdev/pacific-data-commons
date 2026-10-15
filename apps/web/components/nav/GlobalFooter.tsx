@@ -46,6 +46,9 @@ export async function GlobalFooter() {
             <Link href="/faq" className="hover:text-white/80 transition-colors">
               {t("faq")}
             </Link>
+            <Link href="/disclosures" className="hover:text-white/80 transition-colors">
+              Disclosures
+            </Link>
             <a href="mailto:anthony@synergybcpacific.com" className="hover:text-white/80 transition-colors">
               {t("contact")}
             </a>
