@@ -22,9 +22,11 @@
 // Last verified: October 2026 against SIFA website and Samoa Law Reform
 // Commission consolidated statutes.
 //
-// Pricing: $0.01 USDC (Decision 60 — first-party wrapper, underlying
-// source is freely open). Repricing above Decision 60's cap requires a
-// formal Decision Register entry before any change.
+// Pricing: $1.00-$5.00 USDC per endpoint, tiered by complexity (Decision 63
+// — Samoa Jurisdiction Intelligence). This is SBP-curated regulatory
+// intelligence (research, structuring, maintenance by SBP), not a Decision
+// 60 open-data wrapper, so the Decision 60 $0.01 cap does not apply. See
+// routeSchemas.ts's SAMOA_*_PRICE_USDC constants for the per-route prices.
 //
 // IMPORTANT — AML/CFT safeguard (in every response):
 // Samoa requires UBO disclosure for any beneficial owner with ≥25%
@@ -50,6 +52,31 @@ export const SIFA_SOURCE_ATTRIBUTION = {
   not_a_paywall_notice:
     "The underlying regulatory documents are publicly accessible at sifa.ws, the SIFA Act, and the Samoa Law Reform Commission consolidated statutes. PDC provides the structured, agent-readable layer — not exclusive access to otherwise private documents.",
 };
+
+// Confirmed-live PacLII URLs — same two source documents cited across all
+// four Samoa Jurisdiction Intelligence endpoints.
+export const SIFA_OFFICIAL_DOCUMENTS = [
+  {
+    title: "International Banking Act 2005 (2025 consolidation)",
+    url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+  },
+  {
+    title: "SIFA Act 2005 (2023 consolidation)",
+    url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+  },
+] as const;
+
+// Decision 61/62 layer status, surfaced on every Samoa Jurisdiction
+// Intelligence response per Decision 63's build brief.
+export const PDC_PLATFORM_CONTEXT = {
+  layer: 1,
+  layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+  layer_2_status: "under_construction" as const,
+  layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+  layer_3_status: "planned" as const,
+  layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+  partnership_enquiries: "anthony@synergybcpacific.com",
+} as const;
 
 // ─── Entity Types ──────────────────────────────────────────────────────────
 
@@ -152,7 +179,7 @@ const ENTITY_REQUIREMENTS: Record<SamoaEntityType, EntityRequirements> = {
       "STAR trust mechanism available (Specific Purpose Trust)",
       "Confidential — trust deed not publicly registered",
     ],
-    notes: "Commonly used for estate planning, asset protection, and succession planning. Trustee must be one of the 9 SIFA-licensed trustee companies.",
+    notes: "Commonly used for estate planning, asset protection, and succession planning. Trustee must be one of the 10 SIFA-licensed trustee companies.",
   },
 
   foundation: {
@@ -326,12 +353,23 @@ const ENTITY_REQUIREMENTS: Record<SamoaEntityType, EntityRequirements> = {
 
 export interface SifaTrusteeCompany {
   name: string;
-  address: string;
+  address: string | null;
   phone: string | null;
   website: string | null;
   specialisations: string[];
   notes: string;
 }
+
+// Register verified 2026-10-15 via samoaibfc.ws — sifa.ws itself blocks
+// automated access (403 on every path tried this session), so this list
+// is sourced from the recognized mirror, not the SIFA primary site
+// directly. See REGISTER_AS_OF / REGISTER_SOURCE below and
+// ServiceProvidersResult.register_source in the response. Addresses/
+// phone/website retained from the prior (9-company) verification pass
+// where the company also appears there; entries without a prior record
+// (Sertus Incorporations) carry only what the register itself lists.
+export const REGISTER_AS_OF = "2026-10-15";
+export const REGISTER_SOURCE = "samoaibfc.ws (mirror — sifa.ws blocks automated access)";
 
 export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
   {
@@ -359,7 +397,7 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "Located in Le Sanalele Complex alongside several other licensed providers.",
   },
   {
-    name: "Intetrust (Samoa) Limited",
+    name: "Intetrust Limited",
     address: "Vaea Street, Apia",
     phone: null,
     website: null,
@@ -367,7 +405,7 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "SIFA-licensed trustee company operating from central Apia.",
   },
   {
-    name: "Portcullis (Samoa) Limited",
+    name: "Portcullis (Samoa) Ltd",
     address: "Taufusi, Apia",
     phone: null,
     website: "https://www.portcullis.co",
@@ -375,7 +413,7 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "Part of the Portcullis Group, with offices across Southeast Asia and the Pacific.",
   },
   {
-    name: "Vistra Samoa Limited",
+    name: "Vistra (Samoa) Limited",
     address: "Beach Road, Apia",
     phone: null,
     website: "https://www.vistra.com",
@@ -383,7 +421,7 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "Global corporate services provider — Vistra Group operates in 45+ jurisdictions.",
   },
   {
-    name: "Acclime Samoa Limited",
+    name: "Acclime (Samoa) Limited",
     address: "Saleufi, Apia",
     phone: null,
     website: "https://www.acclime.com",
@@ -399,12 +437,20 @@ export const SIFA_TRUSTEE_COMPANIES: SifaTrusteeCompany[] = [
     notes: "Locally focused Apia-based provider.",
   },
   {
-    name: "Gold-In (Samoa) Limited",
+    name: "Gold-In (Samoa) Co. Limited",
     address: "Vaea Street, Apia",
     phone: null,
     website: null,
     specialisations: ["IBC formation", "Registered agent services"],
     notes: "SIFA-licensed provider offering registered agent and formation services.",
+  },
+  {
+    name: "Sertus Incorporations (Samoa) Limited",
+    address: null,
+    phone: null,
+    website: null,
+    specialisations: ["IBC formation", "Registered agent services"],
+    notes: "Listed on the SIFA trustee company register as of the 2026-10-15 verification pass. Address/phone/website not yet independently confirmed — verify directly with the company before engaging.",
   },
 ];
 
@@ -417,18 +463,21 @@ export interface SamoaComplianceStatus {
   eu_blacklist: {
     status: "not_listed";
     removed_from_list_date: "2026-02-17";
+    reform_cited: string;
     legislative_reforms_cited: string[];
     source_url: string;
   };
   fatf_status: {
     status: "compliant";
     last_mutual_evaluation: string;
+    fur_url: string;
     notes: string;
   };
   oecd_peer_review: {
-    status: string;
-    rating: string;
-    notes: string;
+    status: "pending_verification";
+    note: string;
+    source_url: string;
+    data_verified_date: string | null;
   };
   tiea_network: {
     count_approximate: number;
@@ -458,7 +507,9 @@ const COMPLIANCE_STATUS: SamoaComplianceStatus = {
   eu_blacklist: {
     status: "not_listed",
     removed_from_list_date: "2026-02-17",
+    reform_cited: "Abolition of harmful offshore business regime, January 2026",
     legislative_reforms_cited: [
+      "Abolition of harmful offshore business regime, January 2026",
       "Strengthened beneficial ownership registry requirements",
       "Enhanced AML/CFT enforcement framework",
       "MLPA 2007 amendments bringing enforcement into FATF alignment",
@@ -468,13 +519,15 @@ const COMPLIANCE_STATUS: SamoaComplianceStatus = {
   },
   fatf_status: {
     status: "compliant",
-    last_mutual_evaluation: "2015 (APG)",
-    notes: "Member of Asia/Pacific Group on Money Laundering (APG), the FATF-style regional body for the Pacific. Samoa completed legislative reforms in 2023–2025 to address FATF recommendations. Not currently on FATF grey or black list.",
+    last_mutual_evaluation: "2023",
+    fur_url: "https://www.fatf-gafi.org/en/publications/Mutualevaluations/Samoa-FUR-2023.html",
+    notes: "Member of Asia/Pacific Group on Money Laundering (APG), the FATF-style regional body for the Pacific. Most recent APG Follow-Up Report published 2023. Not currently on FATF grey or black list.",
   },
   oecd_peer_review: {
-    status: "largely_compliant",
-    rating: "Largely Compliant",
-    notes: "Samoa has been reviewed under the OECD Global Forum on Transparency and Exchange of Information. Rated Largely Compliant in the most recent peer review cycle. Participates in automatic exchange of information (AEOI/CRS) with select partners.",
+    status: "pending_verification",
+    note: "2019 Second Round report confirmed to exist. Overall rating being verified against official OECD source before endpoint goes live — oecd.org blocks automated access, so this field is not yet independently confirmed. Do not treat as a confirmed rating until data_verified_date is set.",
+    source_url: "https://www.oecd.org/content/dam/oecd/en/publications/reports/2019/11/global-forum-on-transparency-and-exchange-of-information-for-tax-purposes-samoa-2019-second-round_bc3b06e4/d8954bf5-en.pdf",
+    data_verified_date: null,
   },
   tiea_network: {
     count_approximate: 15,
@@ -489,7 +542,7 @@ const COMPLIANCE_STATUS: SamoaComplianceStatus = {
   },
   sifa_regulatory_status: {
     active_since: "2005",
-    licensed_trustee_companies: 9,
+    licensed_trustee_companies: 10,
     international_companies_registered_approx: 20000,
     notes: "SIFA was established by the Samoa International Finance Authority Act 2005, replacing the earlier International Finance Act. Approximately 20,000 IBCs are registered. EU whitelisting in February 2026 followed significant AML/CFT reforms.",
   },
@@ -598,6 +651,8 @@ export interface EntitySetupResult {
   results: EntityRequirements[];
   aml_cfct_mandatory_notice: string;
   next_step_notice: string;
+  official_documents: typeof SIFA_OFFICIAL_DOCUMENTS;
+  platform_context: typeof PDC_PLATFORM_CONTEXT;
   fetched_at: string;
   attribution: typeof SIFA_SOURCE_ATTRIBUTION;
 }
@@ -614,7 +669,9 @@ export function getEntitySetup(entityType: SamoaEntityType | "all"): EntitySetup
     aml_cfct_mandatory_notice:
       "MANDATORY: All entity types require UBO disclosure of any beneficial owner with ≥25% interest to the Financial Intelligence Unit (FIU) Samoa. AML/CFT programme documentation is required at formation under MLPA 2007. Source of funds documentation will be requested by your registered agent.",
     next_step_notice:
-      "To proceed with formation, engage one of the 9 SIFA-licensed registered agents in Samoa. They are the sole authorised route for international company formation — direct filing with SIFA is not available. PDC can provide the service provider directory via /pacific/samoa-service-providers.",
+      "To proceed with formation, engage one of the 10 SIFA-licensed registered agents in Samoa. They are the sole authorised route for international company formation — direct filing with SIFA is not available. PDC can provide the service provider directory via /pacific/samoa-service-providers.",
+    official_documents: SIFA_OFFICIAL_DOCUMENTS,
+    platform_context: PDC_PLATFORM_CONTEXT,
     fetched_at: new Date().toISOString(),
     attribution: SIFA_SOURCE_ATTRIBUTION,
   };
@@ -624,9 +681,13 @@ export interface ServiceProvidersResult {
   jurisdiction: "Samoa";
   regulator: "SIFA";
   total_licensed_trustee_companies: number;
+  register_as_of: string;
+  register_source: string;
   providers: SifaTrusteeCompany[];
   important_notice: string;
   law_firms_note: string;
+  official_documents: typeof SIFA_OFFICIAL_DOCUMENTS;
+  platform_context: typeof PDC_PLATFORM_CONTEXT;
   fetched_at: string;
   attribution: typeof SIFA_SOURCE_ATTRIBUTION;
 }
@@ -636,11 +697,15 @@ export function getServiceProviders(): ServiceProvidersResult {
     jurisdiction: "Samoa",
     regulator: "SIFA",
     total_licensed_trustee_companies: SIFA_TRUSTEE_COMPANIES.length,
+    register_as_of: REGISTER_AS_OF,
+    register_source: REGISTER_SOURCE,
     providers: SIFA_TRUSTEE_COMPANIES,
     important_notice:
-      "This directory lists all known SIFA-licensed trustee companies as of October 2026. You must use one of these licensed companies as your registered agent — non-licensed introducers or agents cannot legally register a Samoa IBC, trust, or foundation. Always verify current licence status directly with SIFA (sifa.ws) before engaging any provider.",
+      "This directory lists all known SIFA-licensed trustee companies as of the register_as_of date above. You must use one of these licensed companies as your registered agent — non-licensed introducers or agents cannot legally register a Samoa IBC, trust, or foundation. sifa.ws itself blocks automated verification (see register_source) — always verify current licence status directly with SIFA before engaging any provider.",
     law_firms_note:
       "Samoa has several commercial law firms with SIFA-related practice experience, including those listed with the Samoa Law Society. PDC's law firm directory is in development pending verification against the Samoa Law Society registry. Contact details for the Samoa Law Society: lawsociety.ws",
+    official_documents: SIFA_OFFICIAL_DOCUMENTS,
+    platform_context: PDC_PLATFORM_CONTEXT,
     fetched_at: new Date().toISOString(),
     attribution: SIFA_SOURCE_ATTRIBUTION,
   };
@@ -649,6 +714,8 @@ export function getServiceProviders(): ServiceProvidersResult {
 export interface ComplianceStatusResult {
   compliance_status: SamoaComplianceStatus;
   summary: string;
+  official_documents: typeof SIFA_OFFICIAL_DOCUMENTS;
+  platform_context: typeof PDC_PLATFORM_CONTEXT;
   fetched_at: string;
   attribution: typeof SIFA_SOURCE_ATTRIBUTION;
 }
@@ -657,7 +724,9 @@ export function getComplianceStatus(): ComplianceStatusResult {
   return {
     compliance_status: COMPLIANCE_STATUS,
     summary:
-      "Samoa (WS) presents a LOW RISK regulatory profile as of October 2026. Removed from the EU non-cooperative jurisdictions blacklist on 17 February 2026. Not on FATF grey or black list. Rated Largely Compliant under OECD peer review. Full KYC/AML documentation is still required for all formations.",
+      "Samoa (WS) presents a LOW RISK regulatory profile as of October 2026. Removed from the EU non-cooperative jurisdictions blacklist on 17 February 2026 (citing abolition of the harmful offshore business regime). Not on FATF grey or black list; most recent APG Follow-Up Report published 2023. OECD Global Forum peer review rating is PENDING VERIFICATION against the official OECD source — see oecd_peer_review. Full KYC/AML documentation is still required for all formations.",
+    official_documents: SIFA_OFFICIAL_DOCUMENTS,
+    platform_context: PDC_PLATFORM_CONTEXT,
     fetched_at: new Date().toISOString(),
     attribution: SIFA_SOURCE_ATTRIBUTION,
   };
@@ -666,6 +735,8 @@ export function getComplianceStatus(): ComplianceStatusResult {
 export interface BankingSetupResult {
   banking_setup: SamoaBankingSetup;
   executive_summary: string;
+  official_documents: typeof SIFA_OFFICIAL_DOCUMENTS;
+  platform_context: typeof PDC_PLATFORM_CONTEXT;
   fetched_at: string;
   attribution: typeof SIFA_SOURCE_ATTRIBUTION;
 }
@@ -675,6 +746,8 @@ export function getBankingSetup(): BankingSetupResult {
     banking_setup: BANKING_SETUP,
     executive_summary:
       "An International Banking Licence from SIFA requires USD 1,000,000 minimum paid-up capital, 2 qualified directors, a full MLPA 2007-compliant AML/CFT programme, and SIFA fit-and-proper assessment of all directors and major shareholders. Typical timeline: 3–6 months. Any USDC or digital asset activities require separate CBS consultation.",
+    official_documents: SIFA_OFFICIAL_DOCUMENTS,
+    platform_context: PDC_PLATFORM_CONTEXT,
     fetched_at: new Date().toISOString(),
     attribution: SIFA_SOURCE_ATTRIBUTION,
   };

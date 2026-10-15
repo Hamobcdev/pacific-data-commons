@@ -43,28 +43,35 @@ describe("GET /pacific/samoa-service-providers", () => {
     expect(body.jurisdiction).toBe("Samoa");
   });
 
-  it("returns all 9 SIFA-licensed trustee companies", async () => {
+  it("returns all 10 SIFA-licensed trustee companies, with register provenance", async () => {
     const app = buildTestApp();
     const res = await app.request("/pacific/samoa-service-providers");
     const body = (await res.json()) as {
       total_licensed_trustee_companies: number;
+      register_as_of: string;
+      register_source: string;
       providers: Array<{
         name: string;
-        address: string;
+        address: string | null;
         specialisations: string[];
       }>;
     };
 
-    // Field is total_licensed_trustee_companies, not provider_count
-    expect(body.total_licensed_trustee_companies).toBe(9);
+    // Field is total_licensed_trustee_companies, not provider_count.
+    // 10, not 9 — verified 2026-10-15 against the samoaibfc.ws mirror
+    // (sifa.ws itself blocks automated access, see register_source).
+    expect(body.total_licensed_trustee_companies).toBe(10);
+    expect(typeof body.register_as_of).toBe("string");
+    expect(typeof body.register_source).toBe("string");
     expect(Array.isArray(body.providers)).toBe(true);
-    expect(body.providers.length).toBe(9);
+    expect(body.providers.length).toBe(10);
 
-    // Each provider must have name and address at minimum
+    // Each provider must have name at minimum; address may be null for an
+    // entry not yet independently confirmed beyond the register listing.
     for (const provider of body.providers) {
       expect(typeof provider.name).toBe("string");
       expect(provider.name.length).toBeGreaterThan(0);
-      expect(typeof provider.address).toBe("string");
+      expect(provider.address === null || typeof provider.address === "string").toBe(true);
       expect(Array.isArray(provider.specialisations)).toBe(true);
     }
   });

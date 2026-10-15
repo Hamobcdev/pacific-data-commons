@@ -34,7 +34,7 @@ export interface AgentDatasetMetadata {
   // "regulatory" added for the SIFA Samoa regulatory intelligence endpoints —
   // maps to DATA_CATEGORIES's "governance" DataCategory in
   // CATEGORY_TO_DATA_CATEGORY below.
-  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics" | "regulatory";
+  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics" | "regulatory" | "investment";
   dataCurrency: string;
   upstreamSource: string;
   reportingLagNote?: string;
@@ -106,6 +106,12 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
     upstreamSource: "SIFA Samoa — International Banking Act 2005",
     reportingLagNote: "Requirements as of October 2026. Capital requirements and process steps may change with SIFA or CBS regulatory changes.",
   },
+  "/invest/pacific-setup-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: MCIL Samoa, Investment Fiji, VFIPA Vanuatu, IPA PNG, MFEM Tonga, MCITP Solomon Islands" },
+  "/invest/pacific-tax-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa VAGST Act, FRCA Fiji, Vanuatu VFIPA, IRC PNG, Tonga MoR, Solomon Islands IRD" },
+  "/invest/pacific-land-tenure": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa Land Corporation, iTaukei Land Trust Board Fiji, Vanuatu Custom Land Act, PNG Land Act, Tonga Land Act, Solomon Islands Land & Titles Act" },
+  "/invest/pacific-sector-restrictions": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: national investment authority reserved activities lists — MCIL Samoa, Investment Fiji, VFIPA Vanuatu, IPA PNG, MFEM Tonga, MCITP Solomon Islands" },
+  "/invest/pacific-regulatory-scores": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP proprietary 6-dimension regulatory scoring model — all 6 Pacific nation investment authority sources" },
+  "/invest/pacific-setup-checklist": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: per-nation step-by-step from national registrar, tax authority, investment authority, and sector regulators" },
 };
 
 /**
@@ -149,6 +155,12 @@ const QUERYABLE_DATASET_IDS = new Set([
   "samoa-compliance-status",
   "samoa-service-providers",
   "samoa-banking-setup",
+  "pacific-setup-comparison",
+  "pacific-tax-comparison",
+  "pacific-land-tenure",
+  "pacific-sector-restrictions",
+  "pacific-regulatory-scores",
+  "pacific-setup-checklist",
 ]);
 
 export interface AgentDataset {
@@ -227,6 +239,7 @@ const CATEGORY_TO_DATA_CATEGORY: Record<AgentDatasetMetadata["category"], DataCa
   algorand: "other",
   demographics: "demographics",
   regulatory: "governance",
+  investment: "trade",
 };
 
 export function catalogCategoryToDataCategory(category: AgentDatasetMetadata["category"]): DataCategory {

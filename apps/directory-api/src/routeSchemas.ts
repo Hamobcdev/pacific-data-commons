@@ -73,15 +73,28 @@ const PACIFIC_GDP_PRICE_USDC = 0.01;
 const PACIFIC_POPULATION_PRICE_USDC = 0.01;
 const PACIFIC_CPI_PRICE_USDC = 0.01;
 
-// Decision 61 — Pacific Data Registry first-party regulatory intelligence
-// endpoints. Curated, structured data compiled from SIFA Act, MCIL registry,
-// and EU/FATF/OECD compliance sources — PDC sells the agent-ready layer.
-// Priced at Decision 60 Tier 1 cap ($0.01 USDC) as the safe default.
-// Repricing above this cap requires a formal Decision Register entry noting
-// that these Decision 61 endpoints (curated layer, not a live open API
-// wrapper) may warrant a different price ceiling than pure Decision 59/60
-// open-API wrappers. Do not change this constant without that decision.
-const SIFA_REGULATORY_PRICE_USDC = 0.01;
+// Decision 63 — Samoa Jurisdiction Intelligence tier. These are SBP-curated
+// regulatory intelligence endpoints (research, structuring, and maintenance
+// done by SBP), priced separately from the Decision 60 $0.01 open-data cap —
+// that cap applies only to first-party wrappers over a genuinely open
+// external source, which this is not. Four distinct prices per endpoint
+// complexity, confirmed under Decision 63.
+const SAMOA_COMPLIANCE_STATUS_PRICE_USDC = 1.00;
+const SAMOA_SERVICE_PROVIDERS_PRICE_USDC = 1.50;
+const SAMOA_ENTITY_SETUP_PRICE_USDC = 3.00;
+const SAMOA_BANKING_SETUP_PRICE_USDC = 5.00;
+
+// Pacific Investment Intelligence suite — 6 synthesis endpoints.
+// Decision 23 Bronze ceiling ($0.50 max) applies. Decision 60 does NOT apply —
+// these are SBP proprietary synthesis (multi-source regulatory data aggregated
+// from 6 national authorities), not raw wrappers of a single no-auth free API.
+// Decision 59: PDC is first-party publisher of its own aggregation layer.
+const PACIFIC_SETUP_COMPARISON_PRICE_USDC = 0.50;  // flagship — 6-nation comparison
+const PACIFIC_TAX_COMPARISON_PRICE_USDC   = 0.30;  // tax rates across all nations
+const PACIFIC_LAND_TENURE_PRICE_USDC      = 0.30;  // land tenure systems
+const PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC = 0.40; // by-sector restriction matrix
+const PACIFIC_REGULATORY_SCORES_PRICE_USDC = 0.50; // proprietary SBP scoring model
+const PACIFIC_SETUP_CHECKLIST_PRICE_USDC  = 0.50;  // per-nation step-by-step checklist
 
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
@@ -1294,13 +1307,15 @@ const paidRoutesBase: PaidRouteSpec[] = [
   },
   // ─── SIFA Regulatory Intelligence Endpoints ──────────────────────────────
   // Decision 61 — Pacific Data Registry first-party curated regulatory layer.
-  // Priced at SIFA_REGULATORY_PRICE_USDC ($0.01, Decision 60 safe default).
+  // Priced per Decision 63 — SBP-curated regulatory intelligence, not a
+  // Decision 60 open-data wrapper, so tiered per endpoint complexity
+  // ($1.00-$5.00) rather than the Decision 60 $0.01 cap.
   {
     method: "GET",
     path: "/pacific/samoa-entity-setup",
     description:
       "Samoa international entity formation requirements — structured regulatory intelligence for IBC, international trust, foundation, international banking licence, insurance, partnership, and mutual fund structures. Includes director/shareholder requirements, minimum capital, tax treatment, UBO disclosure obligations, formation timeline, and typical fee ranges. Query param: entity_type (ibc|trust|foundation|international_bank|insurance|partnership|mutual_fund|all). Source: SIFA Act 2005, International Companies Act 1987.",
-    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+    priceUsdc: SAMOA_ENTITY_SETUP_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
@@ -1321,6 +1336,25 @@ const paidRoutesBase: PaidRouteSpec[] = [
             annual_fee_usd_approx: 300,
           }],
           aml_cfct_mandatory_notice: "MANDATORY: All entity types require UBO disclosure of any beneficial owner with ≥25% interest to the Financial Intelligence Unit (FIU) Samoa.",
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
           attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
         },
       },
@@ -1330,8 +1364,8 @@ const paidRoutesBase: PaidRouteSpec[] = [
     method: "GET",
     path: "/pacific/samoa-compliance-status",
     description:
-      "Samoa's current regulatory compliance status across EU, FATF, OECD, and TIEA networks — structured for AI due diligence agents. Includes EU blacklist status (removed 17 February 2026), FATF APG membership and mutual evaluation, OECD Global Forum peer review rating (Largely Compliant), TIEA partner network count and key partners, AML/CFT legislative framework, FIU Samoa details, and SIFA overview. Returns a structured due_diligence_signal (low_risk/medium_risk/high_risk) field for programmatic use.",
-    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+      "Samoa's current regulatory compliance status across EU, FATF, OECD, and TIEA networks — structured for AI due diligence agents. Includes EU blacklist status (removed 17 February 2026, citing abolition of the harmful offshore business regime), FATF APG mutual evaluation status (2023 Follow-Up Report), OECD Global Forum peer review status (pending verification against the official OECD source — see oecd_peer_review.status), TIEA partner network count and key partners, AML/CFT legislative framework, FIU Samoa details, and SIFA overview. Returns a structured due_diligence_signal (low_risk/medium_risk/high_risk) field for programmatic use.",
+    priceUsdc: SAMOA_COMPLIANCE_STATUS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
@@ -1340,13 +1374,86 @@ const paidRoutesBase: PaidRouteSpec[] = [
           compliance_status: {
             jurisdiction: "Samoa (Independent State of)",
             iso_code: "WS",
-            eu_blacklist: { status: "not_listed", removed_from_list_date: "2026-02-17" },
-            fatf_status: { status: "compliant" },
-            oecd_peer_review: { rating: "Largely Compliant" },
+            eu_blacklist: {
+              status: "not_listed",
+              removed_from_list_date: "2026-02-17",
+              reform_cited: "Abolition of harmful offshore business regime, January 2026",
+            },
+            fatf_status: {
+              status: "compliant",
+              last_mutual_evaluation: "2023",
+              fur_url: "https://www.fatf-gafi.org/en/publications/Mutualevaluations/Samoa-FUR-2023.html",
+            },
+            oecd_peer_review: {
+              status: "pending_verification",
+              note: "2019 Second Round report confirmed to exist. Overall rating being verified against official OECD source before endpoint goes live.",
+              source_url: "https://www.oecd.org/content/dam/oecd/en/publications/reports/2019/11/global-forum-on-transparency-and-exchange-of-information-for-tax-purposes-samoa-2019-second-round_bc3b06e4/d8954bf5-en.pdf",
+              data_verified_date: null,
+            },
             due_diligence_signal: "low_risk",
           },
-          summary: "Samoa (WS) presents a LOW RISK regulatory profile as of October 2026.",
+          summary: "Samoa (WS) presents a LOW RISK regulatory profile as of October 2026. OECD Global Forum peer review rating is pending independent verification — see oecd_peer_review.",
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
           attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+
+  // ─── Pacific Investment Intelligence suite ─────────────────────────────────
+  // SBP first-party synthesis layer — regulatory data from 6 Pacific national
+  // investment authorities aggregated October 2026. Decision 59 (first-party
+  // publisher). Decision 23 Bronze ceiling ($0.50 max). Decision 60 does NOT
+  // apply — multi-source synthesis, not a single no-auth open API wrapper.
+
+  {
+    method: "GET",
+    path: "/invest/pacific-setup-comparison",
+    description:
+      "Structured comparison of business setup requirements across 6 Pacific nations (Samoa, Fiji, Vanuatu, PNG, Tonga, Solomon Islands) — registration fees, timelines, foreign ownership rules, tax summary, land tenure summary, and SBP regulatory score. Optional ?nations= (comma-separated: ws,fj,vu,pg,to,sb). SBP first-party synthesis of October 2026 national authority data.",
+    priceUsdc: PACIFIC_SETUP_COMPARISON_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: {
+            type: "string",
+            description: "Comma-separated ISO country codes to compare — ws (Samoa), fj (Fiji), vu (Vanuatu), pg (PNG), to (Tonga), sb (Solomon Islands). Default: all 6.",
+          },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            {
+              nation: "vu",
+              name: "Vanuatu",
+              setup: { company_registration_fee: "Contact registry", estimated_total_timeline: "2–4 weeks", fully_foreign_owned: true },
+              tax: { corporate_tax_pct: 0, zero_tax_jurisdiction: true },
+              score: { composite: 8.2, standout_advantage: "Zero income tax jurisdiction — unique in Pacific" },
+            },
+          ],
         },
       },
     }),
@@ -1355,8 +1462,8 @@ const paidRoutesBase: PaidRouteSpec[] = [
     method: "GET",
     path: "/pacific/samoa-service-providers",
     description:
-      "Directory of all SIFA-licensed trustee companies in Samoa — the 9 licensed registered agents required by law for any Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider. Disclosure: SBP has a commercial referral relationship with Pacific Fiduciaries (Samoa) Limited, which is listed neutrally alongside all other SIFA-licensed providers; this relationship is disclosed at pdc.synergybcpacific.com/disclosures.",
-    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+      "Directory of all SIFA-licensed trustee companies in Samoa — the 10 licensed registered agents required by law for any Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider. Register count/names sourced via samoaibfc.ws (sifa.ws itself blocks automated access) — see register_as_of and register_source in the response. Disclosure: SBP has a commercial referral relationship with Pacific Fiduciaries (Samoa) Limited, which is listed neutrally alongside all other SIFA-licensed providers; this relationship is disclosed at pdc.synergybcpacific.com/disclosures.",
+    priceUsdc: SAMOA_SERVICE_PROVIDERS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
@@ -1364,9 +1471,56 @@ const paidRoutesBase: PaidRouteSpec[] = [
         example: {
           jurisdiction: "Samoa",
           regulator: "SIFA",
-          total_licensed_trustee_companies: 9,
+          total_licensed_trustee_companies: 10,
+          register_as_of: "2026-10-15",
+          register_source: "samoaibfc.ws (mirror — sifa.ws blocks automated access)",
           providers: [{ name: "Pacific Fiduciaries (Samoa) Limited", address: "Le Sanalele Complex, Vaea Street, Apia", phone: "+685 29067" }],
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
           attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-tax-comparison",
+    description:
+      "Side-by-side tax rates across 6 Pacific nations — corporate tax, VAT/GST, withholding tax, income tax, payroll levies, double tax agreements. Vanuatu is a zero-income-tax jurisdiction. Optional ?nations= filter. SBP first-party synthesis of October 2026 national revenue authority data.",
+    priceUsdc: PACIFIC_TAX_COMPARISON_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            { nation: "vu", name: "Vanuatu", corporate_tax_pct: 0, vat_gst_pct: 15, double_tax_agreements: [] },
+            { nation: "ws", name: "Samoa", corporate_tax_pct: 27, vat_gst_pct: 15, double_tax_agreements: ["Australia", "New Zealand", "Japan"] },
+          ],
         },
       },
     }),
@@ -1376,7 +1530,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/pacific/samoa-banking-setup",
     description:
       "Samoa International Banking Licence requirements under the International Banking Act 2005 — USD 1M minimum capital, director qualifications, full MLPA 2007-compliant AML/CFT programme, SIFA fit-and-proper assessment process, 8-step application timeline (3–6 months total), annual obligations, and permitted vs restricted activities. Includes specific CBS consultation note for USDC and digital asset banking activities.",
-    priceUsdc: SIFA_REGULATORY_PRICE_USDC,
+    priceUsdc: SAMOA_BANKING_SETUP_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
       method: "GET",
@@ -1390,7 +1544,138 @@ const paidRoutesBase: PaidRouteSpec[] = [
             cbdc_digital_asset_note: "USDC and other digital asset activities require CBS written position before launch.",
           },
           executive_summary: "An International Banking Licence from SIFA requires USD 1,000,000 minimum paid-up capital.",
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
           attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-land-tenure",
+    description:
+      "Land tenure comparison across 6 Pacific nations — customary vs freehold vs government percentages, foreign ownership rules, lease terms, land boards. Land is the #1 variable in Pacific investment decisions. Optional ?nations= filter. Information only — customary land is NOT available for collateral/tokenisation.",
+    priceUsdc: PACIFIC_LAND_TENURE_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            { nation: "ws", name: "Samoa", customary_pct: 81, freehold_pct: 4, foreign_freehold_allowed: false, lease_typical_term_years: "20–30" },
+            { nation: "to", name: "Tonga", customary_pct: 0, government_pct: 100, foreign_freehold_allowed: false },
+          ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-sector-restrictions",
+    description:
+      "By-sector matrix of foreign investment restrictions across 6 Pacific nations — reserved (citizens only), restricted (equity cap or JV required), requires approval, or open. Optional ?sector= keyword filter (e.g. fisheries, tourism, retail) and ?nations= filter. Essential pre-investment due diligence.",
+    priceUsdc: PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { sector: "fisheries", nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          sector: { type: "string", description: "Keyword to filter sectors by (e.g. fisheries, tourism, retail, construction, mining). Optional — returns all sectors if omitted." },
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: {
+            sector_query: "fisheries",
+            results: [
+              { nation: "ws", name: "Samoa", matching_restrictions: [{ sector: "Commercial fishing", status: "restricted_equity_cap", foreign_equity_cap_pct: 40 }], has_restrictions: true },
+              { nation: "vu", name: "Vanuatu", matching_restrictions: [], has_restrictions: false },
+            ],
+          },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-regulatory-scores",
+    description:
+      "Proprietary SBP regulatory ease scores for 6 Pacific nations across 6 dimensions (setup cost, speed, foreign ownership openness, tax burden, land access, regulatory complexity). Composite 1–10 score, ranked highest first. NOT investment advice. Optional ?nations= filter.",
+    priceUsdc: PACIFIC_REGULATORY_SCORES_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nations: "ws,fj,vu,pg,to,sb" },
+      inputSchema: {
+        properties: {
+          nations: { type: "string", description: "Comma-separated ISO codes — ws,fj,vu,pg,to,sb. Default: all 6, ranked by composite score." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: [
+            { nation: "vu", name: "Vanuatu", composite_score: 8.2, standout_advantage: "Zero income tax jurisdiction — unique in Pacific", dimensions: { tax_burden_score: 10, setup_speed_score: 9 } },
+            { nation: "ws", name: "Samoa", composite_score: 6.2 },
+          ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/invest/pacific-setup-checklist",
+    description:
+      "Complete sequential setup checklist for a specified Pacific nation (or all 6, if nation is omitted) — forms required, fees at each step, agencies to contact, estimated timelines. Replaces hours of navigation across government websites. Optional: ?nation= (ws|fj|vu|pg|to|sb, default: all 6 nations). Optional: ?entity_type= (company|sole_trader|partnership, default: company).",
+    priceUsdc: PACIFIC_SETUP_CHECKLIST_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nation: "ws", entity_type: "company" },
+      inputSchema: {
+        properties: {
+          nation: { type: "string", description: "ISO country code — ws (Samoa), fj (Fiji), vu (Vanuatu), pg (PNG), to (Tonga), sb (Solomon Islands). Optional — omitting it returns all 6 nations." },
+          entity_type: { type: "string", description: "Entity type — company (default), sole_trader, partnership." },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          data: {
+            nation: "ws",
+            name: "Samoa",
+            entity_type: "company",
+            estimated_timeline: "3–6 weeks",
+            steps: ["Reserve company name at MCIL", "Register company (SAT$250)", "Apply for FIC — SAT$100 total"],
+          },
         },
       },
     }),
@@ -1456,6 +1741,12 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/pacific/samoa-compliance-status",
   "/pacific/samoa-service-providers",
   "/pacific/samoa-banking-setup",
+  "/invest/pacific-setup-comparison",
+  "/invest/pacific-tax-comparison",
+  "/invest/pacific-land-tenure",
+  "/invest/pacific-sector-restrictions",
+  "/invest/pacific-regulatory-scores",
+  "/invest/pacific-setup-checklist",
 ];
 
 function datasetIdFromDirectPath(path: string): string {

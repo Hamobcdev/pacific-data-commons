@@ -54,6 +54,12 @@ import { samoaComplianceStatusRoute } from "./routes/pacific/samoa-compliance-st
 import { samoaServiceProvidersRoute } from "./routes/pacific/samoa-service-providers.js";
 import { samoaBankingSetupRoute } from "./routes/pacific/samoa-banking-setup.js";
 import { agentDatasetGatewayRoute } from "./routes/agentDatasetGateway.js";
+import { pacificSetupComparisonRoute } from "./routes/invest/pacific-setup-comparison.js";
+import { pacificTaxComparisonRoute } from "./routes/invest/pacific-tax-comparison.js";
+import { pacificLandTenureRoute } from "./routes/invest/pacific-land-tenure.js";
+import { pacificSectorRestrictionsRoute } from "./routes/invest/pacific-sector-restrictions.js";
+import { pacificRegulatoryScoresRoute } from "./routes/invest/pacific-regulatory-scores.js";
+import { pacificSetupChecklistRoute } from "./routes/invest/pacific-setup-checklist.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
@@ -248,6 +254,12 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", samoaComplianceStatusRoute);
   app.route("/", samoaServiceProvidersRoute);
   app.route("/", samoaBankingSetupRoute);
+  app.route("/", pacificSetupComparisonRoute);
+  app.route("/", pacificTaxComparisonRoute);
+  app.route("/", pacificLandTenureRoute);
+  app.route("/", pacificSectorRestrictionsRoute);
+  app.route("/", pacificRegulatoryScoresRoute);
+  app.route("/", pacificSetupChecklistRoute);
   app.route("/", agentDatasetGatewayRoute);
 
   // /api/data/* -> canonical route aliases — see API_DATA_ROUTE_ALIASES'

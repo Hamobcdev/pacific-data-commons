@@ -93,22 +93,26 @@ describe("GET /pacific/samoa-compliance-status", () => {
     expect(body.compliance_status.aml_cft_framework.apc_member).toBe(true);
   });
 
-  it("reflects OECD peer review status under oecd_peer_review key", async () => {
+  it("marks OECD peer review rating as pending_verification, not asserted as fact", async () => {
     const app = buildTestApp();
     const res = await app.request("/pacific/samoa-compliance-status");
     const body = (await res.json()) as {
       compliance_status: {
         oecd_peer_review: {
           status: string;
-          rating: string;
-          notes: string;
+          note: string;
+          source_url: string;
+          data_verified_date: string | null;
         };
       };
     };
 
-    // Samoa is "largely compliant" — not fully compliant
-    expect(body.compliance_status.oecd_peer_review.status).toBe("largely_compliant");
-    expect(body.compliance_status.oecd_peer_review.rating).toContain("Largely Compliant");
+    // oecd.org blocks automated access (403) — the rating is not yet
+    // independently confirmed, so the endpoint must not assert one.
+    expect(body.compliance_status.oecd_peer_review.status).toBe("pending_verification");
+    expect(typeof body.compliance_status.oecd_peer_review.note).toBe("string");
+    expect(typeof body.compliance_status.oecd_peer_review.source_url).toBe("string");
+    expect(body.compliance_status.oecd_peer_review.data_verified_date).toBeNull();
   });
 
   it("has a due_diligence_signal field under compliance_status", async () => {
