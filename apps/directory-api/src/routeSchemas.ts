@@ -73,6 +73,17 @@ const PACIFIC_GDP_PRICE_USDC = 0.01;
 const PACIFIC_POPULATION_PRICE_USDC = 0.01;
 const PACIFIC_CPI_PRICE_USDC = 0.01;
 
+// Decision 63 — Samoa Jurisdiction Intelligence tier. These are SBP-curated
+// regulatory intelligence endpoints (research, structuring, and maintenance
+// done by SBP), priced separately from the Decision 60 $0.01 open-data cap —
+// that cap applies only to first-party wrappers over a genuinely open
+// external source, which this is not. Four distinct prices per endpoint
+// complexity, confirmed under Decision 63.
+const SAMOA_COMPLIANCE_STATUS_PRICE_USDC = 1.00;
+const SAMOA_SERVICE_PROVIDERS_PRICE_USDC = 1.50;
+const SAMOA_ENTITY_SETUP_PRICE_USDC = 3.00;
+const SAMOA_BANKING_SETUP_PRICE_USDC = 5.00;
+
 // Pacific Investment Intelligence suite — 6 synthesis endpoints.
 // Decision 23 Bronze ceiling ($0.50 max) applies. Decision 60 does NOT apply —
 // these are SBP proprietary synthesis (multi-source regulatory data aggregated
@@ -1294,6 +1305,118 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
+  // ─── SIFA Regulatory Intelligence Endpoints ──────────────────────────────
+  // Decision 61 — Pacific Data Registry first-party curated regulatory layer.
+  // Priced per Decision 63 — SBP-curated regulatory intelligence, not a
+  // Decision 60 open-data wrapper, so tiered per endpoint complexity
+  // ($1.00-$5.00) rather than the Decision 60 $0.01 cap.
+  {
+    method: "GET",
+    path: "/pacific/samoa-entity-setup",
+    description:
+      "Samoa international entity formation requirements — structured regulatory intelligence for IBC, international trust, foundation, international banking licence, insurance, partnership, and mutual fund structures. Includes director/shareholder requirements, minimum capital, tax treatment, UBO disclosure obligations, formation timeline, and typical fee ranges. Query param: entity_type (ibc|trust|foundation|international_bank|insurance|partnership|mutual_fund|all). Source: SIFA Act 2005, International Companies Act 1987.",
+    priceUsdc: SAMOA_ENTITY_SETUP_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          query: { entity_type: "ibc" },
+          results: [{
+            entity_type: "ibc",
+            entity_type_label: "International Business Company (IBC)",
+            governing_legislation: "International Companies Act 1987",
+            minimum_shareholders: 1,
+            minimum_directors: 1,
+            minimum_paid_up_capital_usd: null,
+            ubo_disclosure_threshold_pct: 25,
+            ubo_disclosure_public: false,
+            tax_treatment: "Zero tax on income earned outside Samoa",
+            formation_timeline_typical: "1–3 business days",
+            annual_fee_usd_approx: 300,
+          }],
+          aml_cfct_mandatory_notice: "MANDATORY: All entity types require UBO disclosure of any beneficial owner with ≥25% interest to the Financial Intelligence Unit (FIU) Samoa.",
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/samoa-compliance-status",
+    description:
+      "Samoa's current regulatory compliance status across EU, FATF, OECD, and TIEA networks — structured for AI due diligence agents. Includes EU blacklist status (removed 17 February 2026, citing abolition of the harmful offshore business regime), FATF APG mutual evaluation status (2023 Follow-Up Report), OECD Global Forum peer review status (pending verification against the official OECD source — see oecd_peer_review.status), TIEA partner network count and key partners, AML/CFT legislative framework, FIU Samoa details, and SIFA overview. Returns a structured due_diligence_signal (low_risk/medium_risk/high_risk) field for programmatic use.",
+    priceUsdc: SAMOA_COMPLIANCE_STATUS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          compliance_status: {
+            jurisdiction: "Samoa (Independent State of)",
+            iso_code: "WS",
+            eu_blacklist: {
+              status: "not_listed",
+              removed_from_list_date: "2026-02-17",
+              reform_cited: "Abolition of harmful offshore business regime, January 2026",
+            },
+            fatf_status: {
+              status: "compliant",
+              last_mutual_evaluation: "2023",
+              fur_url: "https://www.fatf-gafi.org/en/publications/Mutualevaluations/Samoa-FUR-2023.html",
+            },
+            oecd_peer_review: {
+              status: "pending_verification",
+              note: "2019 Second Round report confirmed to exist. Overall rating being verified against official OECD source before endpoint goes live.",
+              source_url: "https://www.oecd.org/content/dam/oecd/en/publications/reports/2019/11/global-forum-on-transparency-and-exchange-of-information-for-tax-purposes-samoa-2019-second-round_bc3b06e4/d8954bf5-en.pdf",
+              data_verified_date: null,
+            },
+            due_diligence_signal: "low_risk",
+          },
+          summary: "Samoa (WS) presents a LOW RISK regulatory profile as of October 2026. OECD Global Forum peer review rating is pending independent verification — see oecd_peer_review.",
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
 
   // ─── Pacific Investment Intelligence suite ─────────────────────────────────
   // SBP first-party synthesis layer — regulatory data from 6 Pacific national
@@ -1337,6 +1460,47 @@ const paidRoutesBase: PaidRouteSpec[] = [
   },
   {
     method: "GET",
+    path: "/pacific/samoa-service-providers",
+    description:
+      "Directory of SIFA-licensed trustee companies in Samoa — the 10 registered agents required by law for Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider, listed neutrally in the register's own source order. Register verified 2026-10-15 via samoaibfc.ws (sifa.ws itself blocks automated access — see register_as_of and register_source in the response).",
+    priceUsdc: SAMOA_SERVICE_PROVIDERS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Samoa",
+          regulator: "SIFA",
+          total_licensed_trustee_companies: 10,
+          register_as_of: "2026-10-15",
+          register_source: "samoaibfc.ws (mirror — sifa.ws blocks automated access)",
+          providers: [{ name: "Asiaciti Trust Samoa Limited", address: "Saleufi, Apia", phone: null }],
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
     path: "/invest/pacific-tax-comparison",
     description:
       "Side-by-side tax rates across 6 Pacific nations — corporate tax, VAT/GST, withholding tax, income tax, payroll levies, double tax agreements. Vanuatu is a zero-income-tax jurisdiction. Optional ?nations= filter. SBP first-party synthesis of October 2026 national revenue authority data.",
@@ -1357,6 +1521,49 @@ const paidRoutesBase: PaidRouteSpec[] = [
             { nation: "vu", name: "Vanuatu", corporate_tax_pct: 0, vat_gst_pct: 15, double_tax_agreements: [] },
             { nation: "ws", name: "Samoa", corporate_tax_pct: 27, vat_gst_pct: 15, double_tax_agreements: ["Australia", "New Zealand", "Japan"] },
           ],
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/samoa-banking-setup",
+    description:
+      "Samoa International Banking Licence requirements under the International Banking Act 2005 — USD 1M minimum capital, director qualifications, full MLPA 2007-compliant AML/CFT programme, SIFA fit-and-proper assessment process, 8-step application timeline (3–6 months total), annual obligations, and permitted vs restricted activities. Includes specific CBS consultation note for USDC and digital asset banking activities.",
+    priceUsdc: SAMOA_BANKING_SETUP_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          banking_setup: {
+            licence_type: "International Banking Licence",
+            minimum_paid_up_capital_usd: 1000000,
+            minimum_directors: 2,
+            application_process: { total_timeline_estimate: "3–6 months from initial engagement of registered agent" },
+            cbdc_digital_asset_note: "USDC and other digital asset activities require CBS written position before launch.",
+          },
+          executive_summary: "An International Banking Licence from SIFA requires USD 1,000,000 minimum paid-up capital.",
+          official_documents: [
+            {
+              title: "International Banking Act 2005 (2025 consolidation)",
+              url: "https://pacliirms.paclii.org/ws/legis/consol_act_2025/iba2005211.pdf",
+            },
+            {
+              title: "SIFA Act 2005 (2023 consolidation)",
+              url: "https://pacliirms.austlii.edu.au/ws/legis/consol_act_2023/sifaa2005377.pdf",
+            },
+          ],
+          platform_context: {
+            layer: 1,
+            layer_description: "Pacific Data Registry — curated regulatory intelligence service",
+            layer_2_status: "under_construction",
+            layer_2_description: "OGIP — Pacific government data exchange and ministry interoperability layer",
+            layer_3_status: "planned",
+            layer_3_description: "Sovereign node network — nation-hosted infrastructure with PDC as routing and discovery layer",
+            partnership_enquiries: "anthony@synergybcpacific.com",
+          },
+          attribution: { source: "SIFA", source_url: "https://www.sifa.ws" },
         },
       },
     }),
@@ -1530,6 +1737,10 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/finance/pacific-gdp",
   "/demographics/pacific-population",
   "/finance/pacific-cpi",
+  "/pacific/samoa-entity-setup",
+  "/pacific/samoa-compliance-status",
+  "/pacific/samoa-service-providers",
+  "/pacific/samoa-banking-setup",
   "/invest/pacific-setup-comparison",
   "/invest/pacific-tax-comparison",
   "/invest/pacific-land-tenure",

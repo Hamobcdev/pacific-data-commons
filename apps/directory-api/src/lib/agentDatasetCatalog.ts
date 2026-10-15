@@ -31,7 +31,10 @@ export interface AgentDatasetMetadata {
   // dataset under that path prefix. lib/dataCategories.ts's DATA_CATEGORIES
   // already had "demographics" as a valid category; nothing here used it
   // before this one.
-  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics" | "investment";
+  // "regulatory" added for the SIFA Samoa regulatory intelligence endpoints —
+  // maps to DATA_CATEGORIES's "governance" DataCategory in
+  // CATEGORY_TO_DATA_CATEGORY below.
+  category: "finance" | "climate" | "fisheries" | "intelligence" | "tourism" | "algorand" | "demographics" | "regulatory" | "investment";
   dataCurrency: string;
   upstreamSource: string;
   reportingLagNote?: string;
@@ -78,6 +81,31 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
   "/finance/pacific-gdp": { category: "finance", dataCurrency: "annual", upstreamSource: "World Bank Open Data (NY.GDP.MKTP.CD)" },
   "/demographics/pacific-population": { category: "demographics", dataCurrency: "annual", upstreamSource: "World Bank Open Data (SP.POP.TOTL)" },
   "/finance/pacific-cpi": { category: "finance", dataCurrency: "annual", upstreamSource: "Pacific Community (SPC) SDMX data service (DF_CPI)" },
+  // SIFA Regulatory Intelligence — Decision 61, curated static regulatory data
+  "/pacific/samoa-entity-setup": {
+    category: "regulatory",
+    dataCurrency: "static (updated on legislative change)",
+    upstreamSource: "SIFA / MCIL Samoa — International Companies Act 1987, SIFA Act 2005",
+    reportingLagNote: "Static curated data. Verified October 2026. Updated when Samoa legislation or SIFA regulations change.",
+  },
+  "/pacific/samoa-compliance-status": {
+    category: "regulatory",
+    dataCurrency: "static (updated on status change)",
+    upstreamSource: "EU Council / FATF APG / OECD Global Forum / SIFA Samoa",
+    reportingLagNote: "Status as of last verification date in response. EU blacklist removals, FATF status changes, and OECD peer review updates trigger a revision.",
+  },
+  "/pacific/samoa-service-providers": {
+    category: "regulatory",
+    dataCurrency: "static (updated on SIFA licence changes)",
+    upstreamSource: "SIFA Samoa — licensed trustee company register",
+    reportingLagNote: "SIFA-licensed provider list as of October 2026. New licences and revocations trigger an update. Always verify current licence status with SIFA before engaging any provider.",
+  },
+  "/pacific/samoa-banking-setup": {
+    category: "regulatory",
+    dataCurrency: "static (updated on legislative change)",
+    upstreamSource: "SIFA Samoa — International Banking Act 2005",
+    reportingLagNote: "Requirements as of October 2026. Capital requirements and process steps may change with SIFA or CBS regulatory changes.",
+  },
   "/invest/pacific-setup-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: MCIL Samoa, Investment Fiji, VFIPA Vanuatu, IPA PNG, MFEM Tonga, MCITP Solomon Islands" },
   "/invest/pacific-tax-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa VAGST Act, FRCA Fiji, Vanuatu VFIPA, IRC PNG, Tonga MoR, Solomon Islands IRD" },
   "/invest/pacific-land-tenure": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa Land Corporation, iTaukei Land Trust Board Fiji, Vanuatu Custom Land Act, PNG Land Act, Tonga Land Act, Solomon Islands Land & Titles Act" },
@@ -123,6 +151,10 @@ const QUERYABLE_DATASET_IDS = new Set([
   "pacific-gdp",
   "pacific-population",
   "pacific-cpi",
+  "samoa-entity-setup",
+  "samoa-compliance-status",
+  "samoa-service-providers",
+  "samoa-banking-setup",
   "pacific-setup-comparison",
   "pacific-tax-comparison",
   "pacific-land-tenure",
@@ -206,6 +238,7 @@ const CATEGORY_TO_DATA_CATEGORY: Record<AgentDatasetMetadata["category"], DataCa
   intelligence: "other",
   algorand: "other",
   demographics: "demographics",
+  regulatory: "governance",
   investment: "trade",
 };
 
