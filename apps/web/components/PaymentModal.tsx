@@ -41,8 +41,9 @@ type ModalStep = "email" | "payment";
 type ConfirmState = "idle" | "verifying" | "success" | "error";
 
 /**
- * Manual USDC payment instructions for a PDC endpoint (Pera Wallet deeplink +
- * QR), extended with the human payment rail (competition, simplified flow —
+ * Manual USDC payment instructions for a PDC endpoint (ARC-26 Algorand URI +
+ * QR — wallet-agnostic, scannable by any Algorand wallet app), extended with
+ * the human payment rail (competition, simplified flow —
  * see CLAUDE.md's payment-rail intelligence report and build prompt).
  *
  * Still deliberately NOT an x402 integration point: apps/directory-api's
@@ -51,8 +52,8 @@ type ConfirmState = "idle" | "verifying" | "success" | "error";
  * transfer can never produce. What's new here is a two-step flow that lets
  * a human who paid out-of-band actually get their data without an
  * x402-capable client: Step A captures an email + generates a reference ID
- * (displayed on screen, not embedded in the QR — Pera rejects a `note`
- * param on its pay deeplink as invalid) before showing the QR; Step B shows
+ * (displayed on screen, not embedded in the QR URI) before showing the QR;
+ * Step B shows
  * the QR plus a manual "I've paid, here's my tx ID" confirmation that the
  * Worker verifies against the Algorand indexer and, on success, emails a
  * one-time download token for a human-readable delivery page. See
@@ -82,7 +83,7 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
   const queryUrl = endpoint.endpoint_url ? `${endpoint.endpoint_url.replace(/\/$/, "")}${tier.path}` : null;
   const deeplink =
     resolvedPayToAddress && referenceId
-      ? `perawallet://pay?to=${resolvedPayToAddress}&amount=${toMicroUsdc(tier.price_usdc)}&asset=${USDC_ASSET_ID}`
+      ? `algorand://${resolvedPayToAddress}?amount=${toMicroUsdc(tier.price_usdc)}&asset=${USDC_ASSET_ID}`
       : null;
 
   useEffect(() => {
@@ -173,9 +174,8 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
   }
 
   // Display-only — last 8 chars of the full reference ID, uppercased. Not
-  // embedded in the QR (Pera rejects a `note` param on its pay deeplink as
-  // invalid) — this is purely a shorter string for the buyer to read back
-  // when they submit their tx ID in the confirmation step below.
+  // embedded in the QR URI — this is purely a shorter string for the buyer
+  // to read back when they submit their tx ID in the confirmation step below.
   const referenceIdDisplay = referenceId ? referenceId.slice(-8).toUpperCase() : null;
 
   return (
@@ -220,7 +220,7 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
             <div className="mt-4 flex justify-center">
               {qrDataUrl && (
                 // eslint-disable-next-line @next/next/no-img-element -- data: URI, not an optimisable remote image
-                <img src={qrDataUrl} alt="QR code of the Pera Wallet payment deeplink" width={220} height={220} />
+                <img src={qrDataUrl} alt="QR code of the Algorand payment request" width={220} height={220} />
               )}
             </div>
 
@@ -246,9 +246,9 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
             </div>
 
             <Alert variant="info" className="mt-4 text-xs">
-              Scan the QR code or send <strong>${tier.price_usdc.toFixed(2)} USDC</strong> directly to the wallet above using Pera
-              Wallet or another Algorand wallet. This is a direct transfer to the provider — SBP does not process or hold this
-              payment. Keep your reference ID (shown above) handy for the confirmation step below.
+              Scan the QR code or send <strong>${tier.price_usdc.toFixed(2)} USDC</strong> directly to the wallet above using your
+              Algorand wallet. This is a direct transfer to the provider — SBP does not process or hold this payment. Keep your
+              reference ID (shown above) handy for the confirmation step below.
             </Alert>
 
             <div className="mt-4 space-y-1">
