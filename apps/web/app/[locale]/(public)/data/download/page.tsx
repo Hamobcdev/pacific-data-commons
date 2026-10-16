@@ -39,23 +39,36 @@ export default async function DownloadPage({ searchParams }: { searchParams: { t
     return <ErrorShell message="This download link has expired." />;
   }
 
-  // One-time: mark redeemed before fetching the actual data, not after —
-  // a crash/timeout on the data fetch below must not leave a reusable
-  // token behind. A buyer who hits a transient failure here has their
-  // reference ID and tx ID as the recovery path (contact support), same
-  // posture as the "payment verified but token not issued" case in
-  // apps/directory-api/src/routes/payment.ts.
-  await supabase
-    .from("payment_intents")
-    .update({ state: "token_redeemed", token_redeemed_at: new Date().toISOString() })
-    .eq("id", intent.id);
-
+  // Reordered (fix/email-persistence-and-download-page, 2026-10-16): this
+  // used to mark the token redeemed BEFORE attempting the fetch below, on
+  // the theory that a crash/timeout must never leave a reusable token
+  // behind. In production that backfired the other way: a real buyer's
+  // row (PDC-ca6719f4-...) got burned to token_redeemed on a fetch that
+  // never actually delivered any data, permanently locking them out with
+  // no automated retry — the "contact support" fallback this comment used
+  // to cite requires a human to manually dig through payment_intents, not
+  // something a buyer can self-serve. Now the token is only consumed on a
+  // CONFIRMED successful fetch, so a transient failure (misconfigured
+  // DASHBOARD_INTERNAL_KEY, a cold Worker, a network blip) just leaves the
+  // link reloadable — the fetch is naturally idempotent (GET against a
+  // static/in-memory dataset), so retrying has no side effect worth
+  // guarding against.
   const directoryApiUrl = (process.env.NEXT_PUBLIC_DIRECTORY_API_URL ?? "https://api.synergybcpacific.com").replace(/\/$/, "");
   const internalKey = process.env.DASHBOARD_INTERNAL_KEY;
 
   let data: unknown = null;
   let fetchFailed = false;
   if (!internalKey) {
+    // Distinguished from the other two failure branches below — this one
+    // means apps/web's own DASHBOARD_INTERNAL_KEY env var isn't set in
+    // *this* deployment target at all (e.g. present for Production but not
+    // Preview), not a Worker-side problem. The prior version of this page
+    // folded all three cases into one silent boolean, which is exactly why
+    // diagnosing PDC-ca6719f4-... required manually querying Supabase and
+    // tailing the Worker instead of reading a log line.
+    console.error("[data/download] DASHBOARD_INTERNAL_KEY not configured for this deployment", {
+      referenceId: intent.reference_id,
+    });
     fetchFailed = true;
   } else {
     try {
@@ -64,22 +77,40 @@ export default async function DownloadPage({ searchParams }: { searchParams: { t
         cache: "no-store",
       });
       if (!res.ok) {
+        console.error("[data/download] internal data fetch returned non-OK status", {
+          referenceId: intent.reference_id,
+          tierPath: intent.tier_path,
+          status: res.status,
+        });
         fetchFailed = true;
       } else {
         data = await res.json();
       }
-    } catch {
+    } catch (err) {
+      console.error("[data/download] internal data fetch threw", {
+        referenceId: intent.reference_id,
+        tierPath: intent.tier_path,
+        error: err instanceof Error ? err.message : String(err),
+      });
       fetchFailed = true;
     }
   }
 
   if (fetchFailed) {
     return (
-      <ErrorShell message="Your payment was verified, but we couldn't retrieve your data just now. Contact anthony@synergybcpacific.com with this reference ID for help:">
+      <ErrorShell message="Your payment was verified, but we couldn't retrieve your data just now. Reload this page to try again, or contact anthony@synergybcpacific.com with this reference ID for help:">
         <p className="mt-2 font-mono text-sm text-gray-700">{intent.reference_id}</p>
       </ErrorShell>
     );
   }
+
+  // Only now — after a confirmed successful fetch — is the token actually
+  // consumed. See the comment above this block for why this moved from
+  // before the fetch to after it.
+  await supabase
+    .from("payment_intents")
+    .update({ state: "token_redeemed", token_redeemed_at: new Date().toISOString() })
+    .eq("id", intent.id);
 
   const endpointName = humanizeSlug(intent.tier_path);
   const fetchedAt = isPlainObjectWithFetchedAt(data) ? data.fetched_at : null;
