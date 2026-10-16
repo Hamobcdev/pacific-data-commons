@@ -84,6 +84,19 @@ const envSchema = z.object({
   // without it.
   NODELY_API_TOKEN: z.string().optional(),
 
+  // Human payment rail (competition, simplified flow) — POST /payment/verify
+  // (routes/payment.ts) looks up a submitted tx id by ID, which only the
+  // indexer serves durably (algod, above, does not keep confirmed
+  // transactions queryable once they age out of its recent-transaction
+  // cache — same reasoning as apps/agents' own ALGORAND_INDEXER_URL).
+  // Default: https://mainnet-idx.algonode.cloud (AlgoNode's free public
+  // indexer — the indexer sibling of apps/agents' own ALGORAND_NODE_URL
+  // default, not this service's own ALGORAND_NODE_URL above, which is
+  // Nodely's paid algod endpoint and has no indexer counterpart at that
+  // tier configured here). Set as a Cloudflare Secret for production —
+  // see wrangler.toml's [vars] comment block.
+  ALGORAND_INDEXER_URL: z.string().url().default("https://mainnet-idx.algonode.cloud"),
+
   // Session 31 — Pacific Intelligence Orchestrator's payer wallet
   // (GET /intelligence/pacific-brief pays 3 PDC sub-endpoints per run).
   // User-confirmed for the Sep 2026 Monash timeline: this reuses

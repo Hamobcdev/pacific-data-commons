@@ -9,13 +9,15 @@ import type { PricingTier } from "@pdc/shared-types";
 export interface EndpointPricingCardProps {
   endpointTitle: string;
   endpointUrl: string | null;
+  /** endpoints.id — threaded down to PaymentModal for the payment_intents row (human payment rail). */
+  endpointId: string;
   /** process.env.AVM_ADDRESS, read server-side by the page and passed down — never hardcoded (CLAUDE.md P4/hard rules). */
   payToAddress: string | null;
   tiers: PricingTier[];
 }
 
 /** Per-tier "Run Query" opens PaymentModal with that tier's own price and path — pricing_tiers carries no shared single price, each tier is a separately priced query. */
-export function EndpointPricingCard({ endpointTitle, endpointUrl, payToAddress, tiers }: EndpointPricingCardProps) {
+export function EndpointPricingCard({ endpointTitle, endpointUrl, endpointId, payToAddress, tiers }: EndpointPricingCardProps) {
   const [openTier, setOpenTier] = useState<PaymentModalTier | null>(null);
 
   return (
@@ -47,6 +49,7 @@ export function EndpointPricingCard({ endpointTitle, endpointUrl, payToAddress, 
       {openTier && (
         <PaymentModal
           endpoint={{ title: endpointTitle, endpoint_url: endpointUrl }}
+          endpointId={endpointId}
           tier={openTier}
           payToAddress={payToAddress}
           isOpen={true}

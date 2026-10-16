@@ -81,6 +81,7 @@ export default async function DatasetDetailPage({
       <EndpointPricingCard
         endpointTitle={endpoint.title}
         endpointUrl={endpoint.endpoint_url}
+        endpointId={endpoint.id}
         payToAddress={process.env.AVM_ADDRESS ?? null}
         tiers={endpoint.pricing_tiers}
       />
