@@ -48,6 +48,16 @@ FACILITATOR_URL = "https://facilitator.goplausible.xyz"
 ALGORAND_NODE_URL = "https://mainnet-api.algonode.cloud"
 WEB_APP_URL = "https://pacific-data-commons-web-olive.vercel.app"
 LOG_LEVEL = "info"
+# §26.6 failure mode (confirmed via intelligence run, 2026-10-16): this was
+# only ever added via the Cloudflare dashboard, not declared here — the
+# exact pattern that already bit pilot-endpoint and financial-rails once
+# before. A dashboard-only var/secret survives only until the next plain
+# `wrangler deploy`, which treats this [vars] block as the complete,
+# authoritative set and silently drops anything not listed here. EMAIL_FROM
+# is plain config (a from-address, not a credential), so it belongs here as
+# a versioned [vars] entry rather than a Secret — same reasoning as
+# AVM_ADDRESS/AGENT_WALLET_ADDRESS above.
+EMAIL_FROM = "Pacific Data Commons <alerts@synergybcpacific.com>"
 
 [observability]
 enabled = true
@@ -95,7 +105,6 @@ crons = ["*/15 * * * *", "*/4 * * * *"]
 # INTERNAL_API_KEY
 # COMPLIANCE_API_KEY
 # RESEND_API_KEY
-# EMAIL_FROM
 # NODELY_API_TOKEN
 # AGENT_WALLET_KEY
 # PILOT_ENDPOINT_URL
