@@ -51,7 +51,8 @@ type ConfirmState = "idle" | "verifying" | "success" | "error";
  * transfer can never produce. What's new here is a two-step flow that lets
  * a human who paid out-of-band actually get their data without an
  * x402-capable client: Step A captures an email + generates a reference ID
- * (embedded in the QR's payment note) before showing the QR; Step B shows
+ * (displayed on screen, not embedded in the QR — Pera rejects a `note`
+ * param on its pay deeplink as invalid) before showing the QR; Step B shows
  * the QR plus a manual "I've paid, here's my tx ID" confirmation that the
  * Worker verifies against the Algorand indexer and, on success, emails a
  * one-time download token for a human-readable delivery page. See
@@ -81,7 +82,7 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
   const queryUrl = endpoint.endpoint_url ? `${endpoint.endpoint_url.replace(/\/$/, "")}${tier.path}` : null;
   const deeplink =
     resolvedPayToAddress && referenceId
-      ? `perawallet://pay?to=${resolvedPayToAddress}&amount=${toMicroUsdc(tier.price_usdc)}&asset=${USDC_ASSET_ID}&note=${encodeURIComponent(referenceId)}`
+      ? `perawallet://pay?to=${resolvedPayToAddress}&amount=${toMicroUsdc(tier.price_usdc)}&asset=${USDC_ASSET_ID}`
       : null;
 
   useEffect(() => {
@@ -171,10 +172,10 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
     }
   }
 
-  // Display-only — last 8 chars of the full reference ID, uppercased. The
-  // full value (already uppercase, PDC-<uuid>) is what's actually embedded
-  // in the QR's payment note; this is purely a shorter string for a human
-  // to read back over the phone/in person if needed.
+  // Display-only — last 8 chars of the full reference ID, uppercased. Not
+  // embedded in the QR (Pera rejects a `note` param on its pay deeplink as
+  // invalid) — this is purely a shorter string for the buyer to read back
+  // when they submit their tx ID in the confirmation step below.
   const referenceIdDisplay = referenceId ? referenceId.slice(-8).toUpperCase() : null;
 
   return (
@@ -247,7 +248,7 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
             <Alert variant="info" className="mt-4 text-xs">
               Scan the QR code or send <strong>${tier.price_usdc.toFixed(2)} USDC</strong> directly to the wallet above using Pera
               Wallet or another Algorand wallet. This is a direct transfer to the provider — SBP does not process or hold this
-              payment. Your reference ID is embedded in the payment note automatically when you scan the QR.
+              payment. Keep your reference ID (shown above) handy for the confirmation step below.
             </Alert>
 
             <div className="mt-4 space-y-1">
