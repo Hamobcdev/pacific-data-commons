@@ -66,7 +66,7 @@ const envSchema = z.object({
   // to send must never block integrity event recording or agent payments
   // (P4/P5 — the check that matters, the payment block, already happened).
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Pacific Data Commons <alerts@synergybp.com>"),
+  EMAIL_FROM: z.string().default("Pacific Data Commons <alerts@synergybcpacific.com>"),
 
   // Session 29 — GET /algorand/wallet-balance reads live Algorand Mainnet
   // chain state, independent of ALGORAND_NETWORK above (which controls the
