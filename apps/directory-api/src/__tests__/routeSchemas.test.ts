@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import Ajv2020 from "ajv/dist/2020.js";
-import { paidRoutes } from "../routeSchemas.js";
+import { paidRoutes, humanDeliverableRoutes } from "../routeSchemas.js";
 import { AGENT_DATASET_CATALOG } from "../lib/agentDatasetCatalog.js";
+import { INTERNAL_DATA_FETCH_ROUTES } from "../routes/internal/data-fetch.js";
+import { HUMAN_DELIVERABLE_PATHS } from "@pdc/shared-types";
 
 /**
  * Guards against a genuinely broken bazaar discovery schema (duplicate
@@ -90,5 +92,43 @@ describe("routeSchemas: Agent Dataset Gateway per-dataset pricing", () => {
       expect(gatewayRoute?.priceUsdc).toBe(directRoute?.priceUsdc);
       expect(gatewayRoute?.payToAddress).toBe(directRoute?.payToAddress);
     }
+  });
+});
+
+/**
+ * humanDeliverable gates two independent surfaces (apps/web's buy-button
+ * UI and data-fetch.ts's INTERNAL_DATA_FETCH_ROUTES) that are hand-
+ * maintained in two different files. This suite guards the one invariant
+ * that actually matters operationally: the internal-fetch map can never
+ * contain a path the UI isn't also allowed to sell, which would let a
+ * buyer pay for and receive data through a route humanDeliverable says
+ * should never have been purchasable in the first place.
+ */
+describe("routeSchemas: humanDeliverable / INTERNAL_DATA_FETCH_ROUTES consistency", () => {
+  it("every path wired into INTERNAL_DATA_FETCH_ROUTES is flagged humanDeliverable in routeSchemas.ts", () => {
+    const humanDeliverablePaths = new Set(humanDeliverableRoutes.map((r) => r.path));
+    const unflaggedWiredPaths = Object.keys(INTERNAL_DATA_FETCH_ROUTES).filter((p) => !humanDeliverablePaths.has(p));
+    expect(unflaggedWiredPaths, `wired but not humanDeliverable: ${JSON.stringify(unflaggedWiredPaths)}`).toEqual([]);
+  });
+
+  it("every wired path is still a registered GET paidRoutes entry", () => {
+    const registeredGetPaths = new Set(paidRoutes.filter((r) => r.method === "GET").map((r) => r.path));
+    const orphanedWiredPaths = Object.keys(INTERNAL_DATA_FETCH_ROUTES).filter((p) => !registeredGetPaths.has(p));
+    expect(orphanedWiredPaths, `wired but not a registered GET route: ${JSON.stringify(orphanedWiredPaths)}`).toEqual([]);
+  });
+
+  /**
+   * apps/web cannot import apps/directory-api's routeSchemas.ts (separate
+   * deployable, no runtime dependency between apps), so it reads
+   * @pdc/shared-types' HUMAN_DELIVERABLE_PATHS for its own buy-button
+   * gating instead. This is the one test standing between that list and
+   * routeSchemas.ts's own per-route humanDeliverable flags silently
+   * drifting apart — exactly the failure mode CLAUDE.md §26.2 and this
+   * file's own Agent Dataset Gateway suite above guard against elsewhere.
+   */
+  it("routeSchemas.ts's humanDeliverableRoutes exactly matches @pdc/shared-types' HUMAN_DELIVERABLE_PATHS", () => {
+    const fromRouteSchemas = [...humanDeliverableRoutes.map((r) => r.path)].sort();
+    const fromSharedTypes = [...HUMAN_DELIVERABLE_PATHS].sort();
+    expect(fromRouteSchemas).toEqual(fromSharedTypes);
   });
 });

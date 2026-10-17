@@ -12,6 +12,19 @@ import { pacificLandTenureRoute } from "../invest/pacific-land-tenure.js";
 import { pacificSectorRestrictionsRoute } from "../invest/pacific-sector-restrictions.js";
 import { pacificRegulatoryScoresRoute } from "../invest/pacific-regulatory-scores.js";
 import { pacificSetupChecklistRoute } from "../invest/pacific-setup-checklist.js";
+import { samoaGdpRoute } from "../finance/samoa-gdp.js";
+import { fijiGdpRoute } from "../finance/fiji-gdp.js";
+import { fijiCpiRoute } from "../finance/fiji-cpi.js";
+import { pacificPurseSeineRoute } from "../fisheries/pacific-purse-seine.js";
+import { pacificDexArbitrageRoute } from "../finance/arbitrage-signals.js";
+import { pacificRemittanceRoute } from "../finance/remittance-corridors.js";
+import { pacificCycloneHistoryRoute } from "../climate/pacificCycloneHistory.js";
+import { pacificSeaLevelRoute } from "../climate/pacificSeaLevel.js";
+import { pacificEnsoIndexRoute } from "../climate/pacificEnsoIndex.js";
+import { pacificCpiRoute } from "../finance/pacific-cpi.js";
+import { samoaCpiRoute } from "../finance/samoa-cpi.js";
+import { pacificGdpRoute } from "../finance/pacific-gdp.js";
+import { pacificPopulationRoute } from "../demographics/pacific-population.js";
 
 /**
  * Human payment rail (competition, simplified flow) — internal-only data
@@ -30,18 +43,24 @@ import { pacificSetupChecklistRoute } from "../invest/pacific-setup-checklist.js
  * INTERNAL_DATA_FETCH_ROUTES below.
  *
  * Dispatch is a small explicit map, not a generic "call whatever path was
- * requested" — only the 10 Samoa Jurisdiction Intelligence + Pacific
- * Investment Intelligence routes are wired here, because those are the
- * only paid routes this human-payment flow currently targets, and because
- * calling an arbitrary route's Hono sub-app via .request() skips the main
- * app's bootstrap middleware (app.ts's `c.set("env", ...)` /
- * `c.set("supabase", ...)`) — safe for these 10, which are static
- * in-memory data with no c.var usage, but NOT safe in general for routes
- * that read c.var.supabase/env/cryptoPricesKv. Extend this map (and
- * confirm the target route doesn't need those bindings) before relying on
- * this for anything else.
+ * requested" — only routeSchemas.ts's humanDeliverableRoutes are wired
+ * here, because calling an arbitrary route's Hono sub-app via .request()
+ * skips the main app's bootstrap middleware (app.ts's `c.set("env", ...)` /
+ * `c.set("supabase", ...)`) — safe only for routes with no c.var usage.
+ * routeSchemas.ts's PaidRouteSpec.humanDeliverable flag is the single
+ * source of truth for which routes that is true for; this map must stay a
+ * subset of humanDeliverableRoutes (not every humanDeliverable route needs
+ * to be wired yet, but nothing NOT flagged humanDeliverable should ever be
+ * added here) — routeSchemas.test.ts's own sanity check enforces this.
+ * Extend this map (and confirm the target route doesn't need
+ * c.var.supabase/env/cryptoPricesKv, and isn't an orchestrator that spends
+ * USDC internally) before adding anything beyond what's already flagged
+ * humanDeliverable.
  */
-const INTERNAL_DATA_FETCH_ROUTES: Record<string, Hono<AppBindings>> = {
+// Exported only for routeSchemas.test.ts's drift check (this map must stay
+// a subset of routeSchemas.ts's humanDeliverableRoutes) — not imported by
+// any runtime code outside this file.
+export const INTERNAL_DATA_FETCH_ROUTES: Record<string, Hono<AppBindings>> = {
   "/pacific/samoa-entity-setup": samoaEntitySetupRoute,
   "/pacific/samoa-compliance-status": samoaComplianceStatusRoute,
   "/pacific/samoa-service-providers": samoaServiceProvidersRoute,
@@ -52,6 +71,19 @@ const INTERNAL_DATA_FETCH_ROUTES: Record<string, Hono<AppBindings>> = {
   "/invest/pacific-sector-restrictions": pacificSectorRestrictionsRoute,
   "/invest/pacific-regulatory-scores": pacificRegulatoryScoresRoute,
   "/invest/pacific-setup-checklist": pacificSetupChecklistRoute,
+  "/finance/samoa-gdp": samoaGdpRoute,
+  "/finance/fiji-gdp": fijiGdpRoute,
+  "/finance/fiji-cpi": fijiCpiRoute,
+  "/fisheries/pacific-purse-seine": pacificPurseSeineRoute,
+  "/finance/arbitrage-signals": pacificDexArbitrageRoute,
+  "/finance/remittance-corridors": pacificRemittanceRoute,
+  "/climate/pacific-cyclone-history": pacificCycloneHistoryRoute,
+  "/climate/pacific-sea-level": pacificSeaLevelRoute,
+  "/climate/pacific-enso-index": pacificEnsoIndexRoute,
+  "/finance/pacific-cpi": pacificCpiRoute,
+  "/finance/samoa-cpi": samoaCpiRoute,
+  "/finance/pacific-gdp": pacificGdpRoute,
+  "/demographics/pacific-population": pacificPopulationRoute,
 };
 
 export const internalDataFetchRoute = new Hono<AppBindings>();

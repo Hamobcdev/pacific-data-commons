@@ -257,12 +257,24 @@ export interface PaidRouteSpec {
   priceUsdc?: number;
   /** Overrides the gate's default payTo wallet for this route only — see PdcPaidRouteSpec.payToAddress. */
   payToAddress?: string;
+  /**
+   * True only for routes safe to surface through the human payment rail
+   * (apps/web's email+QR flow, data-fetch.ts's INTERNAL_DATA_FETCH_ROUTES) —
+   * a static or simply-bound GET data route with no c.get("supabase")/
+   * c.get("env")/KV dependency, no internal sub-payments, and no path
+   * params. Everything else (agent-only utility/meta routes, orchestrators
+   * that spend USDC internally, routes needing runtime bindings the
+   * internal-fetch dispatch doesn't provide, and the POST Agent Dataset
+   * Gateway wrappers below) is false — those remain agent-API-only.
+   */
+  humanDeliverable: boolean;
 }
 
 const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/search",
+    humanDeliverable: false,
     description: "Search Pacific data endpoints by category, country, price, keywords",
     discovery: discoveryFor({
       method: "GET",
@@ -290,10 +302,11 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
-  { method: "GET", path: "/provider/:id", description: "Full provider profile and its listed endpoints" },
+  { method: "GET", path: "/provider/:id", description: "Full provider profile and its listed endpoints", humanDeliverable: false },
   {
     method: "GET",
     path: "/endpoint/:id",
+    humanDeliverable: false,
     description: "Full endpoint detail and sample response for one endpoint by its directory ID",
     discovery: discoveryFor({
       method: "GET",
@@ -304,10 +317,11 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
-  { method: "GET", path: "/verify/:certHash", description: "Verify a Pacific Data Protocol provenance certificate" },
+  { method: "GET", path: "/verify/:certHash", description: "Verify a Pacific Data Protocol provenance certificate", humanDeliverable: false },
   {
     method: "GET",
     path: "/algorand/wallet-balance",
+    humanDeliverable: false,
     description:
       "Algorand wallet balance lookup: given any Algorand address, returns ALGO balance, USDC balance (asset 31566704), USDC opt-in status, and account existence. Nodely primary, AlgoNode fallback. Useful for counterparty checks before x402 payments.",
     priceUsdc: WALLET_BALANCE_PRICE_USDC,
@@ -339,6 +353,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/fx",
+    humanDeliverable: false,
     description:
       "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies (USD, AUD, NZD, EUR, GBP, JPY, CNY, SGD, CAD, HKD), ALGO, and USDC. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=. AUD-pegged micro-states (Kiribati, Nauru, Tuvalu) flagged in micro_state_pegs, not fetched as separate rates. Updated daily, 24-hour cache.",
     priceUsdc: FX_PRICE_USDC,
@@ -400,6 +415,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/samoa-cpi",
+    humanDeliverable: true,
     description:
       "Samoa Consumer Price Index and annual inflation rate, sourced from World Bank Open Data (FP.CPI.TOTL / FP.CPI.TOTL.ZG) — not a Samoa Bureau of Statistics- or government-certified feed, see the response's own attribution field. Optional ?years= (default 15, max 60). 24-hour cache — annual data, updated at most yearly upstream.",
     priceUsdc: SAMOA_CPI_PRICE_USDC,
@@ -433,6 +449,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/ocean-temperature",
+    humanDeliverable: false,
     description:
       "Pacific sea surface temperature and wave/swell conditions, sourced from Open-Meteo's Marine Weather API — not a national meteorology-, SPC-, or fisheries-authority-certified feed, see the response's own attribution field. Requires ?country=, one of WS, FJ, TO, PG, SB, VU, CK. Returns current sea surface temperature, wave height/period/direction, ocean current velocity, and a 7-day wave forecast. 3-hour cache.",
     priceUsdc: CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC,
@@ -473,6 +490,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/samoa-gdp",
+    humanDeliverable: true,
     description:
       "Samoa GDP, expenditure approach, transcribed from the Samoa Bureau of Statistics' own published FY2025/26 report — not a third-party-aggregated feed, see the response's own attribution field. FY2025/26: real GDP -8.1%, nominal -4.7%. Optional ?fiscal_year=2025/26|2024/25 to filter to one year, or ?all=true for both. Default: latest year only. Updated at most yearly, no fixed schedule.",
     priceUsdc: SAMOA_GDP_PRICE_USDC,
@@ -506,6 +524,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/fiji-gdp",
+    humanDeliverable: true,
     description:
       "Fiji GDP by industry, transcribed from the Fiji Bureau of Statistics' own published rebase release (FBoS Release No. 62, 3 Sep 2025, GDP rebased to 2019 base) — not a third-party-aggregated feed, see the response's own attribution field. Required ?year=, one of 2019-2024. Optional ?measure=nominal|real_growth, default nominal. Industry-level breakdown is published only for 2019 (the rebase base year); 2020-2024 return total GDP plus real growth rate only (2024 is preliminary) — see the response's own detail_level field.",
     priceUsdc: FIJI_GDP_PRICE_USDC,
@@ -542,6 +561,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/fiji-cpi",
+    humanDeliverable: true,
     description:
       "Fiji Consumer Price Index, transcribed from the Fiji Bureau of Statistics' own monthly CPI press releases — not a third-party-aggregated feed, see the response's own attribution field. Covers July-September 2026 (each month's own FBoS release page). Optional ?year= (4-digit), ?from=/?to= (YYYY-MM range). base_year is null — FBoS's releases state CPI weights are derived from the 2019/2020 Household Income and Expenditure Survey (HIES), not an index base period.",
     priceUsdc: FIJI_CPI_PRICE_USDC,
@@ -579,6 +599,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/pacific-ocean-temp",
+    humanDeliverable: false,
     description:
       "Live water temperature at a NOAA CO-OPS Pacific tide station, sourced from NOAA's Tides & Currents Data Getter API — a primary-source US federal station reading, not a Pacific Island national authority's own instrument, see the response's own attribution field. Optional ?station=, one of 1770000 (Pago Pago, American Samoa) or 1617760 (Honolulu, Hawaii — Pacific reference). Default 1770000. 30-minute cache.",
     priceUsdc: PACIFIC_WATER_TEMPERATURE_PRICE_USDC,
@@ -615,6 +636,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/fisheries/pacific-purse-seine",
+    humanDeliverable: true,
     description:
       "Historical annual purse seine catch for the Western and Central Pacific, sourced from WCPFC's Public Domain 1°x1° Monthly dataset via Pacific Data Hub's THREDDS server — HISTORICAL data, not real-time (WCPFC member catch reports carry a 1–2 year verification lag; dataset covers 1967–2021, see the response's own attribution and reporting_lag_note fields). Optional ?species=, one of skj, yft, bet (default skj) — albacore is not available, this purse-seine dataset has no albacore variable. Required ?year=, a 4-digit year within 1967–2021. Returns total catch in metric tonnes summed across all fishing-gear/set-type variables and the full grid. 24-hour cache.",
     priceUsdc: PACIFIC_PURSE_SEINE_PRICE_USDC,
@@ -648,6 +670,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/pacific-ocean-forecast",
+    humanDeliverable: false,
     description:
       "Daily Pacific Ocean surface forecast from the HYCOM GLBy0.08 Global Ocean Model, via Pacific Data Hub THREDDS. DAILY FORECAST MODEL OUTPUT, not instrument readings — data_currency is always \"daily-forecast\", see the response's own forecast_reference_date, valid_time, and attribution fields. Returns mean surface temperature, mean current speed/direction, and mean sea surface elevation for the Pacific Island region (lat -25 to 25, lon 150–220°E), each a stride-sampled regional mean — region_sample_size says how many grid cells contributed. No salinity field: this HYCOM product has no salinity variable. No query params. 6-hour cache.",
     priceUsdc: PACIFIC_OCEAN_FORECAST_PRICE_USDC,
@@ -679,6 +702,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/pacific-coral-bleaching",
+    humanDeliverable: false,
     description:
       "Daily coral bleaching alert levels (0-4) and degree heating weeks for a Pacific reef region, sourced from NOAA Coral Reef Watch's CoralTemp 5km daily satellite product via ERDDAP. data_currency is always \"daily\" — see the response's own observation_date, reporting_lag_note, and attribution fields. Optional ?lat= (default -13.759, Samoa), ?lon= (default -172.104), ?radius_deg= (default 2.0, 0.1–10) define the query region. bleaching_alert_level is the nearest cell NOAA reported data for; max_alert_in_region and mean_dhw are computed across region_sample_size reported cells (missing/land cells excluded, never treated as zero). 24-hour cache.",
     priceUsdc: PACIFIC_CORAL_BLEACHING_PRICE_USDC,
@@ -716,6 +740,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/crypto-rates",
+    humanDeliverable: false,
     description:
       "Real-time prices for 67 curated crypto tokens, Pacific-priority weighted (ALGO, XRP, XLM always included). Source: CoinGecko public API. Optional ?symbols= (comma-separated, e.g. BTC,ETH,ALGO) filters to matching tokens — 400 only if every requested symbol is outside the curated list. Optional ?category= (defi|l1|l2|pacific) pre-filters by a hand-curated best-effort grouping. 60-second cache.",
     priceUsdc: PACIFIC_CRYPTO_RATES_PRICE_USDC,
@@ -757,6 +782,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/crypto-history",
+    humanDeliverable: false,
     description:
       "Historical price points for one of the 7 KV-tracked crypto symbols (ALGO, BTC, ETH, XRP, XLM, USDC, USDT), windowed by ?tf= for the dashboard's timeframe chart selector. Required ?symbol=. Optional ?tf= (5m|15m|1h|4h|8h|1D|1W|1M, default 1D) — 1W/1M return the fullest 24h buffer available plus a note, since the KV history buffer doesn't yet hold 7/30 days. Backed by a Cloudflare Cron Trigger polling Binance (primary) or CoinCap (fallback) every 5 minutes — see /finance/crypto-rates for the live current-price equivalent. 60-second cache.",
     priceUsdc: PACIFIC_CRYPTO_HISTORY_PRICE_USDC,
@@ -786,6 +812,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/arbitrage-signals",
+    humanDeliverable: true,
     description:
       "Multi-chain DEX arbitrage signals: gross spread, gas-adjusted net spread, and signal quality (weak/moderate/strong) for 7 curated token pairs across Ethereum, Arbitrum, BNB Chain, and Algorand. Sourced from GeckoTerminal (Uniswap v2/v3/v4, SushiSwap, PancakeSwap v2/v3) and, for ALGO/USDC, Tinyman and Pact directly. Optional ?pair= (one curated pair, 400 if not curated), ?chain= (ethereum|arbitrum|bnb|polygon|algorand), ?min_spread_pct= (default 0). Not financial advice — gas estimates are approximate. 60-second cache.",
     priceUsdc: PACIFIC_DEX_ARBITRAGE_PRICE_USDC,
@@ -892,6 +919,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/remittance-corridors",
+    humanDeliverable: true,
     description:
       "Pacific remittance corridor cost comparison for 9 AU/NZ/US -> Pacific Island corridors (traditional rails via World Bank RPW, live if reachable else a Q4-2024 static fallback, vs. crypto rail network-fee estimates for XRP/XLM/ALGO), at a $200 benchmark send amount. Consumes /finance/fx internally for live cross-rates. traditional_rails.live_data/static_fallback say which source was used; traditional_rails is null (with traditional_rails_note) only if a corridor has neither. Crypto rail costs are network fees only; on/off-ramp costs are additional. Optional ?corridor=, ?min_saving_pct=, ?token=. Not financial advice. 24-hour cache.",
     priceUsdc: PACIFIC_REMITTANCE_PRICE_USDC,
@@ -960,6 +988,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/intelligence/pacific-brief",
+    humanDeliverable: false,
     description:
       "Pacific Intelligence Orchestrator: autonomously pays 3 live PDC sub-endpoints (fisheries stock summary, FX rates, Algorand wallet-balance check) via x402, then synthesises the results into a structured intelligence brief using Claude. One payment triggers multiple sub-payments settling on Algorand Mainnet. Specify topic (fisheries/marine/ocean/economic/climate/general) and country code (WS/FJ/TO/PG/SB/VU/CK/NU) to shape which findings are emphasised. Returns executive summary, key findings, data sources, synthetic-data warning, and the full sub-payment trail.",
     priceUsdc: PACIFIC_BRIEF_PRICE_USDC,
@@ -1002,6 +1031,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/pacific/events",
+    humanDeliverable: false,
     description:
       "Upcoming Pacific Island events: festivals, concerts, sporting events, cultural celebrations, and national days. Filter by country (WS/FJ/TO/PG/SB/VU/CK), days ahead (1-365), and category. Returns structured event data including dates, attendance, tourism impact, and booking advice. Sourced from SPTO, tourism authorities, and official event sources.",
     priceUsdc: EVENTS_PRICE_USDC,
@@ -1039,6 +1069,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/pacific/weather",
+    humanDeliverable: false,
     description:
       "Real-time weather and 7-day forecast for Pacific Island destinations. Returns current temperature, humidity, precipitation, wind speed, and conditions plus a 7-day forecast with daily tourism ratings (Excellent/Good/Fair/Poor). Data from Open-Meteo (ECMWF model), updated hourly. Requires country: WS (Samoa), FJ (Fiji), TO (Tonga), PG (Papua New Guinea), SB (Solomon Islands), VU (Vanuatu), CK (Cook Islands).",
     priceUsdc: WEATHER_PRICE_USDC,
@@ -1076,6 +1107,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/intelligence/pacific-travel",
+    humanDeliverable: false,
     description:
       "Pacific Travel Intelligence Orchestrator: given a destination and travel window, autonomously queries upcoming events, live exchange rates, real-time weather, tourism arrival/spend statistics, and seasonal marine conditions, then synthesises a structured travel intelligence brief using Claude. Designed for travel agents, booking platforms, and AI travel assistants. One payment triggers multiple sub-payments to Pacific data providers. Returns executive summary, upcoming events, weather, exchange rates, tourism statistics, booking advice, and the full payment trail.",
     priceUsdc: PACIFIC_TRAVEL_PRICE_USDC,
@@ -1125,6 +1157,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/pacific-cyclone-history",
+    humanDeliverable: true,
     description:
       "Historical tropical cyclone tracks for the South Pacific basin (1960-present), sourced from IBTrACS v04r01 (NOAA/NCEI, public domain). Returns one record per storm with peak wind (kt), minimum pressure (mb), landfall flag, category (TD/C1-C5), and affected Pacific nation codes (FJ, WS, TO, VU, SB, PF, CK, TV, KI). Optional filters: ?season= (4-digit year), ?nation= (ISO-2 code), ?min_category= (td|c1|c2|c3|c4|c5), ?landfall=true, ?limit= (default 100, max 500). 1-hour cache. 851 storms indexed.",
     priceUsdc: PACIFIC_CYCLONE_HISTORY_PRICE_USDC,
@@ -1163,6 +1196,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/pacific-sea-level",
+    humanDeliverable: true,
     description:
       "Pacific sea level monitoring — monthly mean sea level (mm, relative to each station's own local reference datum) for 8 UHSLC tide gauge stations: Apia (WS), Suva (FJ), Nuku'alofa (TO), Port Vila (VU), Honiara (SB), Tarawa/Betio (KI), Funafuti (TV), Port Moresby (PG). Source: University of Hawaii Sea Level Center (UHSLC), NOAA/NCEI co-sponsored — used instead of BoM SEAFRAME, whose licensing could not be confirmed. 7 stations current through July 2026 (preliminary Fast Delivery data); Port Moresby has no current UHSLC feed and is historical only (1991-1993, Research Quality data) — see each record's own data_quality field. Not directly comparable in absolute terms between stations (different local datums). Optional filters: ?station= (name substring), ?nation= (ISO-2 code), ?from=/?to= (YYYY-MM range). 24-hour cache.",
     priceUsdc: PACIFIC_SEA_LEVEL_PRICE_USDC,
@@ -1196,6 +1230,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/climate/pacific-enso-index",
+    humanDeliverable: true,
     description:
       "Pacific ENSO / El Nino index (MEI.v2) — bimonthly values 1979-present, sourced from NOAA PSL's Multivariate ENSO Index v2 (public domain). Positive values indicate El Nino conditions, negative values indicate La Nina. Each record's period approximates its bimonthly season to a single calendar month (e.g. the Dec-Jan DJ season maps to January) — see each record's own season field for the true 2-month window. Optional filters: ?year= (4-digit year), ?from=/?to= (4-digit year range), ?phase= (elnino|lanina|neutral, using the conventional +-0.5 MEI threshold). 24-hour cache. 572 records indexed.",
     priceUsdc: PACIFIC_ENSO_INDEX_PRICE_USDC,
@@ -1226,6 +1261,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/pacific-gdp",
+    humanDeliverable: true,
     description:
       "Annual GDP (current US$) for 6 Pacific Island nations — Fiji, Papua New Guinea, Solomon Islands, Tonga, Vanuatu, Samoa — sourced from World Bank Open Data, not a national-statistics-office-certified feed, see the response's own attribution field. Optional ?years= (default 15, max 60).",
     priceUsdc: PACIFIC_GDP_PRICE_USDC,
@@ -1256,6 +1292,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/demographics/pacific-population",
+    humanDeliverable: true,
     description:
       "Annual total population for 6 Pacific Island nations — Fiji, Papua New Guinea, Solomon Islands, Tonga, Vanuatu, Samoa — sourced from World Bank Open Data, not a national-statistics-office-certified feed, see the response's own attribution field. Optional ?years= (default 10, max 60).",
     priceUsdc: PACIFIC_POPULATION_PRICE_USDC,
@@ -1286,6 +1323,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/finance/pacific-cpi",
+    humanDeliverable: true,
     description:
       "Consumer Price Index and inflation rate for 6 Pacific Island nations — Fiji, Papua New Guinea, Solomon Islands, Tonga, Vanuatu, Samoa — sourced from the Pacific Community (SPC)'s SDMX data service, not a national-statistics-office-certified feed, see the response's own attribution field. Annual, 2016-present.",
     priceUsdc: PACIFIC_CPI_PRICE_USDC,
@@ -1313,6 +1351,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/pacific/samoa-entity-setup",
+    humanDeliverable: true,
     description:
       "Samoa international entity formation requirements — structured regulatory intelligence for IBC, international trust, foundation, international banking licence, insurance, partnership, and mutual fund structures. Includes director/shareholder requirements, minimum capital, tax treatment, UBO disclosure obligations, formation timeline, and typical fee ranges. Query param: entity_type (ibc|trust|foundation|international_bank|insurance|partnership|mutual_fund|all). Source: SIFA Act 2005, International Companies Act 1987.",
     priceUsdc: SAMOA_ENTITY_SETUP_PRICE_USDC,
@@ -1363,6 +1402,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/pacific/samoa-compliance-status",
+    humanDeliverable: true,
     description:
       "Samoa's current regulatory compliance status across EU, FATF, OECD, and TIEA networks — structured for AI due diligence agents. Includes EU blacklist status (removed 17 February 2026, citing abolition of the harmful offshore business regime), FATF APG mutual evaluation status (2023 Follow-Up Report), OECD Global Forum peer review status (pending verification against the official OECD source — see oecd_peer_review.status), TIEA partner network count and key partners, AML/CFT legislative framework, FIU Samoa details, and SIFA overview. Returns a structured due_diligence_signal (low_risk/medium_risk/high_risk) field for programmatic use.",
     priceUsdc: SAMOA_COMPLIANCE_STATUS_PRICE_USDC,
@@ -1427,6 +1467,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/invest/pacific-setup-comparison",
+    humanDeliverable: true,
     description:
       "Structured comparison of business setup requirements across 6 Pacific nations (Samoa, Fiji, Vanuatu, PNG, Tonga, Solomon Islands) — registration fees, timelines, foreign ownership rules, tax summary, land tenure summary, and SBP regulatory score. Optional ?nations= (comma-separated: ws,fj,vu,pg,to,sb). SBP first-party synthesis of October 2026 national authority data.",
     priceUsdc: PACIFIC_SETUP_COMPARISON_PRICE_USDC,
@@ -1461,6 +1502,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/pacific/samoa-service-providers",
+    humanDeliverable: true,
     description:
       "Directory of SIFA-licensed trustee companies in Samoa — the 10 registered agents required by law for Samoa international entity formation. Includes name, address, phone, website (where available), and specialisation for each provider, listed neutrally in the register's own source order. Register verified 2026-10-15 via samoaibfc.ws (sifa.ws itself blocks automated access — see register_as_of and register_source in the response).",
     priceUsdc: SAMOA_SERVICE_PROVIDERS_PRICE_USDC,
@@ -1502,6 +1544,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/invest/pacific-tax-comparison",
+    humanDeliverable: true,
     description:
       "Side-by-side tax rates across 6 Pacific nations — corporate tax, VAT/GST, withholding tax, income tax, payroll levies, double tax agreements. Vanuatu is a zero-income-tax jurisdiction. Optional ?nations= filter. SBP first-party synthesis of October 2026 national revenue authority data.",
     priceUsdc: PACIFIC_TAX_COMPARISON_PRICE_USDC,
@@ -1528,6 +1571,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/pacific/samoa-banking-setup",
+    humanDeliverable: true,
     description:
       "Samoa International Banking Licence requirements under the International Banking Act 2005 — USD 1M minimum capital, director qualifications, full MLPA 2007-compliant AML/CFT programme, SIFA fit-and-proper assessment process, 8-step application timeline (3–6 months total), annual obligations, and permitted vs restricted activities. Includes specific CBS consultation note for USDC and digital asset banking activities.",
     priceUsdc: SAMOA_BANKING_SETUP_PRICE_USDC,
@@ -1571,6 +1615,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/invest/pacific-land-tenure",
+    humanDeliverable: true,
     description:
       "Land tenure comparison across 6 Pacific nations — customary vs freehold vs government percentages, foreign ownership rules, lease terms, land boards. Land is the #1 variable in Pacific investment decisions. Optional ?nations= filter. Information only — customary land is NOT available for collateral/tokenisation.",
     priceUsdc: PACIFIC_LAND_TENURE_PRICE_USDC,
@@ -1597,6 +1642,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/invest/pacific-sector-restrictions",
+    humanDeliverable: true,
     description:
       "By-sector matrix of foreign investment restrictions across 6 Pacific nations — reserved (citizens only), restricted (equity cap or JV required), requires approval, or open. Optional ?sector= keyword filter (e.g. fisheries, tourism, retail) and ?nations= filter. Essential pre-investment due diligence.",
     priceUsdc: PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC,
@@ -1627,6 +1673,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/invest/pacific-regulatory-scores",
+    humanDeliverable: true,
     description:
       "Proprietary SBP regulatory ease scores for 6 Pacific nations across 6 dimensions (setup cost, speed, foreign ownership openness, tax burden, land access, regulatory complexity). Composite 1–10 score, ranked highest first. NOT investment advice. Optional ?nations= filter.",
     priceUsdc: PACIFIC_REGULATORY_SCORES_PRICE_USDC,
@@ -1653,6 +1700,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/invest/pacific-setup-checklist",
+    humanDeliverable: true,
     description:
       "Complete sequential setup checklist for a specified Pacific nation (or all 6, if nation is omitted) — forms required, fees at each step, agencies to contact, estimated timelines. Replaces hours of navigation across government websites. Optional: ?nation= (ws|fj|vu|pg|to|sb, default: all 6 nations). Optional: ?entity_type= (company|sole_trader|partnership, default: company).",
     priceUsdc: PACIFIC_SETUP_CHECKLIST_PRICE_USDC,
@@ -1769,7 +1817,22 @@ const agentDatasetGatewayRoutes: PaidRouteSpec[] = AGENT_DATASET_GATEWAY_DIRECT_
     description: `Agent Dataset Gateway query adapter for dataset "${datasetId}" — see GET /api/v1/datasets for the full catalog and GET /api/v1/manifests/${datasetId} for its schema. Requires X-Agent-Wallet header naming a wallet already registered in the agents table. Priced identically to the direct route (GET ${path}): $${directRoute.priceUsdc} USDC.`,
     priceUsdc: directRoute.priceUsdc,
     payToAddress: directRoute.payToAddress,
+    // Agent Dataset Gateway adapters require an X-Agent-Wallet header tied
+    // to a registered agent wallet — never reachable from a human buyer's
+    // browser, so never human-deliverable regardless of the underlying
+    // direct route's own flag.
+    humanDeliverable: false,
   };
 });
 
 export const paidRoutes: PaidRouteSpec[] = [...paidRoutesBase, ...agentDatasetGatewayRoutes];
+
+/**
+ * Subset of paidRoutes safe to surface through the human payment rail
+ * (apps/web's email+QR payment flow and data-fetch.ts's
+ * INTERNAL_DATA_FETCH_ROUTES) — see PaidRouteSpec.humanDeliverable's own
+ * doc comment for what "safe" means here. Single source of truth for both
+ * the browse/payment UI's buy-button gating and the internal delivery
+ * route's wiring, so the two can't silently drift apart.
+ */
+export const humanDeliverableRoutes: PaidRouteSpec[] = paidRoutes.filter((r) => r.humanDeliverable);
