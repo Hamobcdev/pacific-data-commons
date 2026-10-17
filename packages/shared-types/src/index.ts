@@ -11,3 +11,4 @@ export * from "./agents.js";
 export * from "./agent-registry.js";
 export * from "./versions.js";
 export * from "./deploymentInvoices.js";
+export * from "./humanDeliverableRoutes.js";
