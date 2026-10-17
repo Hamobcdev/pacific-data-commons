@@ -79,6 +79,7 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
   const [algoTxId, setAlgoTxId] = useState("");
   const [confirmState, setConfirmState] = useState<ConfirmState>("idle");
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const queryUrl = endpoint.endpoint_url ? `${endpoint.endpoint_url.replace(/\/$/, "")}${tier.path}` : null;
   const deeplink =
@@ -160,11 +161,17 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ referenceId, algoTxId: trimmedTxId }),
       });
+      // Read the response body exactly once — reused below for the
+      // success case rather than calling res.json() again (a second call
+      // would throw, the body stream is already consumed).
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setConfirmState("error");
         setConfirmError(typeof data?.error === "string" ? data.error : "Payment could not be verified — please check your transaction ID.");
         return;
+      }
+      if (typeof data?.download_url === "string") {
+        setDownloadUrl(data.download_url);
       }
       setConfirmState("success");
     } catch {
@@ -276,7 +283,24 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
             <div className="mt-4 space-y-2 rounded-md border border-gray-200 p-3">
               <p className="text-xs font-medium text-gray-700">Already paid? Enter your Algorand transaction ID:</p>
               {confirmState === "success" ? (
-                <p className="text-xs font-medium text-green-700">✓ Payment verified. Check your email for your download link.</p>
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs font-medium text-green-700">
+                    ✓ Payment verified. Your download link has been sent to your email.
+                  </p>
+                  {downloadUrl && (
+                    <a
+                      href={downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center px-4 py-2 bg-green-700 text-white text-sm font-medium rounded-md hover:bg-green-800 transition-colors"
+                    >
+                      Download Data
+                    </a>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    This link can only be used once. Save or print your data after opening.
+                  </p>
+                </div>
               ) : (
                 <form onSubmit={handleConfirmSubmit} className="space-y-2">
                   <Input
