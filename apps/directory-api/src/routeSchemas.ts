@@ -11,67 +11,85 @@ import { declareDiscoveryExtension } from "@x402-avm/extensions";
  * createApp() changes nothing about runtime behaviour.
  */
 
-// Session 29 — priced below the standard directory query fee: this is a
-// high-volume utility for the broader Algorand developer community (not a
-// Pacific-domain lookup), meant to attract organic x402 traffic and
-// leaderboard volume from agents that have never queried PDC before.
-const WALLET_BALANCE_PRICE_USDC = 0.005;
+// Session 29 — originally priced below the standard directory query fee
+// (was $0.005): a high-volume utility for the broader Algorand developer
+// community (not a Pacific-domain lookup), meant to attract organic x402
+// traffic and leaderboard volume from agents that had never queried PDC
+// before.
+// 2026-10-18 pricing uplift — raised to $0.10 along with the rest of the
+// sub-$0.10 cohort.
+const WALLET_BALANCE_PRICE_USDC = 0.1;
 
-// Session 30 — priced below even the wallet-balance utility fee: FX is a
-// repeat-query pattern (agents check rates multiple times per day, not
-// once), so low friction per call matters more than per-call revenue for
-// generating leaderboard transaction count.
-const FX_PRICE_USDC = 0.001;
+// Session 30 — originally priced below even the wallet-balance utility
+// fee (was $0.001): FX is a repeat-query pattern (agents check rates
+// multiple times per day, not once), so low friction per call mattered
+// more than per-call revenue for generating leaderboard transaction count.
+// 2026-10-18 pricing uplift — raised to $0.10.
+const FX_PRICE_USDC = 0.1;
 
-// Session 31 — Pacific Intelligence Orchestrator. Priced well above its own
-// ~$0.016 in sub-endpoint payments (fisheries $0.01 + fx $0.001 +
-// wallet-balance $0.005) plus Claude synthesis cost, so the spread is real
-// margin, not just cost pass-through (CLAUDE.md Section 19, Model F).
-const PACIFIC_BRIEF_PRICE_USDC = 0.05;
+// Session 31 — Pacific Intelligence Orchestrator. Originally priced well
+// above its own ~$0.016 in sub-endpoint payments (fisheries $0.01 + fx
+// $0.001 + wallet-balance $0.005) plus Claude synthesis cost, so the
+// spread was real margin, not just cost pass-through (CLAUDE.md Section
+// 19, Model F). Was $0.05.
+// 2026-10-18 pricing uplift — raised to $0.50; fx and wallet-balance's own
+// uplifts to $0.10 each already raise this orchestrator's own sub-payment
+// cost, so the margin still needs to stay real, not just re-widen the old
+// spread nominally.
+const PACIFIC_BRIEF_PRICE_USDC = 0.5;
 
-// Session 32 — Pacific Events discovery. Priced at the same tier as a
-// single directory search result but below the standard $0.01 directory
-// fee: events data is a narrow, high-frequency lookup (an agent or booking
-// platform may poll it often for a given destination), same low-friction
-// reasoning as FX_PRICE_USDC above.
-const EVENTS_PRICE_USDC = 0.002;
+// Session 32 — Pacific Events discovery. Originally priced at the same
+// tier as a single directory search result but below the standard $0.01
+// directory fee (was $0.002): events data is a narrow, high-frequency
+// lookup (an agent or booking platform may poll it often for a given
+// destination), same low-friction reasoning as FX_PRICE_USDC above.
+// 2026-10-18 pricing uplift — raised to $0.20.
+const EVENTS_PRICE_USDC = 0.2;
 
 // Session 34 — Pacific Weather. Same pricing tier and reasoning as
 // EVENTS_PRICE_USDC: a narrow, high-frequency lookup an agent or booking
-// platform may poll often for a given destination.
-const WEATHER_PRICE_USDC = 0.002;
+// platform may poll often for a given destination. Was $0.002.
+// 2026-10-18 pricing uplift — raised to $0.20.
+const WEATHER_PRICE_USDC = 0.2;
 
 // Session 32 — Pacific Tourism Orchestrator, the live demonstration behind
-// SBP's Samoa Tourism Authority proposal. Priced well above its own
-// ~$0.015 in sub-endpoint payments (events $0.002 + fx $0.001 + fisheries
-// $0.01 + weather $0.002, Session 34 — tourism stats is a direct Supabase
-// read, no x402 payment) plus Claude synthesis cost, same margin reasoning
-// as PACIFIC_BRIEF_PRICE_USDC above.
-const PACIFIC_TRAVEL_PRICE_USDC = 0.1;
+// SBP's Samoa Tourism Authority proposal. Originally priced well above its
+// own ~$0.015 in sub-endpoint payments (events $0.002 + fx $0.001 +
+// fisheries $0.01 + weather $0.002, Session 34 — tourism stats is a direct
+// Supabase read, no x402 payment) plus Claude synthesis cost, same margin
+// reasoning as PACIFIC_BRIEF_PRICE_USDC above. Was $0.10.
+// 2026-10-18 pricing uplift — raised to $0.50, matching PACIFIC_BRIEF_PRICE_USDC.
+// This route's humanDeliverable: false is unchanged by this uplift.
+const PACIFIC_TRAVEL_PRICE_USDC = 0.5;
 
 // Decision 60 — first-party open-data utility endpoints (Decision 59's
-// class) are Tier 1 capped, same reasoning Decision 42 uses for research/
-// governance endpoints (open underlying source -> cap price low) but its
-// own decision rather than stretching 42's literal scope indefinitely.
-// Same numeric value as DIRECTORY_QUERY_PRICE_USDC (app.ts) but declared
-// explicitly here so the Decision 60 reasoning is documented at the route
-// it actually applies to.
+// class) were originally Tier 1 capped, same reasoning Decision 42 uses
+// for research/governance endpoints (open underlying source -> cap price
+// low) but its own decision rather than stretching 42's literal scope
+// indefinitely. Was $0.01, same numeric value as DIRECTORY_QUERY_PRICE_USDC
+// (app.ts) at the time.
+// 2026-10-18 pricing uplift — raised to $0.20, no longer equal to
+// DIRECTORY_QUERY_PRICE_USDC (app.ts's own fallback stays $0.01; see the
+// 4 metadata routes' own explicit DIRECTORY_METADATA_PRICE_USDC below for
+// their own, separate uplift to $0.10).
 // Exported (not module-private like this file's other price constants) —
 // the Agent Dataset Gateway's POST /api/v1/datasets/samoa-cpi/query adapter
 // (lib/agentDatasetCatalog.ts, routes/agentDatasetGateway.ts) reuses this
 // exact value as its own paidRoutes entry's priceUsdc below, so the
 // gateway's pass-through price can never drift from this route's price.
-export const SAMOA_CPI_PRICE_USDC = 0.01;
+export const SAMOA_CPI_PRICE_USDC = 0.2;
 
 // Decision 59/60 — same Tier 1 cap, first-party wrappers over genuinely
 // open (no-auth, free) aggregator APIs: World Bank Open Data (GDP,
 // population) and SPC's SDMX data service (CPI/inflation). All three
 // confirmed live 2026-10-13 before writing the services behind them —
 // see worldBankPacificGdpService.ts / worldBankPacificPopulationService.ts
-// / spcPacificCpiService.ts for the full sourcing doc comments.
-const PACIFIC_GDP_PRICE_USDC = 0.01;
-const PACIFIC_POPULATION_PRICE_USDC = 0.01;
-const PACIFIC_CPI_PRICE_USDC = 0.01;
+// / spcPacificCpiService.ts for the full sourcing doc comments. Were $0.01.
+// 2026-10-18 pricing uplift — raised to $0.20, matching SAMOA_CPI_PRICE_USDC
+// above.
+const PACIFIC_GDP_PRICE_USDC = 0.2;
+const PACIFIC_POPULATION_PRICE_USDC = 0.2;
+const PACIFIC_CPI_PRICE_USDC = 0.2;
 
 // Decision 63 — Samoa Jurisdiction Intelligence tier. These are SBP-curated
 // regulatory intelligence endpoints (research, structuring, and maintenance
@@ -100,37 +118,43 @@ const PACIFIC_SETUP_CHECKLIST_PRICE_USDC  = 0.50;  // per-nation step-by-step ch
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
 // source (see pacificOceanClimateService.ts's doc comment for the live
 // confirmation that Open-Meteo Marine needs no key for non-commercial use).
-const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.01;
+// Was $0.01.
+// 2026-10-18 pricing uplift — raised to $0.15.
+const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.15;
 
 // Decision 42 — governance/research endpoint over an openly-accessible
 // government report (Samoa Bureau of Statistics' own published GDP
 // report), Tier 1 capped, underlying document never paywalled. Not
 // Decision 59/60 (that's for wrapping an already-open third-party
 // aggregator API; this is PDC transcribing a government publication
-// directly, same scenario Decision 42 describes). Same numeric value as
-// SAMOA_CPI_PRICE_USDC, declared separately so the Decision 42 reasoning
-// is documented at the route it actually applies to.
-const SAMOA_GDP_PRICE_USDC = 0.01;
+// directly, same scenario Decision 42 describes). Was $0.01, same numeric
+// value as SAMOA_CPI_PRICE_USDC at the time.
+// 2026-10-18 pricing uplift — raised to $0.20, still matching
+// SAMOA_CPI_PRICE_USDC above.
+const SAMOA_GDP_PRICE_USDC = 0.2;
 
 // Same Decision 42 reasoning as SAMOA_GDP_PRICE_USDC directly above —
 // governance/research endpoint over an openly-accessible government
 // report (Fiji Bureau of Statistics' own published GDP rebase release),
-// Tier 1 capped, underlying document never paywalled.
-const FIJI_GDP_PRICE_USDC = 0.01;
+// Tier 1 capped, underlying document never paywalled. Was $0.01.
+// 2026-10-18 pricing uplift — raised to $0.20.
+const FIJI_GDP_PRICE_USDC = 0.2;
 
 // Same Decision 42 reasoning as FIJI_GDP_PRICE_USDC/SAMOA_GDP_PRICE_USDC
 // above — governance/research endpoint over openly-accessible government
 // releases (Fiji Bureau of Statistics' own monthly CPI press releases),
-// Tier 1 capped, underlying releases never paywalled.
-const FIJI_CPI_PRICE_USDC = 0.01;
+// Tier 1 capped, underlying releases never paywalled. Was $0.01.
+// 2026-10-18 pricing uplift — raised to $0.20.
+const FIJI_CPI_PRICE_USDC = 0.2;
 
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC/CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC
 // above — Tier 1 capped, first-party wrapper over a genuinely open (no-auth)
 // external source (see pacificWaterTemperatureService.ts's doc comment for
 // the live confirmation that NOAA CO-OPS needs no key, and for why this
 // endpoint exists instead of a Pacific Data Hub/pacificdata.org wrapper —
-// that API's query-string requests are Cloudflare-challenge-gated).
-const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.01;
+// that API's query-string requests are Cloudflare-challenge-gated). Was $0.01.
+// 2026-10-18 pricing uplift — raised to $0.15, matching CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC.
+const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.15;
 
 // Decision 59/60 first-party wrapper over WCPFC's openly-accessible public
 // THREDDS/OPeNDAP dataset. Tier 2, not Tier 1 like the other first-party
@@ -139,7 +163,9 @@ const PACIFIC_WATER_TEMPERATURE_PRICE_USDC = 0.01;
 // historical summary, not a single-value lookup) — same "priced above a
 // plain Tier 1 lookup" reasoning as PACIFIC_BRIEF_PRICE_USDC, just a much
 // smaller multiplier since this has no Claude synthesis cost to cover.
-const PACIFIC_PURSE_SEINE_PRICE_USDC = 0.05;
+// Was $0.05.
+// 2026-10-18 pricing uplift — raised to $0.40.
+const PACIFIC_PURSE_SEINE_PRICE_USDC = 0.4;
 
 // 2026-10-13 wallet consolidation: the dedicated pilot-earnings wallet
 // (formerly exported here as PDC_PILOT_EARNINGS_WALLET, CZLL2VSHUW...) is
@@ -153,7 +179,9 @@ const PACIFIC_PURSE_SEINE_PAYTO = process.env.AVM_ADDRESS ?? "";
 // THREDDS/OPeNDAP forecast product. Tier 2, same reasoning as
 // PACIFIC_PURSE_SEINE_PRICE_USDC directly above — a multi-variable
 // regional-mean computation per request, not a single-value lookup.
-const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.05;
+// Was $0.05.
+// 2026-10-18 pricing uplift — raised to $0.20.
+const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.2;
 
 const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.AVM_ADDRESS ?? "";
 
@@ -162,17 +190,19 @@ const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.AVM_ADDRESS ?? "";
 // pacificCoralBleachingService.ts for why, not the THREDDS endpoint this
 // route's build brief named first). Tier 2, environmental alert — same
 // "multi-variable computation per request" reasoning as
-// PACIFIC_OCEAN_FORECAST_PRICE_USDC above.
-const PACIFIC_CORAL_BLEACHING_PRICE_USDC = 0.05;
+// PACIFIC_OCEAN_FORECAST_PRICE_USDC above. Was $0.05.
+// 2026-10-18 pricing uplift — raised to $0.25.
+const PACIFIC_CORAL_BLEACHING_PRICE_USDC = 0.25;
 
 const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.AVM_ADDRESS ?? "";
 
-// IBTrACS SP cyclone track history — $0.05, AVM_ADDRESS.
+// IBTrACS SP cyclone track history — originally $0.05, AVM_ADDRESS.
 // Priced at coral-bleaching tier: static reference data with no commercial
 // equivalent for the South Pacific basin. Swiss Re/RMS comparable data costs
-// $0.50-$5.00/location; $0.05 is the early-adopter floor pending institutional
-// buyer validation. Raise on next pricing review (Decision logged below).
-const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.05;
+// $0.50-$5.00/location; $0.05 was the early-adopter floor pending
+// institutional buyer validation, flagged to raise on next pricing review.
+// 2026-10-18 pricing uplift — that review: raised to $0.30.
+const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.3;
 const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Priced above the other static-bundle first-party rows ($0.05) per this
@@ -184,18 +214,20 @@ const PACIFIC_SEA_LEVEL_PRICE_USDC = 0.15;
 const PACIFIC_SEA_LEVEL_PAYTO = process.env.AVM_ADDRESS ?? "";
 // NOAA PSL MEI.v2 static bundle — same tier/payTo reasoning as
 // PACIFIC_CYCLONE_HISTORY_PRICE_USDC directly above: static reference data,
-// no live upstream refetch, same $0.05 early-adopter floor.
-const PACIFIC_ENSO_INDEX_PRICE_USDC = 0.05;
+// no live upstream refetch. Was $0.05 (same early-adopter floor).
+// 2026-10-18 pricing uplift — raised to $0.25.
+const PACIFIC_ENSO_INDEX_PRICE_USDC = 0.25;
 const PACIFIC_ENSO_INDEX_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
 // free public API. Tier 1 — a high-volume single-value-per-token price
 // lookup, same tier as the other first-party Tier 1 endpoints above, not
-// Tier 2 like the multi-variable regional computations. $0.01 — the
-// Decision 60 Tier 1 cap for first-party open-data wrappers, matching the
-// other Tier 1 routes (was $0.001). The SBP dashboard is unaffected: it
-// reaches this route via middleware/dashboardBypass.ts, not x402.
-const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.01;
+// Tier 2 like the multi-variable regional computations. Was $0.01 — the
+// Decision 60 Tier 1 cap for first-party open-data wrappers at the time
+// (originally $0.001). The SBP dashboard is unaffected: it reaches this
+// route via middleware/dashboardBypass.ts, not x402.
+// 2026-10-18 pricing uplift — raised to $0.10.
+const PACIFIC_CRYPTO_RATES_PRICE_USDC = 0.1;
 
 // 2026-10-13 wallet consolidation: reads the single canonical AVM_ADDRESS
 // wallet — the same var directory-api's own PdcPaymentGate constructor
@@ -208,7 +240,11 @@ const PACIFIC_CRYPTO_RATES_PAYTO = process.env.AVM_ADDRESS;
 // Same KV-backed data as /finance/crypto-rates, just windowed into a time
 // series — same tier/payTo reasoning as PACIFIC_CRYPTO_RATES_PRICE_USDC/
 // PACIFIC_CRYPTO_RATES_PAYTO directly above applies identically here.
-const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.01;
+// Was $0.01.
+// 2026-10-18 pricing uplift — raised to $0.15 (priced slightly above the
+// plain current-price lookup, same "windowed series costs a bit more"
+// reasoning as elsewhere in this file).
+const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.15;
 const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.AVM_ADDRESS;
 
 // Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's
@@ -217,7 +253,9 @@ const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.AVM_ADDRESS;
 // full live-verification record). Tier 2 — multi-source aggregation
 // (up to 5 upstream fetches per cache cycle across 7 curated pairs),
 // same reasoning as the other Tier 2 first-party endpoints above.
-const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.05;
+// Was $0.05.
+// 2026-10-18 pricing uplift — raised to $0.40, matching PACIFIC_PURSE_SEINE_PRICE_USDC.
+const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.4;
 
 const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
@@ -227,8 +265,9 @@ const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.AVM_ADDRESS ?? "";
 // plus /finance/fx's own already-x402-gated FX data, consumed internally
 // in-process (not a second payment). Tier 1 — quarterly source data,
 // lightweight fetch, same tier as this codebase's other Tier 1 first-party
-// rows.
-const PACIFIC_REMITTANCE_PRICE_USDC = 0.01;
+// rows. Was $0.01.
+// 2026-10-18 pricing uplift — raised to $0.25.
+const PACIFIC_REMITTANCE_PRICE_USDC = 0.25;
 
 const PACIFIC_REMITTANCE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
@@ -270,10 +309,25 @@ export interface PaidRouteSpec {
   humanDeliverable: boolean;
 }
 
+// Decision 8 (CLAUDE.md Section 7/5) originally fixed the directory query
+// fee at $0.01 per search, carried as app.ts's DIRECTORY_QUERY_PRICE_USDC
+// fallback default for any paidRoutes entry with no explicit priceUsdc —
+// which is how /search, /provider/:id, /endpoint/:id, and /verify/:certHash
+// were all priced before this constant existed.
+// 2026-10-18 pricing uplift — these 4 directory-metadata routes now set
+// this explicit $0.10 price rather than relying on the implicit $0.01
+// fallback, so this specific uplift is visible at the route it applies
+// to. This revisits Decision 8's $0.01 figure for these 4 routes only,
+// per this PR's explicit build instruction — app.ts's
+// DIRECTORY_QUERY_PRICE_USDC fallback itself is untouched and still
+// $0.01 for any future route that omits priceUsdc.
+const DIRECTORY_METADATA_PRICE_USDC = 0.1;
+
 const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/search",
+    priceUsdc: DIRECTORY_METADATA_PRICE_USDC,
     humanDeliverable: false,
     description: "Search Pacific data endpoints by category, country, price, keywords",
     discovery: discoveryFor({
@@ -302,10 +356,17 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
-  { method: "GET", path: "/provider/:id", description: "Full provider profile and its listed endpoints", humanDeliverable: false },
+  {
+    method: "GET",
+    path: "/provider/:id",
+    priceUsdc: DIRECTORY_METADATA_PRICE_USDC,
+    description: "Full provider profile and its listed endpoints",
+    humanDeliverable: false,
+  },
   {
     method: "GET",
     path: "/endpoint/:id",
+    priceUsdc: DIRECTORY_METADATA_PRICE_USDC,
     humanDeliverable: false,
     description: "Full endpoint detail and sample response for one endpoint by its directory ID",
     discovery: discoveryFor({
@@ -317,7 +378,13 @@ const paidRoutesBase: PaidRouteSpec[] = [
       },
     }),
   },
-  { method: "GET", path: "/verify/:certHash", description: "Verify a Pacific Data Protocol provenance certificate", humanDeliverable: false },
+  {
+    method: "GET",
+    path: "/verify/:certHash",
+    priceUsdc: DIRECTORY_METADATA_PRICE_USDC,
+    description: "Verify a Pacific Data Protocol provenance certificate",
+    humanDeliverable: false,
+  },
   {
     method: "GET",
     path: "/algorand/wallet-balance",

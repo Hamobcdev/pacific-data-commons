@@ -26,7 +26,10 @@ const ALGORAND_NETWORK = process.env.NEXT_PUBLIC_ALGORAND_NETWORK === "testnet" 
 const CAIP2_NETWORK = ALGORAND_NETWORK === "testnet" ? ALGORAND_TESTNET_CAIP2 : ALGORAND_MAINNET_CAIP2;
 
 const DIRECTORY_API_URL = process.env.NEXT_PUBLIC_DIRECTORY_API_URL || "https://api.synergybcpacific.com";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://pdc-web.onrender.com";
+// 2026-10-18 — the Render fallback here (pdc-web.onrender.com) is confirmed
+// dead (CLAUDE.md Section 26.6, returns HTTP 503); apps/web is live on
+// Vercel at pdc.synergybcpacific.com.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://pdc.synergybcpacific.com";
 
 // PR #147 — pilot-endpoint's own domain, so its 9 paid routes (previously
 // absent from every discovery manifest) can be listed here too alongside
@@ -34,7 +37,14 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://pdc-web.onrender.com
 // directory-api's), different host — pilot-endpoint has no Next.js runtime
 // of its own to serve this manifest from, so it's mirrored here as well as
 // in its own apps/pilot-endpoint/.well-known/x402 (PR #147 Part 2).
-const PILOT_ENDPOINT_URL = "https://pdc-pilot-endpoint.synergyblockchaintf.workers.dev";
+//
+// 2026-10-18 — the workers.dev URL this was hardcoded to is deprecated
+// (pilot-endpoint stayed on Render, was never migrated to Workers — see
+// CLAUDE.md Section 26.6). No longer hardcoded: gated behind
+// PILOT_ENDPOINT_URL env var, null when unset. See below for how a null
+// value omits the pilot-endpoint routes from the manifest rather than
+// publishing a dead URL.
+const PILOT_ENDPOINT_URL = process.env.PILOT_ENDPOINT_URL ?? null;
 
 // Decision 8 — $0.01 per directory search. Not an env var: this is a
 // published price, same posture as apps/directory-api/discovery.ts's own
@@ -351,13 +361,23 @@ function buildEndpoints(): ManifestEndpoint[] {
         serviceName: SERVICE_NAME,
         iconUrl: ICON_URL,
       },
-      // PR #147 Part 1b — pilot-endpoint's 9 paid routes, previously absent
-      // from every discovery manifest (23 + 9 = 32 total entries). Same
-      // pilotEarningsWallet (= AVM_ADDRESS, confirmed identical to
-      // pilot-endpoint's own wallet), different host — see
-      // PILOT_ENDPOINT_URL above. Also mirrored in pilot-endpoint's own
-      // /.well-known/x402 (Part 2) for crawlers that hit that domain
-      // directly.
+    );
+
+    // PR #147 Part 1b — pilot-endpoint's 9 paid routes, previously absent
+    // from every discovery manifest (23 + 9 = 32 total entries when
+    // present). Same pilotEarningsWallet (= AVM_ADDRESS, confirmed
+    // identical to pilot-endpoint's own wallet), different host — see
+    // PILOT_ENDPOINT_URL above. Also mirrored in pilot-endpoint's own
+    // /.well-known/x402 (Part 2) for crawlers that hit that domain
+    // directly.
+    //
+    // 2026-10-18 — nested behind its own PILOT_ENDPOINT_URL check (split
+    // out of the single endpoints.push() above) since that env var can be
+    // unset independently of pilotEarningsWallet/AVM_ADDRESS: omit these
+    // 9 entries entirely rather than publish a `${null}/summary`-style
+    // broken URL.
+    if (PILOT_ENDPOINT_URL) {
+      endpoints.push(
       {
         path: "/summary",
         full_url: `${PILOT_ENDPOINT_URL}/summary`,
@@ -475,11 +495,17 @@ function buildEndpoints(): ManifestEndpoint[] {
         serviceName: SERVICE_NAME,
         iconUrl: ICON_URL,
       },
-    );
+      );
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "x402_wellknown_manifest: PILOT_ENDPOINT_URL is not set — omitting the 9 pilot-endpoint routes from the discovery manifest",
+      );
+    }
   } else {
     // eslint-disable-next-line no-console
     console.warn(
-      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, pacific-enso-index, pacific-gdp, pacific-population, pacific-cpi, and the 9 pilot-endpoint routes from the discovery manifest",
+      "x402_wellknown_manifest: AVM_ADDRESS is not set — omitting samoa-cpi, ocean-temperature, samoa-gdp, fiji-gdp, purse-seine, ocean-forecast, coral-bleaching, arbitrage-signals, remittance-corridors, fiji-cpi, pacific-cyclone-history, pacific-sea-level, pacific-enso-index, pacific-gdp, pacific-population, pacific-cpi, and (if PILOT_ENDPOINT_URL is also unset) the 9 pilot-endpoint routes from the discovery manifest",
     );
   }
 

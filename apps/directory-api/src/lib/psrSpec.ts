@@ -34,12 +34,12 @@ export const PSR_SPEC = {
   // repointed at the CF Worker post-merge, see MIGRATION.md).
   directory_endpoint: "https://api.synergybcpacific.com/search",
   discovery_file: "https://api.synergybcpacific.com/.well-known/x402-directory.json",
-  // TODO(session40): apps/web is migrating Railway -> Cloudflare Pages.
-  // Its production custom domain is not yet confirmed (see MIGRATION.md) —
-  // update these two once Pages is live and DNS is assigned. Left as the
-  // stale Railway URL rather than a guessed domain in the meantime.
-  specification_url: "https://pdcweb-production.up.railway.app/psr/v1/spec.json",
-  developer_docs: "https://pdcweb-production.up.railway.app/en/developers",
+  // 2026-10-18 — apps/web did not migrate to Cloudflare Pages as this
+  // TODO(session40) originally anticipated; it's live on Vercel at
+  // pdc.synergybcpacific.com (CLAUDE.md Section 26.6). Updated to that
+  // domain — the Railway host these two pointed at is dead.
+  specification_url: "https://pdc.synergybcpacific.com/psr/v1/spec.json",
+  developer_docs: "https://pdc.synergybcpacific.com/en/developers",
   endpoint_schema_version: "1.0.0",
   trust_tiers: ["bronze", "silver", "gold"],
   categories: [
@@ -208,8 +208,8 @@ export const PSR_SPEC = {
 
 export const PSR_ENDPOINT_SCHEMA = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  // TODO(session40): same pdcweb domain-TBD note as specification_url above.
-  $id: "https://pdcweb-production.up.railway.app/psr/v1/endpoint-schema.json",
+  // 2026-10-18 — same pdc.synergybcpacific.com correction as specification_url above.
+  $id: "https://pdc.synergybcpacific.com/psr/v1/endpoint-schema.json",
   title: "Pacific Service Registry — Endpoint Registration Schema",
   description:
     "Defines a valid PSR-compatible endpoint registration. Mirrors the `endpoints` table in the Pacific Data Commons reference implementation (packages/shared-types/src/endpoints.ts). Fields marked reserved exist in the schema for forward compatibility but carry no enforcement logic yet.",

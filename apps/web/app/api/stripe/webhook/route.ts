@@ -63,12 +63,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     } else if (purpose === "deployment_standard" || purpose === "deployment_complex") {
       // No notification sender wired up yet — see this file's doc comment.
-      console.log("Stripe deployment service payment received (no notification sent — email not configured):", {
-        purpose,
-        contactEmail: session.metadata?.contactEmail,
-        institutionName: session.metadata?.institutionName,
-        sessionId: session.id,
-      });
+      // No logger exists in apps/web (verified 2026-10-18) — nothing is
+      // logged here; this payment event is recoverable from Stripe's own
+      // dashboard/webhook log by sessionId if it needs to be followed up.
     }
   }
 

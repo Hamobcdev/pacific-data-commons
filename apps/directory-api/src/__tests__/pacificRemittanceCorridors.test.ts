@@ -332,7 +332,7 @@ describe("routeSchemas: /finance/remittance-corridors payment gate", () => {
   it("is registered as a paid route with the expected Tier 1 price", () => {
     const route = paidRoutes.find((r) => r.path === "/finance/remittance-corridors" && r.method === "GET");
     expect(route).toBeDefined();
-    expect(route?.priceUsdc).toBe(0.01);
+    expect(route?.priceUsdc).toBe(0.25); // 2026-10-18 pricing uplift, was 0.01
     // 2026-10-13 wallet consolidation: payToAddress now resolves from
     // process.env.AVM_ADDRESS (env-dependent), same posture as
     // /finance/crypto-rates and /climate/pacific-ocean-temp — no longer a

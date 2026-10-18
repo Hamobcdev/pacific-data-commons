@@ -64,10 +64,10 @@ describe("routeSchemas: Agent Dataset Gateway per-dataset pricing", () => {
     expect(route?.priceUsdc).toBe(0.15);
   });
 
-  it("charges samoa-cpi's own $0.01", () => {
+  it("charges samoa-cpi's own $0.20 (2026-10-18 pricing uplift, was $0.01)", () => {
     const route = gatewayRouteFor("samoa-cpi");
     expect(route).toBeDefined();
-    expect(route?.priceUsdc).toBe(0.01);
+    expect(route?.priceUsdc).toBe(0.2);
   });
 
   it("registers exactly one POST /api/v1/datasets/:id/query entry per cataloged dataset — no flat shared-price entry survives", () => {

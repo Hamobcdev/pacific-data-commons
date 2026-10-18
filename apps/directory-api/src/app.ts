@@ -62,6 +62,7 @@ import { pacificRegulatoryScoresRoute } from "./routes/invest/pacific-regulatory
 import { pacificSetupChecklistRoute } from "./routes/invest/pacific-setup-checklist.js";
 import { paymentRoutes } from "./routes/payment.js";
 import { internalDataFetchRoute } from "./routes/internal/data-fetch.js";
+import { corsMiddleware } from "./middleware/cors.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
@@ -192,6 +193,15 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   });
 
   const app = new Hono<AppBindings>();
+
+  // Registered first — before any other middleware or route — so CORS
+  // headers (notably Access-Control-Expose-Headers for PAYMENT-REQUIRED/
+  // PAYMENT-RESPONSE) apply to every response this app returns, paid
+  // routes included, and to error/404 responses too. Same implementation
+  // as apps/pilot-endpoint/src/middleware/cors.ts (Session 24 fix) —
+  // ported here for the x402 Doctor's CORS warning on this app's own
+  // paid routes.
+  app.use("*", corsMiddleware);
 
   app.use("*", async (c, next) => {
     c.set("env", env);
