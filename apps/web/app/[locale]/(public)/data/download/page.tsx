@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -107,9 +108,26 @@ export default async function DownloadPage({ searchParams }: { searchParams: { t
   // Only now — after a confirmed successful fetch — is the token actually
   // consumed. See the comment above this block for why this moved from
   // before the fetch to after it.
+  //
+  // redeemed_at/redeemed_ip/redeemed_user_agent (migration
+  // 20261018000001, not yet applied) are bundled into this same update
+  // call rather than a second round trip. If those columns don't exist
+  // yet, PostgREST rejects the whole request (unrecognised column), so
+  // this update — including the state/token_redeemed_at transition above
+  // — fails as a unit until the migration is applied. That failure is
+  // not checked/thrown here (same as before this change), so it never
+  // blocks the render below, but note it means the token-consumption
+  // write silently no-ops until the migration lands.
+  const requestHeaders = headers();
   await supabase
     .from("payment_intents")
-    .update({ state: "token_redeemed", token_redeemed_at: new Date().toISOString() })
+    .update({
+      state: "token_redeemed",
+      token_redeemed_at: new Date().toISOString(),
+      redeemed_at: new Date().toISOString(),
+      redeemed_ip: requestHeaders.get("x-forwarded-for") ?? requestHeaders.get("cf-connecting-ip") ?? null,
+      redeemed_user_agent: requestHeaders.get("user-agent") ?? null,
+    })
     .eq("id", intent.id);
 
   const endpointName = humanizeSlug(intent.tier_path);

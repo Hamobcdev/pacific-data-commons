@@ -115,5 +115,6 @@ paymentRoutes.post("/payment/verify", async (c) => {
     logger.error("payment_verify_email_not_sent", { referenceId: trimmedReferenceId, buyerEmail: intent.buyer_email });
   }
 
-  return c.json({ success: true, message: "Payment verified. Download link sent to your email." });
+  const downloadUrl = `https://pdc.synergybcpacific.com/en/data/download?token=${downloadToken}`;
+  return c.json({ success: true, message: "Payment verified. Download link sent to your email.", download_url: downloadUrl });
 });
