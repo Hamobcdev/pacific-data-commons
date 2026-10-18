@@ -8,8 +8,15 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8787),
   // Session 18 — this service's own public base URL, used to build the
-  // versions_url field in dataset-update notification payloads (Decision 53).
-  PUBLIC_URL: z.string().url().default("http://localhost:8787"),
+  // versions_url field in dataset-update notification payloads (Decision 53),
+  // and (app.ts) every paid route's own x402 `resource` identifier.
+  // 2026-10-18 — default changed from "http://localhost:8787" to the live
+  // Worker host: an unset PUBLIC_URL in production previously fell back to
+  // localhost silently (see routes/discovery.ts's doc comment for the
+  // related Session 40 hotfix on a different code path that used to leak
+  // this same way). The real deployment should still set this explicitly;
+  // this only changes what an unset var falls back to.
+  PUBLIC_URL: z.string().url().default("https://api.synergybcpacific.com"),
   ALGORAND_NETWORK: z.enum(["mainnet", "testnet"]).default("testnet"),
   AVM_ADDRESS: z.string().min(1, "AVM_ADDRESS (SBP directory payTo wallet) is required"),
   FACILITATOR_URL: z.string().url(),

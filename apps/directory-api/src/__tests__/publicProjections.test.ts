@@ -109,6 +109,9 @@ const endpointRow: EndpointRow = {
   pending_recertification: false,
   pending_recertification_since: null,
   latest_version_id: null,
+  // Not one of the 23 human-deliverable paths (migration 20261018000002) —
+  // this fixture's own "/summary" path isn't in that list.
+  human_deliverable: false,
   created_at: "2025-12-01T00:00:00.000Z",
   updated_at: "2025-12-01T00:00:00.000Z",
 };

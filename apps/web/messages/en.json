@@ -866,7 +866,12 @@
     "allCategories": "All categories",
     "searchButton": "Search",
     "noResults": "No datasets match your search yet.",
-    "fromPrice": "From ${price} per query"
+    "fromPrice": "From ${price} per query",
+    "buyAndDownloadHeading": "Buy & Download",
+    "aiAgentAccessHeading": "AI Agent Access",
+    "buyAndDownloadCta": "Buy & Download",
+    "agentApiOnlyLabel": "Agent API only",
+    "integrationDocsCta": "Integration docs"
   },
   "Breadcrumb": {
     "getStarted": "Get Started",
