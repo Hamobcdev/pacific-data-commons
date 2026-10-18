@@ -153,6 +153,14 @@ export interface Endpoint {
   pending_recertification_since: string | null;
   latest_version_id: string | null;
 
+  /** supabase/migrations/20261018000002_add_human_deliverable_to_endpoints.sql —
+   * mirrors apps/directory-api/src/routeSchemas.ts's in-memory
+   * PaidRouteSpec.humanDeliverable flag for whichever of this endpoint's
+   * pricing_tiers paths matched at backfill time, so apps/web's browse
+   * page (which reads this table directly, never routeSchemas.ts) can
+   * tell a human-purchasable endpoint from an agent-API-only one. */
+  human_deliverable: boolean;
+
   created_at: string;
   updated_at: string;
 }

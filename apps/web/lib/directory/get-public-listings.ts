@@ -18,6 +18,11 @@ export interface PublicListing {
    * accurately, it doesn't approximate them for a listing page). */
   upvoteCount: number;
   lowestPriceUsdc: number;
+  /** Mirrors endpoints.human_deliverable (migration 20261018000002) — drives
+   * the browse page's two-tier split: human-purchasable vs agent-API-only.
+   * Read straight off the row; `select("*")` below already fetches it, no
+   * query change needed, only this pass-through into the listing shape. */
+  humanDeliverable: boolean;
 }
 
 /**
@@ -75,6 +80,7 @@ export async function listPublicEndpoints(filters: { category?: string; q?: stri
         trustTier: provider.trust_tier,
         upvoteCount: count ?? 0,
         lowestPriceUsdc,
+        humanDeliverable: endpoint.human_deliverable,
       };
     }),
   );

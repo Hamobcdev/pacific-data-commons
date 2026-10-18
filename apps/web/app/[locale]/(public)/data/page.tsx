@@ -54,6 +54,12 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
   const t = await getTranslations("BrowseData");
   const provider = await getResumedProvider();
   const listings = await listPublicEndpoints({ q: searchParams.q, category: searchParams.category });
+  // Two-tier browse split (supabase/migrations/20261018000002): human-
+  // purchasable endpoints get full card treatment and buying CTA; agent-
+  // API-only endpoints (no human payment path) get a compact row pointing
+  // to developer docs instead of a buy button.
+  const buyAndDownloadListings = listings.filter((listing) => listing.humanDeliverable);
+  const aiAgentListings = listings.filter((listing) => !listing.humanDeliverable);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -156,48 +162,95 @@ export default async function BrowseDataPage({ searchParams }: { searchParams: {
             {listings.length === 0 ? (
               <p className="text-sm text-gray-500">{t("noResults")}</p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {listings.map((listing) => (
-                  <Link key={`${listing.providerSlug}/${listing.datasetSlug}`} href={`/data/${listing.providerSlug}/${listing.datasetSlug}`}>
-                    <Card className="h-full hover:border-ocean transition-colors">
-                      <CardHeader>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{listing.category}</span>
-                          {/* Sub-category label — show when it differs from the category */}
-                          {(() => {
-                            const sub = "dataSubCategory" in listing ? (listing as Record<string, unknown>).dataSubCategory : undefined;
-                            if (typeof sub !== "string" || !sub || sub === listing.category) return null;
-                            return (
-                              <span className="text-xs text-gray-400">
-                                {sub.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              <>
+                {buyAndDownloadListings.length > 0 && (
+                  <section className="space-y-4">
+                    <h2 className="text-base font-semibold text-navy">{t("buyAndDownloadHeading")}</h2>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {buyAndDownloadListings.map((listing) => (
+                        <Link key={`${listing.providerSlug}/${listing.datasetSlug}`} href={`/data/${listing.providerSlug}/${listing.datasetSlug}`}>
+                          <Card className="h-full hover:border-ocean transition-colors">
+                            <CardHeader>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{listing.category}</span>
+                                {/* Sub-category label — show when it differs from the category */}
+                                {(() => {
+                                  const sub = "dataSubCategory" in listing ? (listing as Record<string, unknown>).dataSubCategory : undefined;
+                                  if (typeof sub !== "string" || !sub || sub === listing.category) return null;
+                                  return (
+                                    <span className="text-xs text-gray-400">
+                                      {sub.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                                    </span>
+                                  );
+                                })()}
+                                <TrustTierBadge tier={listing.trustTier} upvoteCount={listing.upvoteCount} />
+                                {/* Update frequency badge */}
+                                {(() => {
+                                  const freq = "updateFrequency" in listing ? (listing as Record<string, unknown>).updateFrequency : undefined;
+                                  if (typeof freq !== "string" || !freq) return null;
+                                  return (
+                                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5">
+                                      {freq.replace(/_/g, " ")}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                              <CardTitle className="mt-2">{listing.title}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="line-clamp-3">{listing.description}</p>
+                              <p className="mt-3 text-xs text-gray-500">
+                                {listing.institutionName} · {listing.country}
+                              </p>
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-medium bg-light-bg text-navy border border-gray-200 rounded-full px-2.5 py-1">
+                                  {t("fromPrice", { price: formatUsdcPrice(listing.lowestPriceUsdc) })}
+                                </span>
+                                <span className="text-xs font-medium text-ocean">{t("buyAndDownloadCta")} →</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {aiAgentListings.length > 0 && (
+                  <section className="space-y-3">
+                    <h2 className="text-base font-semibold text-navy">{t("aiAgentAccessHeading")}</h2>
+                    <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
+                      {aiAgentListings.map((listing) => (
+                        <div
+                          key={`${listing.providerSlug}/${listing.datasetSlug}`}
+                          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{listing.category}</span>
+                              <span className="text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 rounded-full px-2 py-0.5">
+                                {t("agentApiOnlyLabel")}
                               </span>
-                            );
-                          })()}
-                          <TrustTierBadge tier={listing.trustTier} upvoteCount={listing.upvoteCount} />
-                          {/* Update frequency badge */}
-                          {(() => {
-                            const freq = "updateFrequency" in listing ? (listing as Record<string, unknown>).updateFrequency : undefined;
-                            if (typeof freq !== "string" || !freq) return null;
-                            return (
-                              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5">
-                                {freq.replace(/_/g, " ")}
-                              </span>
-                            );
-                          })()}
+                            </div>
+                            <p className="mt-1 text-sm font-medium text-navy truncate">{listing.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {listing.institutionName} · {listing.country}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-3">
+                            <span className="text-xs font-medium bg-light-bg text-navy border border-gray-200 rounded-full px-2.5 py-1">
+                              {t("fromPrice", { price: formatUsdcPrice(listing.lowestPriceUsdc) })}
+                            </span>
+                            <Link href="/developers" className="text-xs font-medium text-ocean hover:underline">
+                              {t("integrationDocsCta")} →
+                            </Link>
+                          </div>
                         </div>
-                        <CardTitle className="mt-2">{listing.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="line-clamp-3">{listing.description}</p>
-                        <p className="mt-3 text-xs text-gray-500">
-                          {listing.institutionName} · {listing.country}
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-navy">{t("fromPrice", { price: formatUsdcPrice(listing.lowestPriceUsdc) })}</p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
             )}
           </div>
         </main>
