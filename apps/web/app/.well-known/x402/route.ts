@@ -128,7 +128,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/samoa-cpi",
         full_url: `${DIRECTORY_API_URL}/finance/samoa-cpi`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description:
           "Samoa Consumer Price Index and annual inflation rate, sourced from World Bank Open Data. Not an SBS-certified feed — see the response's own attribution field.",
         category: "financial_flows",
@@ -142,7 +142,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/climate/ocean-temperature",
         full_url: `${DIRECTORY_API_URL}/climate/ocean-temperature`,
-        price_usdc: "0.01",
+        price_usdc: "0.15",
         description:
           "Pacific sea surface temperature and wave/swell conditions, sourced from Open-Meteo's Marine Weather API.",
         category: "climate",
@@ -156,7 +156,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/samoa-gdp",
         full_url: `${DIRECTORY_API_URL}/finance/samoa-gdp`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description: "Samoa GDP expenditure approach — annual. FY2025/26: -8.1% real. Source: Samoa Bureau of Statistics.",
         category: "financial_flows",
         pay_to: pilotEarningsWallet,
@@ -169,7 +169,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/fiji-gdp",
         full_url: `${DIRECTORY_API_URL}/finance/fiji-gdp`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description:
           "Fiji GDP by industry (FBoS Release No. 62, GDP rebased to 2019 base). Requires ?year= (2019-2024). Industry-level breakdown published only for 2019 — see the response's own detail_level field. Source: Fiji Bureau of Statistics.",
         category: "financial_flows",
@@ -183,7 +183,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/arbitrage-signals",
         full_url: `${DIRECTORY_API_URL}/finance/arbitrage-signals`,
-        price_usdc: "0.05",
+        price_usdc: "0.40",
         description: "Multi-chain DEX arbitrage signals (Uniswap, PancakeSwap, SushiSwap, Tinyman, Pact). Gas-adjusted spread and signal quality for curated token pairs.",
         category: "financial_flows",
         pay_to: pilotEarningsWallet,
@@ -196,7 +196,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/remittance-corridors",
         full_url: `${DIRECTORY_API_URL}/finance/remittance-corridors`,
-        price_usdc: "0.01",
+        price_usdc: "0.25",
         description:
           "Pacific remittance corridor cost comparison (AU/NZ/US -> Samoa/Fiji/PNG/Tonga): World Bank RPW traditional-rail costs vs. XRP/XLM/ALGO network-fee estimates, at a $200 benchmark. Not financial advice.",
         category: "financial_flows",
@@ -210,7 +210,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/fisheries/pacific-purse-seine",
         full_url: `${DIRECTORY_API_URL}/fisheries/pacific-purse-seine`,
-        price_usdc: "0.05",
+        price_usdc: "0.40",
         description:
           "Historical annual purse seine catch for the Western and Central Pacific (WCPFC Public Domain data, 1967–2021). HISTORICAL, not real-time — see the response's own data_currency and reporting_lag_note fields. Requires ?year=.",
         category: "fisheries",
@@ -224,7 +224,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/climate/pacific-ocean-forecast",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-forecast`,
-        price_usdc: "0.05",
+        price_usdc: "0.20",
         description:
           "Daily Pacific Ocean surface forecast (HYCOM GLBy0.08 model, via Pacific Data Hub THREDDS) — mean surface temperature, current speed/direction, and sea surface elevation for the Pacific Island region. DAILY FORECAST MODEL OUTPUT, not instrument readings — see the response's own data_currency, forecast_reference_date, and valid_time fields.",
         category: "climate",
@@ -245,7 +245,7 @@ function buildEndpoints(): ManifestEndpoint[] {
         // every other endpoint in this array satisfies.
         path: "/climate/pacific-coral-bleaching",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-coral-bleaching`,
-        price_usdc: "0.05",
+        price_usdc: "0.25",
         description:
           "Daily coral bleaching alert levels for Pacific reef areas (NOAA CoralTemp, via ERDDAP). Default region: Samoa. See the response's own data_currency, observation_date, and reporting_lag_note fields.",
         category: "climate",
@@ -264,7 +264,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/fiji-cpi",
         full_url: `${DIRECTORY_API_URL}/finance/fiji-cpi`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description:
           "Fiji Consumer Price Index, transcribed from Fiji Bureau of Statistics' monthly CPI press releases. Optional ?year=, ?from=/?to= (YYYY-MM range).",
         category: "financial_flows",
@@ -278,7 +278,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/climate/pacific-cyclone-history",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-cyclone-history`,
-        price_usdc: "0.05",
+        price_usdc: "0.30",
         description:
           "Historical tropical cyclone tracks for the South Pacific basin, 1960-present (IBTrACS v04r01, NOAA/NCEI public domain). 851 storms indexed — peak wind, pressure, landfall, category, affected nations.",
         category: "disaster_risk",
@@ -306,7 +306,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/climate/pacific-enso-index",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-enso-index`,
-        price_usdc: "0.05",
+        price_usdc: "0.25",
         description:
           "Pacific ENSO / El Nino index (MEI.v2), bimonthly values 1979-present (NOAA PSL, public domain). Positive = El Nino, negative = La Nina conditions.",
         category: "climate",
@@ -322,7 +322,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/pacific-gdp",
         full_url: `${DIRECTORY_API_URL}/finance/pacific-gdp`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description:
           "Pacific GDP — annual GDP (current USD) for 6 nations: Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Papua New Guinea. World Bank Open Data (NY.GDP.MKTP.CD).",
         category: "financial_flows",
@@ -336,7 +336,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/demographics/pacific-population",
         full_url: `${DIRECTORY_API_URL}/demographics/pacific-population`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description:
           "Pacific Population — annual total population for 6 nations: Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Papua New Guinea. World Bank Open Data (SP.POP.TOTL).",
         category: "demographics",
@@ -350,7 +350,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/pacific-cpi",
         full_url: `${DIRECTORY_API_URL}/finance/pacific-cpi`,
-        price_usdc: "0.01",
+        price_usdc: "0.20",
         description:
           "Pacific CPI & Inflation — annual CPI and inflation rate for 6 nations: Samoa, Fiji, Tonga, Vanuatu, Solomon Islands, Papua New Guinea. Pacific Community (SPC) SDMX data service (DF_CPI).",
         category: "financial_flows",
@@ -537,7 +537,7 @@ function buildEndpoints(): ManifestEndpoint[] {
         // requirement (CLAUDE.md P4/§18).
         path: "/finance/fx",
         full_url: `${DIRECTORY_API_URL}/finance/fx`,
-        price_usdc: "0.001",
+        price_usdc: "0.10",
         description:
           "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies, ALGO, and USDC. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=.",
         category: "financial_flows",
@@ -558,7 +558,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/climate/pacific-ocean-temp",
         full_url: `${DIRECTORY_API_URL}/climate/pacific-ocean-temp`,
-        price_usdc: "0.01",
+        price_usdc: "0.15",
         description:
           "Live water temperature at a NOAA CO-OPS Pacific tide station (Pago Pago, American Samoa or Honolulu, Hawaii). Primary-source US federal station reading — see the response's own attribution field.",
         category: "climate",
@@ -572,7 +572,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/crypto-rates",
         full_url: `${DIRECTORY_API_URL}/finance/crypto-rates`,
-        price_usdc: "0.01",
+        price_usdc: "0.10",
         description: "Real-time prices for 67 curated crypto tokens, Pacific-priority weighted (ALGO, XRP, XLM). CoinGecko source.",
         category: "financial_flows",
         pay_to: directoryWallet,
@@ -590,7 +590,7 @@ function buildEndpoints(): ManifestEndpoint[] {
       {
         path: "/finance/crypto-history",
         full_url: `${DIRECTORY_API_URL}/finance/crypto-history`,
-        price_usdc: "0.01",
+        price_usdc: "0.15",
         description:
           "Historical price points for 7 KV-tracked crypto symbols (ALGO, BTC, ETH, XRP, XLM, USDC, USDT), windowed by timeframe. Required ?symbol=.",
         category: "financial_flows",
