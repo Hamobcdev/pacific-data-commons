@@ -1,0 +1,29 @@
+# CAVEAT — read before assuming this is doing anything:
+# The Dockerfile in this directory MUST be built with the repo root as
+# the build context (pnpm workspace deps — see Dockerfile's own doc
+# comment). Plain `docker build`/BuildKit look for the ignore file at
+# <context-root>/.dockerignore (or <context-root>/<dockerfile-path>.dockerignore
+# for BuildKit's per-Dockerfile convention) — NOT at
+# apps/sbp-agent/.dockerignore when the context is the repo root. This
+# file may therefore be silently ignored depending on how `flyctl deploy`
+# resolves its context. See FLY_DEPLOY.md for how to verify, and copy
+# this file to the repo root (or the BuildKit-specific name) if the build
+# log shows node_modules/.env being sent to the build context.
+#
+# The Dockerfile's own explicit COPY list (not `COPY . .`) is the primary
+# defence against shipping these paths — this file is a secondary
+# safeguard, not the only one.
+
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+.env.example
+test
+*.test.ts
+.git
+.gitignore
+*.md
+railway.json
+render.yaml

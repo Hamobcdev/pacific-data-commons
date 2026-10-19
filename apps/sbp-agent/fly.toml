@@ -1,0 +1,67 @@
+# fly.toml for pdc-sbp-agent.
+#
+# Deploy from the REPO ROOT, not this directory — the Dockerfile this
+# config points to needs the monorepo workspace as its build context
+# (see Dockerfile's own doc comment). See FLY_DEPLOY.md for the exact
+# `flyctl deploy` invocation.
+
+app = "pdc-sbp-agent"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret configuration only. AGENT_WALLET_KEY and INTERNAL_API_KEY
+# are NOT here — they're set via `fly secrets set` (see FLY_DEPLOY.md /
+# the secrets command block).
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  LOG_LEVEL = "info"
+  DIRECTORY_URL = "https://api.synergybcpacific.com"
+  ALGORAND_NETWORK = "mainnet"
+  ALGORAND_NODE_URL = "https://mainnet-api.algonode.cloud"
+  QUERY_INTERVAL_MINUTES = "480"
+
+# This agent DOES expose a health endpoint (GET /health, src/index.ts) —
+# started before the first tick() runs, specifically so a platform health
+# check has something to hit immediately at boot. So an http_service
+# block is warranted here, unlike a pure background worker with no port.
+#
+# CRITICAL: this is not a request-driven service — its real job
+# (setInterval tick() every QUERY_INTERVAL_MINUTES, making scheduled x402
+# payments) runs independently of whether anyone calls /health or any
+# other route. Fly's default autostop behaviour stops a machine when it
+# sees no inbound HTTP traffic, which would silently kill the canary's
+# payment schedule between health checks. auto_stop_machines is therefore
+# explicitly "off" and min_machines_running is 1, not 0 — this machine
+# must run continuously, the opposite of Fly's usual scale-to-zero
+# default for http_service.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "30s"
+  method = "GET"
+  path = "/health"
+  protocol = "http"
+
+# Equivalent to apps/sbp-agent/railway.json's restartPolicyType
+# "ON_FAILURE" / restartPolicyMaxRetries 3. Verify this block's exact
+# keys against `flyctl version`'s current fly.toml schema before relying
+# on it — Fly's machine-restart config surface has changed across
+# flyctl releases; `flyctl config show -a pdc-sbp-agent` after first
+# deploy will confirm what was actually applied.
+[[restart]]
+  policy = "on-failure"
+  max_retries = 3
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
