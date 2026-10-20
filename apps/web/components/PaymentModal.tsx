@@ -99,7 +99,7 @@ export function PaymentModal({ endpoint, endpointId, tier, payToAddress, isOpen,
   // on-chain by note-prefix instead of requiring the user to paste a txId.
   const deeplink =
     resolvedPayToAddress && referenceId
-      ? `algorand://${resolvedPayToAddress}?amount=${toMicroUsdc(tier.price_usdc)}&asset=${USDC_ASSET_ID}&xnote=${btoa(referenceId)}`
+      ? `algorand://${resolvedPayToAddress}?amount=${toMicroUsdc(tier.price_usdc)}&asset=${USDC_ASSET_ID}&xnote=${referenceId}`
       : null;
 
   useEffect(() => {
