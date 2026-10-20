@@ -35,7 +35,7 @@ export function InstitutionalPanel() {
           display: flex;
           flex-direction: column;
           justify-content: center;
-          /* Session 12: was 2.5rem, sized for this panel's original 320px
+          /* Session 12: was 2.5rem, sized for this panel original 320px
              registration-page column. It's now shared at 192-224px across
              every layout (PacificSidePanel's sibling) — 2.5rem padding on
              both sides left too little width for the larger text sizes
