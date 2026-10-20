@@ -1,4 +1,6 @@
+import { Link } from "@/i18n/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { AGENT_MARKETPLACE_CONTACT_EMAIL } from "@/lib/agents/marketplaceStatus";
 
 /**
@@ -18,6 +20,11 @@ export function AgentMarketplaceComingSoon({ compact = false }: { compact?: bool
         <p className="mt-2 text-sm text-gray-600">
           Real Pacific data. Real payments. Agent querying via x402 — explore our endpoints or get involved as a provider.
         </p>
+        <div className="mt-4">
+          <Link href="/data">
+            <Button variant="primary">Browse our live data endpoints →</Button>
+          </Link>
+        </div>
         <p className="mt-3 text-sm text-gray-700">
           Want your institution&apos;s data or agent to be part of Pacific Data Commons?{" "}
           <a href={`mailto:${AGENT_MARKETPLACE_CONTACT_EMAIL}`} className="text-ocean hover:underline">
