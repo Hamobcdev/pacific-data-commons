@@ -1,0 +1,57 @@
+# Replaces the suspended Render pdc-sbp-agent service (free-tier usage
+# limit, account-wide — see CLAUDE.md §26.6). Runs one query cycle per
+# invocation on GitHub Actions' free tier instead of a persistent host.
+#
+# src/index.ts starts an HTTP server and a setInterval that never exits on
+# its own: it runs one tick() immediately at boot, then waits
+# QUERY_INTERVAL_MINUTES for the next. There is no --once flag (confirmed
+# against apps/sbp-agent/package.json's "start" script). The step/job
+# timeouts below are what actually end each run, by force-killing the
+# process once the first tick() has completed — not a clean process exit.
+#
+# Build chain mirrors apps/sbp-agent/render.yaml: this is a pnpm workspace
+# package (@pdc/shared-types and @pdc/x402-adapter via workspace:*), so
+# install and build must run from the repo root with pnpm, not npm from
+# inside apps/sbp-agent.
+name: sbp-agent-canary
+
+on:
+  schedule:
+    # 5 minutes past each hour — avoids the :00 traffic spike.
+    - cron: "5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run-canary-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:sbp-agent
+
+      - name: Run one query cycle
+        timeout-minutes: 5
+        env:
+          AGENT_WALLET_KEY: ${{ secrets.AGENT_WALLET_KEY }}
+          AGENT_WALLET_ADDRESS: ${{ secrets.AGENT_WALLET_ADDRESS }}
+          ALGORAND_NODE_URL: ${{ secrets.ALGORAND_NODE_URL }}
+          ALGORAND_NETWORK: ${{ secrets.ALGORAND_NETWORK }}
+          DIRECTORY_URL: ${{ secrets.DIRECTORY_URL }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+          FACILITATOR_URL: ${{ secrets.FACILITATOR_URL }}
+          QUERY_INTERVAL_MINUTES: "60"
+          LOG_LEVEL: info
+          NODE_ENV: production
+        run: node apps/sbp-agent/dist/index.js
