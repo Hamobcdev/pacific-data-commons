@@ -247,11 +247,28 @@ export async function generatePacificBrief(params: GeneratePacificBriefParams): 
     { key: "wallet_balance", category: "algorand", url: `${params.publicUrl.replace(/\/$/, "")}/algorand/wallet-balance?address=${params.avmAddress}`, priceUsdc: 0.005 },
   ];
 
-  // Sequential, not Promise.all — the orchestrator's own wallet signs one
-  // payment at a time, same "settlement ordering" reasoning as
-  // apps/sbp-agent's tick() loop and runQueryCycle's category loop.
-  for (const spec of subEndpoints) {
-    try {
+  // Parallel via Promise.allSettled, not sequential — this used to await
+  // each sub-endpoint in turn, on the reasoning that parallel signing
+  // against the same agent wallet key adds settlement-ordering risk (same
+  // posture as apps/sbp-agent's tick()/runQueryCycle loops, which still run
+  // sequentially because they sign against a *shared* per-process wallet
+  // across separate calls over time — a different situation from the 3
+  // independent, single-shot sub-payments made once per brief here). Each
+  // x402 payment carries its own signed Algorand transaction with a short
+  // validity window (~10 rounds, ~30 seconds — hardcoded inside the pinned
+  // @x402/avm package's ExactAvmScheme.createPaymentPayload, not
+  // configurable from here), so 3 sequential sub-payment round trips plus
+  // Claude synthesis could push total handler time past that ~30-second
+  // window, expiring the buyer's own already-signed outer payment before
+  // settlement ever got attempted ("txn dead: round N outside of
+  // firstValid--lastValid"). Signing 3 independent transactions to 3
+  // different payTo addresses concurrently from one Ed25519 key has no
+  // Algorand-protocol-level ordering requirement (unlike account-nonce
+  // chains) — the original caution doesn't actually apply to this
+  // particular fan-out shape. Same fix as pacificTourismService.ts's
+  // Session 36 parallelization (fe518ec), applied here for the same reason.
+  const settledSubResults = await Promise.allSettled(
+    subEndpoints.map(async (spec) => {
       const res = await payingFetch(spec.url);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -264,27 +281,28 @@ export async function generatePacificBrief(params: GeneratePacificBriefParams): 
       // (their responses ARE the payload) — this branch handles both
       // without a per-source special case.
       const data = "data" in body ? body.data : body;
+      return {
+        payment: { endpoint: spec.url, category: spec.category, tx_id: settlement?.algoTxId ?? null, amount_usdc: spec.priceUsdc },
+        subResult: { key: spec.key, category: spec.category, data, dataWarning } as SubQueryResult,
+      };
+    }),
+  );
 
-      payments.push({
-        endpoint: spec.url,
-        category: spec.category,
-        tx_id: settlement?.algoTxId ?? null,
-        amount_usdc: spec.priceUsdc,
-      });
-      subResults.push({ key: spec.key, category: spec.category, data, dataWarning });
-    } catch (err) {
-      // Log but don't fail the whole run — synthesise from whatever
-      // sub-endpoints did succeed, same as every other multi-source
-      // aggregation in this codebase (BaseAgent's endpoint loop,
-      // sbp-agent's per-category cycle).
-      logger.error("orchestrator_sub_endpoint_failed", {
-        run_id: runId,
-        key: spec.key,
-        url: spec.url,
-        error: err instanceof Error ? err.message : String(err),
-      });
+  settledSubResults.forEach((outcome, i) => {
+    const spec = subEndpoints[i];
+    if (!spec) return;
+    if (outcome.status === "fulfilled") {
+      payments.push(outcome.value.payment);
+      subResults.push(outcome.value.subResult);
+      return;
     }
-  }
+    logger.error("orchestrator_sub_endpoint_failed", {
+      run_id: runId,
+      key: spec.key,
+      url: spec.url,
+      error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+    });
+  });
 
   if (subResults.length === 0) {
     throw new AllSubEndpointsFailedError();
