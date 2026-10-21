@@ -43,8 +43,17 @@ jobs:
 
       - name: Warm up Worker isolate
         run: |
-          curl -sf "https://api.synergybcpacific.com/health" > /dev/null
-          sleep 10
+          echo "Polling Worker until ready..."
+          for i in $(seq 1 12); do
+            if curl -sf --max-time 5 "https://api.synergybcpacific.com/health" > /dev/null 2>&1; then
+              echo "Worker responded on attempt ${i}"
+              break
+            fi
+            echo "Attempt ${i} — Worker not ready, retrying in 5s..."
+            sleep 5
+          done
+          echo "Waiting 30s for Algorand RPC path to warm..."
+          sleep 30
 
       - name: Run one query cycle
         timeout-minutes: 14
