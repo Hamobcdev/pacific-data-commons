@@ -41,6 +41,11 @@ jobs:
 
       - run: pnpm run build:sbp-agent
 
+      - name: Warm up Worker isolate
+        run: |
+          curl -sf "https://api.synergybcpacific.com/health" > /dev/null
+          sleep 10
+
       - name: Run one query cycle
         timeout-minutes: 14
         env:
