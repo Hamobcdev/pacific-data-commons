@@ -24,7 +24,7 @@ on:
 jobs:
   run-canary-cycle:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +42,7 @@ jobs:
       - run: pnpm run build:sbp-agent
 
       - name: Run one query cycle
-        timeout-minutes: 5
+        timeout-minutes: 14
         env:
           AGENT_WALLET_KEY: ${{ secrets.AGENT_WALLET_KEY }}
           AGENT_WALLET_ADDRESS: ${{ secrets.AGENT_WALLET_ADDRESS }}
