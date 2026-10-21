@@ -82,11 +82,11 @@ describe("GET /health", () => {
 
   it("builds canary.policy_url from WEB_APP_URL (Session 27 — Volume Integrity Policy)", async () => {
     const app = buildTestApp(createFakeSupabase({ providers: { data: [], count: 0 } }), {
-      WEB_APP_URL: "https://pdcweb-production.up.railway.app",
+      WEB_APP_URL: "https://pdc.synergybcpacific.com",
     });
     const res = await app.request("/health");
     const body = (await res.json()) as { canary: { policy_url: string | null } };
-    expect(body.canary.policy_url).toBe("https://pdcweb-production.up.railway.app/.well-known/volume-integrity-policy.json");
+    expect(body.canary.policy_url).toBe("https://pdc.synergybcpacific.com/.well-known/volume-integrity-policy.json");
   });
 });
 
