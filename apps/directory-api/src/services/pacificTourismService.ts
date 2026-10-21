@@ -314,7 +314,13 @@ export async function generatePacificTravelBrief(params: GeneratePacificTravelBr
   // many sequential transactions over time.
   const settledSubResults = await Promise.allSettled(
     subEndpoints.map(async (spec) => {
-      const res = await payingFetch(spec.url);
+      let res = await payingFetch(spec.url);
+      if (res.status === 503) {
+        const retryBody = await res.clone().json().catch(() => ({})) as Record<string, unknown>;
+        const retryAfter = typeof retryBody.retry_after === "number" ? retryBody.retry_after : 5;
+        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+        res = await payingFetch(spec.url);
+      }
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
