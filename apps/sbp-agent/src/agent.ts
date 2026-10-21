@@ -1,6 +1,19 @@
 import { createManualPaymentFetch, decodeSettlementFromResponse, type PdcAlgorandNetwork } from "@pdc/x402-adapter";
 import type { Logger } from "./logger.js";
 
+function withRetryOn503(fetchFn: typeof fetch): typeof fetch {
+  return async (...args: Parameters<typeof fetch>): Promise<Response> => {
+    const res = await fetchFn(...args);
+    if (res.status === 503) {
+      const retryBody = await res.clone().json().catch(() => ({})) as Record<string, unknown>;
+      const retryAfter = typeof retryBody.retry_after === "number" ? retryBody.retry_after : 5;
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      return fetchFn(...args);
+    }
+    return res;
+  };
+}
+
 /** Decision 8 — $0.01 directory query fee, fixed platform-wide. */
 const DIRECTORY_QUERY_PRICE_USDC = 0.01;
 /** Fallback if a paid response doesn't echo amount_paid_usdc — matches the
@@ -140,7 +153,7 @@ export async function runQueryCycle(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   return runCycleWithPayingFetch(
     {
@@ -341,7 +354,7 @@ export async function runWalletBalanceCanaryCheck(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   // Volume Integrity Policy (Session 26) — see runCycleWithPayingFetch's
   // matching comment above for why this log shape exists instead of an
@@ -443,7 +456,7 @@ export async function runFxCanaryCheck(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   // Volume Integrity Policy (Session 26) — same canary-log shape as every
   // other canary check in this file.
@@ -548,7 +561,7 @@ export async function runOrchestratorCanaryCheck(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   // Volume Integrity Policy (Session 26) — same canary-log shape as every
   // other canary check in this file.
@@ -646,7 +659,7 @@ export async function runEventsCanaryCheck(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   // Volume Integrity Policy (Session 26) — same canary-log shape as every
   // other canary check in this file.
@@ -792,7 +805,7 @@ export async function runTourismCanaryCheck(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   // Volume Integrity Policy (Session 26) — same canary-log shape as every
   // other canary check in this file.
@@ -904,7 +917,7 @@ export async function runWeatherCanaryCheck(params: {
   const buildPayingFetch =
     params.createPayingFetch ??
     ((key: string, network: PdcAlgorandNetwork) => createManualPaymentFetch({ privateKeyBase64: key, network }));
-  const payingFetch = buildPayingFetch(params.agentWalletKey, params.network);
+  const payingFetch = withRetryOn503(buildPayingFetch(params.agentWalletKey, params.network));
 
   // Volume Integrity Policy (Session 26) — same canary-log shape as every
   // other canary check in this file.
