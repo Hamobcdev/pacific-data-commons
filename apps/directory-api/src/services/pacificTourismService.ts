@@ -419,7 +419,10 @@ export async function generatePacificTravelBrief(params: GeneratePacificTravelBr
       agentId,
       runId,
       endpointTxIds: successfulTxIds,
-    });
+    }).catch((err) => ({
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }));
     if (!attribution.success) {
       logger.warn("tourism_orchestrator_attribution_submission_failed", { run_id: runId, error: attribution.error });
     }
