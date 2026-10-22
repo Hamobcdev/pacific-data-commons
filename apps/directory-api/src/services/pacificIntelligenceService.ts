@@ -244,7 +244,7 @@ export async function generatePacificBrief(params: GeneratePacificBriefParams): 
   const subEndpoints: SubEndpointSpec[] = [
     { key: "fisheries", category: "fisheries", url: `${params.pilotEndpointUrl.replace(/\/$/, "")}/summary`, priceUsdc: 0.01 },
     { key: "fx", category: "finance", url: `${params.publicUrl.replace(/\/$/, "")}/finance/fx`, priceUsdc: 0.001 },
-    { key: "wallet_balance", category: "algorand", url: `${params.publicUrl.replace(/\/$/, "")}/algorand/wallet-balance?address=${params.avmAddress}`, priceUsdc: 0.005 },
+    { key: "wallet_balance", category: "algorand", url: `${params.publicUrl.replace(/\/$/, "")}/algorand/wallet-balance?address=${params.avmAddress}`, priceUsdc: 0.1 },
   ];
 
   // Parallel via Promise.allSettled, not sequential — this used to await
