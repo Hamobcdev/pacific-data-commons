@@ -259,8 +259,22 @@ function withFacilitatorTimeout<T>(operation: string, run: () => Promise<T>): Pr
  * hang is still reported as the more specific `payment_facilitator_
  * unavailable` 503 via findFacilitatorTimeoutError below, rather than being
  * preempted by this more generic one.
+ *
+ * Raised from 12000 to 30000 — this is a single global ceiling shared by
+ * every paid route (middleware() is mounted once for the whole app, keyed
+ * by routesConfig entries that include dynamic segments like /provider/:id
+ * and /verify/:certHash, so there is no cheap way to look up a per-route
+ * override from inside this closure without building real path-pattern
+ * matching into payment-critical code). GET /intelligence/pacific-brief's
+ * own handler (pacificIntelligenceService.ts) runs 3 parallel sub-payments
+ * — each of which can itself sleep for a 503 retry_after (default 5s) —
+ * plus a Claude synthesis call, all inside this same outer deadline; 12s
+ * was too tight for that handler's worst case and was tripping this timeout
+ * instead of letting the inner retry logic do its job. 30s stays comfortably
+ * above FACILITATOR_TIMEOUT_MS so the more specific facilitator-timeout
+ * branch below still wins on a genuine facilitator hang.
  */
-const PAYMENT_GATE_TIMEOUT_MS = 12000;
+const PAYMENT_GATE_TIMEOUT_MS = 30000;
 
 export class PaymentGateTimeoutError extends Error {
   constructor(timeoutMs: number) {
