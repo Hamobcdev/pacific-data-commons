@@ -571,7 +571,13 @@ export async function runOrchestratorCanaryCheck(params: {
     const url = `${params.directoryUrl.replace(/\/$/, "")}/intelligence/pacific-brief?topic=fisheries&country=WS`;
     const res = await payingFetch(url);
     if (!res.ok) {
-      throw new Error(`pacific-brief query returned HTTP ${res.status}`);
+      const failure = await describeFailedPaymentResponse(res);
+      params.logger.error("agent_orchestrator_payment_rejected", {
+        cycle_at: cycleAt, ...failure, ...canaryLog,
+      });
+      throw new Error(
+        `pacific-brief query returned HTTP ${res.status} — ${JSON.stringify(failure)}`
+      );
     }
     const body = (await res.json()) as OrchestratorResponseShape;
     const settlement = decodeSettlementFromResponse(res);

@@ -273,6 +273,9 @@ export async function generatePacificBrief(params: GeneratePacificBriefParams): 
       if (res.status === 503) {
         const retryBody = await res.clone().json().catch(() => ({})) as Record<string, unknown>;
         const retryAfter = typeof retryBody.retry_after === "number" ? retryBody.retry_after : 5;
+        logger.warn("orchestrator_sub_endpoint_503_retry", {
+          run_id: runId, key: spec.key, retry_after: retryAfter,
+        });
         await new Promise((r) => setTimeout(r, retryAfter * 1000));
         res = await payingFetch(spec.url);
       }
