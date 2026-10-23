@@ -65,7 +65,23 @@ const CURRENCY_API_JSDELIVR_URL = "https://cdn.jsdelivr.net/npm/@fawazahmed0/cur
 const CURRENCY_API_PAGES_FALLBACK_URL = "https://latest.currency-api.pages.dev/v1/currencies/usd.json";
 const OPEN_ER_API_URL = "https://open.er-api.com/v6/latest/USD";
 const FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest";
-const COINGECKO_ALGO_URL = "https://api.coingecko.com/api/v3/simple/price?ids=algorand&vs_currencies=usd";
+// CoinGecko ids -> this registry's asset symbols. One request covers all
+// 10 fetched crypto assets (USDC is the 11th asset_categories member but
+// is never fetched — hardcoded 1.0 peg, same as before this expansion).
+const COINGECKO_IDS: Record<string, CryptoAssetCode> = {
+  algorand: "ALGO",
+  bitcoin: "BTC",
+  ethereum: "ETH",
+  solana: "SOL",
+  binancecoin: "BNB",
+  ripple: "XRP",
+  stellar: "XLM",
+  tether: "USDT",
+  "axie-infinity": "AXS",
+  ronin: "RON",
+};
+
+const COINGECKO_SIMPLE_PRICE_URL = `https://api.coingecko.com/api/v3/simple/price?ids=${Object.keys(COINGECKO_IDS).join(",")}&vs_currencies=usd&include_24hr_change=true`;
 
 // Frankfurter (ECB) only ever has data for these — see doc comment above.
 const FRANKFURTER_SUPPORTED = ["AUD", "NZD", "EUR", "GBP", "JPY", "CNY", "SGD", "CAD", "HKD"] as const;
@@ -126,6 +142,26 @@ export const MICRO_STATE_PEGS = [
   { country: "Tuvalu", currency: "AUD", note: "pegged_to_aud", peg_confirmed: true },
 ] as const;
 
+export type CryptoAssetCode = "BTC" | "ETH" | "SOL" | "BNB" | "ALGO" | "XRP" | "XLM" | "USDC" | "USDT" | "AXS" | "RON";
+
+export type AssetCategory = "major" | "remittance" | "stablecoin" | "gaming";
+
+export const ASSET_CATEGORIES: Record<CryptoAssetCode, AssetCategory> = {
+  BTC: "major",
+  ETH: "major",
+  SOL: "major",
+  BNB: "major",
+  ALGO: "major",
+  XRP: "remittance",
+  XLM: "remittance",
+  USDC: "stablecoin",
+  USDT: "stablecoin",
+  AXS: "gaming",
+  RON: "gaming",
+};
+
+const CRYPTO_ASSET_CODES = Object.keys(ASSET_CATEGORIES) as CryptoAssetCode[];
+
 export type FxSource = "currency-api" | "currency-api-fallback" | "open-er-api" | "frankfurter-partial+static" | "static-only";
 
 const SOURCE_LABELS: Record<FxSource, string[]> = {
@@ -150,7 +186,11 @@ export interface FxRates {
   base: "USD";
   timestamp: string;
   source: FxSource;
-  rates: Record<FiatCurrencyCode, number> & { ALGO: number; USDC: number };
+  rates: Record<FiatCurrencyCode, number> & Record<CryptoAssetCode, number | null>;
+  asset_categories: Record<CryptoAssetCode, AssetCategory>;
+  crypto_24hr_change_pct: Record<CryptoAssetCode, number | null>;
+  pacific_crypto_cross_rates: Record<(typeof PACIFIC_CURRENCIES)[number], Record<CryptoAssetCode, number | null>>;
+  fetch_errors: string[];
   converted?: {
     from: string;
     to: string;
@@ -220,11 +260,74 @@ async function fetchFromFrankfurter(): Promise<Partial<Record<FiatCurrencyCode, 
   return (data.rates ?? {}) as Partial<Record<FiatCurrencyCode, number>>;
 }
 
-async function fetchAlgoPrice(): Promise<number> {
-  const response = await fetch(COINGECKO_ALGO_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-  if (!response.ok) throw new Error(`CoinGecko returned HTTP ${response.status}`);
-  const data = (await response.json()) as { algorand?: { usd?: number } };
-  return data.algorand?.usd ?? 0;
+interface CryptoPriceFetchResult {
+  prices: Partial<Record<CryptoAssetCode, number>>;
+  changes: Partial<Record<CryptoAssetCode, number>>;
+  errors: string[];
+}
+
+/** CoinGecko /simple/price response shape: { <coingecko id>: { usd?: number, usd_24h_change?: number } } */
+type CoinGeckoSimplePriceResponse = Record<string, { usd?: number; usd_24h_change?: number }>;
+
+async function fetchCryptoPrices(): Promise<CryptoPriceFetchResult> {
+  const prices: Partial<Record<CryptoAssetCode, number>> = {};
+  const changes: Partial<Record<CryptoAssetCode, number>> = {};
+  const errors: string[] = [];
+
+  let data: CoinGeckoSimplePriceResponse;
+  try {
+    const response = await fetch(COINGECKO_SIMPLE_PRICE_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    if (!response.ok) throw new Error(`CoinGecko returned HTTP ${response.status}`);
+    data = (await response.json()) as CoinGeckoSimplePriceResponse;
+  } catch (err) {
+    // Whole request failed — every fetched asset (not USDC, which is never
+    // fetched) is individually null with its own fetch_errors entry, same
+    // "a partial outage degrades one asset's freshness, not the whole
+    // response" posture as the fiat fallback chain above.
+    const message = err instanceof Error ? err.message : String(err);
+    for (const symbol of Object.values(COINGECKO_IDS)) {
+      errors.push(`${symbol}: CoinGecko request failed — ${message}`);
+    }
+    return { prices, changes, errors };
+  }
+
+  for (const [coingeckoId, symbol] of Object.entries(COINGECKO_IDS)) {
+    const entry = data[coingeckoId];
+    if (entry && typeof entry.usd === "number") {
+      prices[symbol] = entry.usd;
+      if (typeof entry.usd_24h_change === "number") {
+        changes[symbol] = entry.usd_24h_change;
+      }
+    } else {
+      errors.push(`${symbol}: not present in CoinGecko response`);
+    }
+  }
+
+  return { prices, changes, errors };
+}
+
+/**
+ * crypto_in_pacific_fiat = crypto_usd_rate × pacific_fiat_usd_rate.
+ * CoinGecko's crypto_usd_rate is USD-per-1-crypto-unit (e.g. BTC ≈ 81360),
+ * while this file's fiat rates are units-of-fiat-per-1-USD (the
+ * currency-api convention, e.g. WST ≈ 2.74) — multiplying the two gives
+ * fiat-units-per-1-crypto-unit, e.g. BTC in WST ≈ 81360 × 2.74 ≈ 222,775.
+ */
+function computePacificCryptoCrossRates(
+  rates: Record<string, number | null>,
+): Record<(typeof PACIFIC_CURRENCIES)[number], Record<CryptoAssetCode, number | null>> {
+  const result = {} as Record<(typeof PACIFIC_CURRENCIES)[number], Record<CryptoAssetCode, number | null>>;
+  for (const fiat of PACIFIC_CURRENCIES) {
+    const fiatRate = rates[fiat];
+    const perAsset = {} as Record<CryptoAssetCode, number | null>;
+    for (const asset of CRYPTO_ASSET_CODES) {
+      const cryptoRate = rates[asset];
+      perAsset[asset] =
+        typeof cryptoRate === "number" && typeof fiatRate === "number" ? cryptoRate * fiatRate : null;
+    }
+    result[fiat] = perAsset;
+  }
+  return result;
 }
 
 async function fetchFreshRates(): Promise<FxRates> {
@@ -250,12 +353,7 @@ async function fetchFreshRates(): Promise<FxRates> {
     }
   }
 
-  let algoPrice = 0;
-  try {
-    algoPrice = await fetchAlgoPrice();
-  } catch {
-    // ALGO price unavailable — return 0, clearly a missing value rather than a guess.
-  }
+  const { prices: cryptoPrices, changes: cryptoChanges, errors: fetchErrors } = await fetchCryptoPrices();
 
   const fullRates = FIAT_CURRENCIES.reduce(
     (acc, code) => {
@@ -265,16 +363,38 @@ async function fetchFreshRates(): Promise<FxRates> {
     {} as Record<FiatCurrencyCode, number>,
   );
 
+  const cryptoRates = CRYPTO_ASSET_CODES.reduce(
+    (acc, code) => {
+      acc[code] = code === "USDC" ? 1.0 : (cryptoPrices[code] ?? null);
+      return acc;
+    },
+    {} as Record<CryptoAssetCode, number | null>,
+  );
+
+  const cryptoChangePct = CRYPTO_ASSET_CODES.reduce(
+    (acc, code) => {
+      acc[code] = cryptoChanges[code] ?? null;
+      return acc;
+    },
+    {} as Record<CryptoAssetCode, number | null>,
+  );
+
+  const combinedRates = { ...fullRates, ...cryptoRates };
+
   const now = new Date();
   return {
     base: "USD",
     timestamp: now.toISOString(),
     source,
-    rates: { ...fullRates, ALGO: algoPrice, USDC: 1.0 },
+    rates: combinedRates,
+    asset_categories: ASSET_CATEGORIES,
+    crypto_24hr_change_pct: cryptoChangePct,
+    pacific_crypto_cross_rates: computePacificCryptoCrossRates(combinedRates),
+    fetch_errors: fetchErrors,
     micro_state_pegs: MICRO_STATE_PEGS,
-    data_sources: SOURCE_LABELS[source],
+    data_sources: [...SOURCE_LABELS[source], "CoinGecko (BTC, ETH, SOL, BNB, XRP, XLM, USDT, AXS, RON, ALGO)"],
     data_currency: "daily",
-    coverage_note: COVERAGE_NOTES[source],
+    coverage_note: `${COVERAGE_NOTES[source]} 11 crypto assets (major, stablecoin, remittance, gaming) × 8 Pacific fiat currencies × 10 sender currencies. Cross-rates computed at query time. Crypto rates indicative — 24h cache, not real-time. Chainlink oracle integration planned.`,
     not_financial_advice: true,
     generated_at: now.toISOString(),
     cache_expires_at: new Date(now.getTime() + CACHE_TTL_MS).toISOString(),
@@ -282,7 +402,7 @@ async function fetchFreshRates(): Promise<FxRates> {
 }
 
 function performConversion(rates: FxRates["rates"], from: string, to: string, amount: number): FxRates["converted"] {
-  const allRates: Record<string, number> = { ...rates, USD: 1.0 };
+  const allRates: Record<string, number | null> = { ...rates, USD: 1.0 };
   const fromRate = allRates[from];
   const toRate = allRates[to];
 
@@ -308,15 +428,15 @@ function performConversion(rates: FxRates["rates"], from: string, to: string, am
  * itself) — the route layer validates this before calling, so this
  * function trusts its input rather than re-validating.
  */
-export function rebaseRates(usdBaseRates: Record<string, number>, newBase: string): Record<string, number> {
+export function rebaseRates(usdBaseRates: Record<string, number | null>, newBase: string): Record<string, number | null> {
   if (newBase === "USD") return { ...usdBaseRates };
   const baseRate = usdBaseRates[newBase];
-  const rebased: Record<string, number> = {};
+  const rebased: Record<string, number | null> = {};
   for (const [code, rate] of Object.entries(usdBaseRates)) {
     if (code === newBase) continue;
-    rebased[code] = rate / baseRate!;
+    rebased[code] = rate == null || !baseRate ? null : rate / baseRate;
   }
-  rebased.USD = 1 / baseRate!;
+  rebased.USD = !baseRate ? null : 1 / baseRate;
   return rebased;
 }
 
@@ -405,7 +525,7 @@ export async function queryFx(params: FxQueryParams): Promise<unknown> {
   const base = baseRaw ?? "USD";
   const ratesForBase = base === "USD" ? snapshot.rates : rebaseRates(snapshot.rates, base);
 
-  let filteredRates: Record<string, number> = ratesForBase;
+  let filteredRates: Record<string, number | null> = ratesForBase;
   if (pacificOnly) {
     const keep = new Set<string>([...(PACIFIC_CURRENCIES as readonly string[]), "ALGO", "USDC"]);
     filteredRates = Object.fromEntries(Object.entries(filteredRates).filter(([code]) => keep.has(code)));

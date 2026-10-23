@@ -165,7 +165,10 @@ describe("GET /finance/fx (Pacific FX Registry expansion)", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { source: string; data_sources: string[]; rates: Record<string, number> };
     expect(body.source).toBe("open-er-api");
-    expect(body.data_sources).toEqual(["ExchangeRate-API (open.er-api.com)"]);
+    expect(body.data_sources).toEqual([
+      "ExchangeRate-API (open.er-api.com)",
+      "CoinGecko (BTC, ETH, SOL, BNB, XRP, XLM, USDT, AXS, RON, ALGO)",
+    ]);
     expect(body.rates.FJD).toBe(2.24);
   });
 
