@@ -106,6 +106,39 @@ const DATASET_METADATA: Record<string, AgentDatasetMetadata> = {
     upstreamSource: "SIFA Samoa — International Banking Act 2005",
     reportingLagNote: "Requirements as of October 2026. Capital requirements and process steps may change with SIFA or CBS regulatory changes.",
   },
+  // Vanuatu Jurisdiction Intelligence — Decision 61, curated static regulatory
+  // data. vanuatu-banking-setup is deliberately not wired here — on hold
+  // pending RBV source verification.
+  "/pacific/vanuatu-ibc-setup": {
+    category: "regulatory",
+    dataCurrency: "static (updated on legislative change)",
+    upstreamSource: "VFSC — International Companies Act [CAP. 222], Consolidated Edition 2026",
+    reportingLagNote: "Static curated data. Verified October 2026 against the Act text directly. Several fields are pending primary-source verification — see each response's data_quality block.",
+  },
+  "/pacific/vanuatu-ibc-compliance": {
+    category: "regulatory",
+    dataCurrency: "static (updated on legislative or status change)",
+    upstreamSource: "VFSC — International Companies Act [CAP. 222]",
+    reportingLagNote: "Static curated data. FATF status and Foreign Investment Act 2019 sector data are pending/unreachable — see each response's data_quality block.",
+  },
+  "/pacific/vanuatu-vfsc-licenses": {
+    category: "regulatory",
+    dataCurrency: "static (updated on legislative change)",
+    upstreamSource: "VFSC — Company and Trust Services Providers Act No. 8 of 2010",
+    reportingLagNote: "Based on 2010 Act original text; 2017/2018 amendments not yet incorporated. Fee amounts deferred to unlocated Regulations — see each response's data_quality block.",
+  },
+  "/pacific/vanuatu-registered-agents": {
+    category: "regulatory",
+    dataCurrency: "static (updated on VFSC licence changes)",
+    upstreamSource: "VFSC — live Company and Trust Service Providers directory",
+    reportingLagNote: "Snapshot as of October 2026. Always verify current licence status directly with VFSC before engaging any provider.",
+  },
+  "/pacific/vanuatu-citizenship-investment": {
+    category: "regulatory",
+    dataCurrency: "static (updated on programme or EU status change)",
+    upstreamSource: "Vanuatu Citizenship Office and Commission / Council of the EU",
+    reportingLagNote: "EU Schengen status verified against 3 independent EU institutional sources. Contribution amounts and UK access are pending primary-source verification — see each response's data_quality block.",
+  },
   "/invest/pacific-setup-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: MCIL Samoa, Investment Fiji, VFIPA Vanuatu, IPA PNG, MFEM Tonga, MCITP Solomon Islands" },
   "/invest/pacific-tax-comparison": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa VAGST Act, FRCA Fiji, Vanuatu VFIPA, IRC PNG, Tonga MoR, Solomon Islands IRD" },
   "/invest/pacific-land-tenure": { category: "investment", dataCurrency: "October 2026", upstreamSource: "SBP synthesis: Samoa Land Corporation, iTaukei Land Trust Board Fiji, Vanuatu Custom Land Act, PNG Land Act, Tonga Land Act, Solomon Islands Land & Titles Act" },
@@ -155,6 +188,11 @@ const QUERYABLE_DATASET_IDS = new Set([
   "samoa-compliance-status",
   "samoa-service-providers",
   "samoa-banking-setup",
+  "vanuatu-ibc-setup",
+  "vanuatu-ibc-compliance",
+  "vanuatu-vfsc-licenses",
+  "vanuatu-registered-agents",
+  "vanuatu-citizenship-investment",
   "pacific-setup-comparison",
   "pacific-tax-comparison",
   "pacific-land-tenure",

@@ -34,6 +34,13 @@ import {
   parseEntityType,
 } from "../services/samoaSifaService.js";
 import {
+  getIbcSetup,
+  getIbcCompliance,
+  getVfscLicenses,
+  getRegisteredAgents,
+  getCitizenshipInvestment,
+} from "../services/vanuatuJurisdictionService.js";
+import {
   getSetupComparison,
   getTaxComparison,
   getLandTenureComparison,
@@ -157,6 +164,11 @@ const QUERY_PARAM_SCHEMAS: Record<string, Record<string, string>> = {
   "samoa-compliance-status": {},
   "samoa-service-providers": {},
   "samoa-banking-setup": {},
+  "vanuatu-ibc-setup": {},
+  "vanuatu-ibc-compliance": {},
+  "vanuatu-vfsc-licenses": {},
+  "vanuatu-registered-agents": {},
+  "vanuatu-citizenship-investment": {},
   "pacific-setup-comparison": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)" },
   "pacific-tax-comparison": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)" },
   "pacific-land-tenure": { nations: "string, optional — comma-separated ISO codes: ws,fj,vu,pg,to,sb (default: all)" },
@@ -413,6 +425,26 @@ async function runDatasetQuery(c: Context<AppBindings>, dataset: AgentDataset, p
 
     case "samoa-banking-setup": {
       return getBankingSetup();
+    }
+
+    case "vanuatu-ibc-setup": {
+      return getIbcSetup();
+    }
+
+    case "vanuatu-ibc-compliance": {
+      return getIbcCompliance();
+    }
+
+    case "vanuatu-vfsc-licenses": {
+      return getVfscLicenses();
+    }
+
+    case "vanuatu-registered-agents": {
+      return getRegisteredAgents();
+    }
+
+    case "vanuatu-citizenship-investment": {
+      return getCitizenshipInvestment();
     }
 
     case "pacific-setup-comparison": {

@@ -102,6 +102,16 @@ const SAMOA_SERVICE_PROVIDERS_PRICE_USDC = 1.50;
 const SAMOA_ENTITY_SETUP_PRICE_USDC = 3.00;
 const SAMOA_BANKING_SETUP_PRICE_USDC = 5.00;
 
+// Vanuatu Jurisdiction Intelligence — SBP-curated regulatory intelligence,
+// same posture as the Samoa prices above (Decision 60's $0.01 open-data cap
+// does not apply). Prices per PDC-POL-2026-001. vanuatu-banking-setup is
+// deliberately not priced here — on hold pending RBV source verification.
+const VANUATU_IBC_SETUP_PRICE_USDC = 1.30;
+const VANUATU_IBC_COMPLIANCE_PRICE_USDC = 0.60;
+const VANUATU_VFSC_LICENSES_PRICE_USDC = 1.00;
+const VANUATU_REGISTERED_AGENTS_PRICE_USDC = 0.60;
+const VANUATU_CITIZENSHIP_INVESTMENT_PRICE_USDC = 1.30;
+
 // Pacific Investment Intelligence suite — 6 synthesis endpoints.
 // Decision 23 Bronze ceiling ($0.50 max) applies. Decision 60 does NOT apply —
 // these are SBP proprietary synthesis (multi-source regulatory data aggregated
@@ -1681,6 +1691,138 @@ const paidRoutesBase: PaidRouteSpec[] = [
   },
   {
     method: "GET",
+    path: "/pacific/vanuatu-ibc-setup",
+    humanDeliverable: true,
+    description:
+      "Vanuatu International Company (IBC) formation requirements under the International Companies Act [CAP. 222], Consolidated Edition 2026 — formation and annual fees, long-term registration options, director/shareholder minimums, bearer-share prohibition, and FIAC applicability. Several fields are pending primary-source verification and are returned as null with a data_note — see data_quality.",
+    priceUsdc: VANUATU_IBC_SETUP_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Vanuatu",
+          iso_code: "VU",
+          ibc_setup: {
+            entity_type: "International Company (IBC) under International Companies Act [CAP. 222]",
+            formation_fee_usd: 150,
+            annual_registration_fee_usd: 300,
+            registered_agent_required: true,
+            directors_minimum: 1,
+            bearer_shares_permitted: false,
+            timeline_to_incorporation_days: null,
+            timeline_to_incorporation_days_data_note: "Pending primary source verification — check back for updates",
+          },
+          data_quality: { verified_fields: 14, pending_fields: 1, jurisdiction: "Vanuatu", policy_ref: "PDC-POL-2026-001", as_of: "2026-10" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/vanuatu-ibc-compliance",
+    humanDeliverable: true,
+    description:
+      "Vanuatu International Company beneficial-ownership, disclosure, and compliance obligations — register confidentiality, disclosure gateways, unauthorized-disclosure penalties, and annual filing requirements. FATF status and Foreign Investment Act 2019 sector data are pending/unreachable and returned as null with a data_note — see data_quality.",
+    priceUsdc: VANUATU_IBC_COMPLIANCE_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Vanuatu",
+          iso_code: "VU",
+          ibc_compliance: {
+            beneficial_ownership_register_visibility: "Private/confidential",
+            unauthorized_disclosure_penalty_usd: 100000,
+            annual_return_required: false,
+            aml_fatf_status: null,
+            aml_fatf_status_data_note: "Pending primary source verification — check back for updates",
+            foreign_investment_act_2019_prohibited_sectors: null,
+            foreign_investment_act_2019_prohibited_sectors_data_note: "Primary source temporarily unreachable — data withheld pending verification",
+          },
+          data_quality: { verified_fields: 6, pending_fields: 2, jurisdiction: "Vanuatu", policy_ref: "PDC-POL-2026-001", as_of: "2026-10" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/vanuatu-vfsc-licenses",
+    humanDeliverable: true,
+    description:
+      "VFSC financial-services license categories (CTSP, General CSP, Limited CSP, Director's Licence, Special Trust Licence, Group Licence) and fit-and-proper criteria under the Company and Trust Services Providers Act No. 8 of 2010. Fee amounts and VASP framework details are deferred to unlocated Regulations and returned as null with a data_note — see data_quality.",
+    priceUsdc: VANUATU_VFSC_LICENSES_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Vanuatu",
+          iso_code: "VU",
+          vfsc_licenses: {
+            license_categories: ["CTSP (Company and Trust Service Provider)", "General CSP", "Limited CSP", "Director's Licence", "Special Trust Licence", "Group Licence"],
+            processing_timeline_months: 3,
+            annual_license_fee: null,
+            annual_license_fee_data_note: "Pending primary source verification — check back for updates",
+          },
+          data_quality: { verified_fields: 3, pending_fields: 3, jurisdiction: "Vanuatu", policy_ref: "PDC-POL-2026-001", as_of: "2026-10" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/vanuatu-registered-agents",
+    humanDeliverable: true,
+    description:
+      "Directory of VFSC-licensed Company and Trust Service Providers (registered agents) in Vanuatu — the entities through which every Vanuatu International Company must be formed. Live VFSC directory, snapshot as of October 2026.",
+    priceUsdc: VANUATU_REGISTERED_AGENTS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Vanuatu",
+          regulator: "VFSC",
+          total_licensed_ctsps: 6,
+          licensed_ctsps: [
+            { name: "European Trust Company Limited", rid: "57", address: "International Building, P.O. Box 45, Kumul Highway, Port-Vila", phone: "+678 23410", email: "pitco@vila.net" },
+          ],
+          data_quality: { verified_fields: 1, pending_fields: 0, jurisdiction: "Vanuatu", policy_ref: "PDC-POL-2026-001", as_of: "2026-10" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
+    path: "/pacific/vanuatu-citizenship-investment",
+    humanDeliverable: true,
+    description:
+      "Vanuatu Development Support Programme (DSP / VDSP) citizenship by investment — administering body, contact details, and current EU Schengen visa-exemption status (permanently suspended, Regulation (EU) 2025/11, 12 December 2024). Contribution amounts and UK access are pending primary-source verification and returned as null with a data_note — see data_quality.",
+    priceUsdc: VANUATU_CITIZENSHIP_INVESTMENT_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          jurisdiction: "Vanuatu",
+          iso_code: "VU",
+          citizenship_investment: {
+            programme_name: "Vanuatu Development Support Programme (DSP / VDSP)",
+            eu_schengen_status: "Permanently suspended",
+            eu_permanent_removal_date: "2024-12-12",
+            eu_permanent_removal_instrument: "Regulation (EU) 2025/11, Council of the European Union",
+            contribution_amounts_usd: null,
+            contribution_amounts_usd_data_note: "Pending primary source verification — check back for updates",
+          },
+          data_quality: { verified_fields: 11, pending_fields: 3, jurisdiction: "Vanuatu", policy_ref: "PDC-POL-2026-001", as_of: "2026-10" },
+        },
+      },
+    }),
+  },
+  {
+    method: "GET",
     path: "/invest/pacific-land-tenure",
     humanDeliverable: true,
     description:
@@ -1856,6 +1998,11 @@ const AGENT_DATASET_GATEWAY_DIRECT_PATHS: readonly string[] = [
   "/pacific/samoa-compliance-status",
   "/pacific/samoa-service-providers",
   "/pacific/samoa-banking-setup",
+  "/pacific/vanuatu-ibc-setup",
+  "/pacific/vanuatu-ibc-compliance",
+  "/pacific/vanuatu-vfsc-licenses",
+  "/pacific/vanuatu-registered-agents",
+  "/pacific/vanuatu-citizenship-investment",
   "/invest/pacific-setup-comparison",
   "/invest/pacific-tax-comparison",
   "/invest/pacific-land-tenure",
