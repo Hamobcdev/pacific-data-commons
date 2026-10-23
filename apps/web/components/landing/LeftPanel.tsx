@@ -33,6 +33,15 @@ export function LeftPanel() {
         <Button className="w-full bg-ocean hover:bg-ocean/90 focus-visible:ring-white/50">{t("cta")}</Button>
       </Link>
 
+      <a
+        href="https://facilitator.goplausible.xyz/client?tab=merchants&q=b1507b3c4b376e92"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-white/80 hover:text-white text-center underline underline-offset-4 transition-colors duration-200"
+      >
+        {t("liveQueryCta")}
+      </a>
+
       <Link
         href="/agents"
         className="text-sm text-white/80 hover:text-white text-center underline underline-offset-4 transition-colors duration-200"

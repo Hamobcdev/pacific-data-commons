@@ -3,11 +3,15 @@ import type { AppBindings } from "../types.js";
 
 export const brandingRoute = new Hono<AppBindings>();
 
-const OG_TITLE = "Pacific Data Commons — Synergy Blockchain Pacific";
-// Same copy as discovery.ts's x402-directory.json `description` field —
-// the one place in this app that already states what PDC is, reused here
-// rather than inventing new wording.
-const OG_DESCRIPTION = "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers";
+const OG_TITLE = "Pacific Data Commons — Sovereign Pacific Data on x402";
+const OG_DESCRIPTION =
+  "36 live x402-paid endpoints serving Pacific economic, climate, fisheries, jurisdiction, and intelligence data on Algorand. " +
+  "Orchestrator endpoints autonomously pay sub-endpoints via x402 and synthesise results using AI — one payment triggers a chain " +
+  "of real on-chain micropayments. Built for Pacific institutions, governments, NGOs, and AI agents. Operated by Synergy " +
+  "Blockchain Pacific, Samoa. No accounts, no API keys — pay per query in USDC.";
+const OG_SITE_NAME = "Pacific Data Commons";
+// GoPlausible's own accent colour — signals alignment with their UI.
+const THEME_COLOR = "#2EE6C5";
 
 const PDC_WEB_URL = "https://pdc.synergybcpacific.com";
 
@@ -35,7 +39,9 @@ brandingRoute.get("/", (c) => {
 <meta charset="utf-8">
 <title>${OG_TITLE}</title>
 <meta name="description" content="${OG_DESCRIPTION}">
+<meta name="theme-color" content="${THEME_COLOR}">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="${OG_SITE_NAME}">
 <meta property="og:title" content="${OG_TITLE}">
 <meta property="og:description" content="${OG_DESCRIPTION}">
 <meta property="og:image" content="${logoUrl}">

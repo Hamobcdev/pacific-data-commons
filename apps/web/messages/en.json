@@ -1,11 +1,12 @@
 {
   "Landing": {
-    "title": "Pacific Data Commons",
+    "title": "Sovereign Pacific Data, Paid Per Query",
     "subtitle": "A sovereign data exchange for Pacific institutions — your data stays on your servers, buyers pay you directly.",
-    "cta": "Register Your Institution",
-    "tagline": "Sovereign Data. Direct Payments. Pacific.",
+    "cta": "Browse Endpoints",
+    "tagline": "Pacific Data Commons is an x402-native data marketplace for Pacific Island economic, climate, fisheries, and jurisdiction intelligence. Every query is a real USDC micropayment on Algorand. One payment can trigger a cascade of sub-payments across multiple data providers — autonomously, on-chain, in under 30 seconds.",
     "pilotNote": "Directory and payment infrastructure",
-    "contactNote": "Contact SBP"
+    "contactNote": "Contact SBP",
+    "liveQueryCta": "Try a live query →"
   },
   "Onboarding": {
     "shell": {
