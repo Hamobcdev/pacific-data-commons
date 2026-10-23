@@ -20,6 +20,13 @@ import type { AppBindings } from "../../types.js";
 //
 // Validation + both modes' logic live in fxRateService.ts's queryFx() so
 // the Agent Dataset Gateway's query adapter can reuse it.
+//
+// Every response (both modes) now also carries: asset_categories (11
+// crypto assets: major/stablecoin/remittance/gaming), crypto_24hr_change_pct,
+// pacific_crypto_cross_rates (each of the 11 crypto assets priced against
+// each of the 8 Pacific fiat currencies), and fetch_errors (per-asset
+// CoinGecko fetch failures — a partial outage never fails the whole
+// request). See fxRateService.ts's doc comment for source details.
 export const fxRoute = new Hono<AppBindings>();
 
 fxRoute.get("/finance/fx", async (c) => {

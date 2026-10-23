@@ -432,7 +432,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/finance/fx",
     humanDeliverable: false,
     description:
-      "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies (USD, AUD, NZD, EUR, GBP, JPY, CNY, SGD, CAD, HKD), ALGO, and USDC. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=. AUD-pegged micro-states (Kiribati, Nauru, Tuvalu) flagged in micro_state_pegs, not fetched as separate rates. Updated daily, 24-hour cache.",
+      "Pacific FX Registry: all 8 Pacific island currencies (WST, FJD, PGK, TOP, VUV, SBD, XPF, KHR) plus 10 major sender currencies (USD, AUD, NZD, EUR, GBP, JPY, CNY, SGD, CAD, HKD), plus 11 crypto assets across major/stablecoin/remittance/gaming categories (BTC, ETH, SOL, BNB, ALGO, XRP, XLM, USDC, USDT, AXS, RON) with pacific_crypto_cross_rates pre-computed against every Pacific fiat currency. Optional ?base=, ?pairs=, ?pacific_only=true, or conversion via ?from=&to=&amount=. AUD-pegged micro-states (Kiribati, Nauru, Tuvalu) flagged in micro_state_pegs, not fetched as separate rates. Updated daily, 24-hour cache.",
     priceUsdc: FX_PRICE_USDC,
     discovery: discoveryFor({
       method: "GET",

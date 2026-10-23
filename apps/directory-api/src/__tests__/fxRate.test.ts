@@ -167,7 +167,7 @@ describe("GET /finance/fx", () => {
     expect(body.source).toBe("static-only");
     const rates = body.rates as Record<string, number>;
     expect(rates.WST).toBeGreaterThan(0);
-    expect(rates.ALGO).toBe(0);
+    expect(rates.ALGO).toBe(null);
     expect(rates.USDC).toBe(1.0);
   });
 });
