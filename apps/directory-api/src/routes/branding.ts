@@ -50,6 +50,8 @@ brandingRoute.get("/", (c) => {
 <meta name="twitter:title" content="${OG_TITLE}">
 <meta name="twitter:description" content="${OG_DESCRIPTION}">
 <meta name="twitter:image" content="${logoUrl}">
+<link rel="apple-touch-icon" sizes="180x180" href="/logo.png">
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
   body { font-family: system-ui, sans-serif; background: #fff; color: #111; }
   @media (prefers-color-scheme: dark) {
