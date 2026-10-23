@@ -2,6 +2,36 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/onboarding/slug";
 import type { DataCategory, Endpoint, Provider } from "@pdc/shared-types";
 
+// endpoints.geography_country is inconsistently populated in practice —
+// most rows store ISO2 codes (["VU"]), a few store full names directly
+// (["Samoa", "Tonga"]), and multi-country rows (RSE corridor, blockchain
+// adoption) list several. Only a single-country row has one unambiguous
+// jurisdiction to show, so this maps that one entry to a display name when
+// it's a code, passes it through unchanged when it's already a name, and
+// falls back to the provider's own country for null/multi-country rows —
+// same as every endpoint's existing (pre-Vanuatu) behavior.
+const ISO2_TO_COUNTRY_NAME: Record<string, string> = {
+  WS: "Samoa",
+  FJ: "Fiji",
+  TO: "Tonga",
+  VU: "Vanuatu",
+  PG: "Papua New Guinea",
+  SB: "Solomon Islands",
+  KI: "Kiribati",
+  TV: "Tuvalu",
+  NR: "Nauru",
+  MH: "Marshall Islands",
+  FM: "Micronesia",
+  PW: "Palau",
+};
+
+function resolveCountryLabel(geographyCountry: string[] | null | undefined, providerCountry: string): string {
+  if (!geographyCountry || geographyCountry.length !== 1) return providerCountry;
+  const value = geographyCountry[0];
+  if (!value) return providerCountry;
+  return ISO2_TO_COUNTRY_NAME[value] ?? value;
+}
+
 export interface PublicListing {
   providerSlug: string;
   datasetSlug: string;
@@ -76,7 +106,7 @@ export async function listPublicEndpoints(filters: { category?: string; q?: stri
         description: endpoint.description,
         category: endpoint.data_category,
         institutionName: provider.institution_name,
-        country: provider.country,
+        country: resolveCountryLabel(endpoint.geography_country, provider.country),
         trustTier: provider.trust_tier,
         upvoteCount: count ?? 0,
         lowestPriceUsdc,
