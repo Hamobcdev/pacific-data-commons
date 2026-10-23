@@ -32,6 +32,8 @@ describe("GET / (branding/og meta)", () => {
     expect(html).toContain("36 live x402-paid endpoints serving Pacific economic, climate, fisheries, jurisdiction, and intelligence data");
     expect(html).toContain('<meta property="og:site_name" content="Pacific Data Commons">');
     expect(html).toContain('<meta name="theme-color" content="#2EE6C5">');
+    expect(html).toContain('<link rel="apple-touch-icon" sizes="180x180" href="/logo.png">');
+    expect(html).toContain('<link rel="icon" type="image/png" href="/logo.png">');
   });
 
   it("falls through to the 404 JSON handler when Accept does not include text/html", async () => {

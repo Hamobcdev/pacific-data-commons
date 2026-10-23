@@ -85,8 +85,9 @@ wellKnownX402Route.get("/.well-known/x402", async (c) => {
     provider: "Pacific Data Commons",
     operator: "Synergy Blockchain Pacific",
     description:
-      "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers. " +
-      "Built on Algorand. Data sovereignty enforced — providers control their own infrastructure.",
+      "36 live x402-paid endpoints for Pacific sovereign data — fisheries, climate, FX, jurisdiction intelligence, and " +
+      "orchestrated AI briefs on Algorand Mainnet. Orchestrator endpoints autonomously pay sub-endpoints via x402 and " +
+      "synthesise results with Claude. Built solo, self-funded, from Samoa. No accounts, no API keys — pay per query in USDC.",
     currency: "USDC",
     network: `algorand-${env.ALGORAND_NETWORK}`,
     caip2: getCaip2Network(env.ALGORAND_NETWORK),
