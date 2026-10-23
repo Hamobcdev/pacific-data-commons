@@ -40,8 +40,9 @@ describe("GET /.well-known/x402-directory.json", () => {
 
     expect(body.endpoints.length).toBe(AGENT_DATASET_CATALOG.length);
     // 25 base datasets + 4 SIFA Samoa Jurisdiction Intelligence (Decision 63)
-    // + 6 Pacific Investment Intelligence (#153) = 35.
-    expect(body.endpoints.length).toBe(35);
+    // + 6 Pacific Investment Intelligence (#153) + 5 Vanuatu Jurisdiction
+    // Intelligence (PR #183) = 40.
+    expect(body.endpoints.length).toBe(40);
 
     for (const dataset of AGENT_DATASET_CATALOG) {
       const entry = body.endpoints.find((e) => e.path === dataset.path);

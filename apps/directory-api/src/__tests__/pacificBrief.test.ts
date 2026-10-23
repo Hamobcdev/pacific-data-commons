@@ -121,7 +121,7 @@ describe("generatePacificBrief — service (dependency-injected payingFetch/synt
     expect(payingFetch).toHaveBeenNthCalledWith(3, `https://directory.example/algorand/wallet-balance?address=${"A".repeat(58)}`);
     expect(brief.payments).toHaveLength(3);
     expect(brief.data_sources.map((d) => d.category)).toEqual(["fisheries", "finance", "algorand"]);
-    expect(brief.total_sub_payments_usdc).toBeCloseTo(0.016);
+    expect(brief.total_sub_payments_usdc).toBeCloseTo(0.111);
     expect(brief.executive_summary).toBe("Stable conditions across all sources this run.");
     expect(brief.confidence).toBe("high");
     expect(brief.data_warning).toContain("SYNTHETIC DATA");
