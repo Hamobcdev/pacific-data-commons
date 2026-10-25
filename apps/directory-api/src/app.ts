@@ -69,6 +69,17 @@ import { pacificRegulatoryScoresRoute } from "./routes/invest/pacific-regulatory
 import { pacificSetupChecklistRoute } from "./routes/invest/pacific-setup-checklist.js";
 import { paymentRoutes } from "./routes/payment.js";
 import { internalDataFetchRoute } from "./routes/internal/data-fetch.js";
+// Pacific Tourism Data Framework — Phase B.
+import { tourismDestinationRoute } from "./routes/tourism/tourism-destination.js";
+import { tourismAccommodationRoute } from "./routes/tourism/tourism-accommodation.js";
+import { tourismActivitiesRoute } from "./routes/tourism/tourism-activities.js";
+import { tourismSafetyRoute } from "./routes/tourism/tourism-safety.js";
+import { tourismFoodMarketsRoute } from "./routes/tourism/tourism-food-markets.js";
+import { tourismTransportRoute } from "./routes/tourism/tourism-transport.js";
+import { tourismEventsRoute } from "./routes/tourism/tourism-events.js";
+import { tourismSearchRoute } from "./routes/tourism/tourism-search.js";
+import { tourismProvidersRoute } from "./routes/tourism/tourism-providers.js";
+import { tourismWeddingsRoute } from "./routes/tourism/tourism-weddings.js";
 import { corsMiddleware } from "./middleware/cors.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
@@ -303,6 +314,19 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", pacificRegulatoryScoresRoute);
   app.route("/", pacificSetupChecklistRoute);
   app.route("/", agentDatasetGatewayRoute);
+  // Pacific Tourism Data Framework — Phase B. Not registered on
+  // GoPlausible (no `discovery` field on these routeSchemas.ts entries) —
+  // payment-gate enforcement only, per that build's explicit brief.
+  app.route("/", tourismDestinationRoute);
+  app.route("/", tourismAccommodationRoute);
+  app.route("/", tourismActivitiesRoute);
+  app.route("/", tourismSafetyRoute);
+  app.route("/", tourismFoodMarketsRoute);
+  app.route("/", tourismTransportRoute);
+  app.route("/", tourismEventsRoute);
+  app.route("/", tourismSearchRoute);
+  app.route("/", tourismProvidersRoute);
+  app.route("/", tourismWeddingsRoute);
 
   // /api/data/* -> canonical route aliases — see API_DATA_ROUTE_ALIASES'
   // doc comment above for why this is a redirect, not a route alias
