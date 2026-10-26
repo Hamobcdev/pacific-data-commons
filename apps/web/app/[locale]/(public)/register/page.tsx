@@ -62,8 +62,9 @@ export default async function RegisterPage() {
       <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold text-navy mb-2">List Your Tourism Business</h1>
         <p className="text-sm text-gray-600 mb-8">
-          Register your accommodation, tour, activity, transport, venue, or market stall on the Pacific Data Commons tourism
-          directory. A one-time $10 registration fee applies.
+          Register your Pacific business in the PDC service directory — the structured data layer that AI agents, travel
+          platforms, and digital marketplaces query when searching for Pacific products and services. Tourism providers:
+          register now. More industries opening soon.
         </p>
         <RegistrationStepper nations={nations} />
       </main>
