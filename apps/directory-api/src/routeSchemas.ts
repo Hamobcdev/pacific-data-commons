@@ -1961,10 +1961,6 @@ const paidRoutesBase: PaidRouteSpec[] = [
   // tourism_health_infrastructure/tourism_cultural_protocols/
   // tourism_markets/tourism_providers plus pacific_events (Phase A's
   // migration: supabase/migrations/20261026000001_pacific_tourism_schema.sql).
-  // No `discovery` field on any of these 20 entries — Phase B's own build
-  // brief: "Do not register any endpoints on GoPlausible" (Bazaar
-  // discovery listing), distinct from the x402 payment-gate enforcement
-  // every route still goes through via addRoute() below.
   {
     method: "GET",
     path: "/tourism/destination/:nation_code",
@@ -1973,6 +1969,22 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Full tourism_destinations profile for one nation, plus LEFT-JOIN counts of its registered accommodations/activities/providers. Includes source_type and data_confidence. 404 if nation_code not found.",
     priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          nation_code: "WS",
+          nation_name: "Samoa",
+          region: "pacific_island",
+          capital_city: "Apia",
+          currency_code: "WST",
+          tap_water_safe: true,
+          cyclone_risk_rating: 3,
+          data_confidence: "curated_unverified",
+          counts: { accommodations: 12, activities: 34, providers: 5 },
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -1982,6 +1994,35 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Lightweight list of all tourism_destinations rows for a region (default pacific_island), ordered by nation_name. Optional ?fields= (comma-separated column subset) to request large array columns excluded by default.",
     priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { region: "pacific_island" },
+      inputSchema: {
+        properties: {
+          region: { type: "string", description: "Destination region filter. Default: pacific_island." },
+          fields: {
+            type: "string",
+            description: "Comma-separated column subset to return instead of the default lightweight set — nation_code is always included.",
+          },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [
+            {
+              nation_code: "WS",
+              nation_name: "Samoa",
+              region: "pacific_island",
+              capital_city: "Apia",
+              tap_water_safe: true,
+              data_confidence: "curated_unverified",
+            },
+          ],
+          count: 13,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -1991,6 +2032,23 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Minimal destination profile (nation_code, nation_name, capital_city, currency_code, timezone, best_season_start/end, cyclone_risk_rating, tap_water_safe, data_confidence) for agent routing decisions where the full payload is not needed. 404 if nation_code not found.",
     priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          nation_code: "WS",
+          nation_name: "Samoa",
+          capital_city: "Apia",
+          currency_code: "WST",
+          timezone: "Pacific/Apia",
+          best_season_start: "May",
+          best_season_end: "October",
+          cyclone_risk_rating: 3,
+          tap_water_safe: true,
+          data_confidence: "curated_unverified",
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2000,6 +2058,20 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Travel advisory fields only (DFAT, NZ SafeTravel, US State Dept levels, advisory_last_checked, data_confidence) for one nation. Advisory levels are manually refreshed, never live-fetched — see the response's own advisory_data_warning. 404 if nation_code not found.",
     priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          dfat_advisory_level: "Exercise normal safety precautions",
+          dfat_advisory_url: "https://www.smartraveller.gov.au/",
+          nz_safetravel_level: 1,
+          us_state_dept_level: 1,
+          advisory_last_checked: "2026-09-01",
+          data_confidence: "curated_unverified",
+          advisory_data_warning: "Travel advisory levels are manually refreshed. Always verify against official sources before travel.",
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2009,6 +2081,38 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_accommodations for one nation, filterable by property_type, price band, pool/spa/conference/casino/wedding-venue flags, star_rating_min, source_type. ?limit= (default 20, max 100), ?offset=. Includes source_type and data_confidence per record, plus totalCount.",
     priceUsdc: TOURISM_ACCOMMODATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { property_type: "resort", has_pool: "true", limit: 20, offset: 0 },
+      inputSchema: {
+        properties: {
+          property_type: {
+            type: "string",
+            description: "hotel, resort, guesthouse, beach_fale, homestay, overwater_bungalow, villa, backpacker_hostel, boutique_hotel, eco_lodge, motel",
+          },
+          min_price_usd: { type: "number" },
+          max_price_usd: { type: "number" },
+          has_pool: { type: "boolean" },
+          has_spa: { type: "boolean" },
+          has_conference: { type: "boolean" },
+          has_casino: { type: "boolean" },
+          has_wedding_venue: { type: "boolean" },
+          star_rating_min: { type: "number" },
+          source_type: { type: "string", enum: ["curated", "provider_self_listed", "hybrid"] },
+          limit: { type: "integer", description: "Default 20, max 100" },
+          offset: { type: "integer" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ property_name: "Taufua Beach Fales", property_type: "beach_fale", has_pool: false, data_confidence: "curated_unverified" }],
+          limit: 20,
+          offset: 0,
+          totalCount: 12,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2018,6 +2122,17 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_accommodations with has_conference_facilities=true for one nation — capacity, AV standard, catering, outdoor space, distance to airport, data_confidence.",
     priceUsdc: TOURISM_ACCOMMODATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          results: [
+            { property_name: "Example Resort", has_conference_facilities: true, conference_max_capacity_theatre: 150, conference_av_standard: "full_av" },
+          ],
+          count: 3,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2027,6 +2142,32 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_activities for one nation, filterable by activity_type, skill_level, season, max_price_usd, certification_required, accessible, source_type. ?limit= (default 20, max 100), ?offset=. reef_coordinate_lat/lng are present on dive_site/snorkel_site rows — the join key for the coral bleaching endpoint (approximate matching only, never exact coordinate equality).",
     priceUsdc: TOURISM_ACTIVITIES_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { activity_type: "dive_site", limit: 20, offset: 0 },
+      inputSchema: {
+        properties: {
+          activity_type: { type: "string", description: "One of the activity_type CHECK values, e.g. dive_site, surf_break, cultural, hiking, waterfall." },
+          skill_level: { type: "string", enum: ["beginner", "intermediate", "advanced", "expert", "all_levels", "guided_only"] },
+          season: { type: "string" },
+          max_price_usd: { type: "number" },
+          certification_required: { type: "boolean" },
+          accessible: { type: "boolean" },
+          source_type: { type: "string", enum: ["curated", "provider_self_listed", "hybrid"] },
+          limit: { type: "integer", description: "Default 20, max 100" },
+          offset: { type: "integer" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ activity_name: "To Sua Ocean Trench", activity_type: "waterfall", reef_coordinate_lat: null, data_confidence: "curated_unverified" }],
+          limit: 20,
+          offset: 0,
+          totalCount: 34,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2036,6 +2177,30 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Full dive/snorkel site data for one nation (depth, visibility, water temp, current, certification, marine life, coral health, hazards, Survivor filming connections). Includes a coral_bleaching_join_hint describing the approximate reef_coordinate_lat/lng match (within 0.025 degrees of NOAA CoralTemp's 0.05-degree grid) against /intelligence/coral-bleaching — never exact coordinate equality.",
     priceUsdc: TOURISM_DIVE_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          results: [
+            {
+              activity_name: "Palolo Deep Marine Reserve",
+              activity_type: "dive_site",
+              depth_max_m: 18,
+              visibility_max_m: 25,
+              coral_health_status: "good",
+              reef_coordinate_lat: -13.86,
+              reef_coordinate_lng: -171.76,
+            },
+          ],
+          count: 7,
+          coral_bleaching_join_hint: {
+            description: "Use reef_coordinate_lat and reef_coordinate_lng to query the PDC coral bleaching endpoint. Match within 0.025 degrees of the NOAA CoralTemp 0.05-degree grid.",
+            pdcEndpoint: "/intelligence/coral-bleaching",
+            matchPattern: "ABS(lat - reef_lat) < 0.025 AND ABS(lng - reef_lng) < 0.025",
+          },
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2045,6 +2210,17 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_activities restricted to cultural activity types (cultural, fiafia_night, kava_ceremony, church_visit, village_immersion, cooking_class, craft_workshop, historical_site, archaeological_site) for one nation — full description, season dates, pricing, group sizes, accessibility.",
     priceUsdc: TOURISM_CULTURAL_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          results: [
+            { activity_name: "Fiafia Night at Taumeasina", activity_type: "fiafia_night", description: "Traditional dance and fire-knife performance with buffet.", price_min_usd: 45 },
+          ],
+          count: 5,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2054,6 +2230,26 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_hazards for one nation, filterable by hazard_type, risk_level, island, ordered critical-risk first. data_confidence is CRITICAL here — see the response's own safety_data_warning: curated_unverified unless explicitly marked verified, always confirm with local authorities.",
     priceUsdc: TOURISM_SAFETY_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { hazard_type: "strong_current", risk_level: "high" },
+      inputSchema: {
+        properties: {
+          hazard_type: { type: "string", description: "e.g. riptide, jellyfish, box_jellyfish, shark, strong_current, cyclone, dengue" },
+          risk_level: { type: "string", enum: ["low", "medium", "high", "critical"] },
+          island: { type: "string" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ hazard_type: "strong_current", risk_level: "high", specific_notes: "Strong currents at reef passages during outgoing tide." }],
+          count: 4,
+          safety_data_warning:
+            "Hazard data is curated_unverified unless explicitly marked verified. Always confirm safety conditions with local authorities before activity. Data may not reflect current conditions.",
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2063,6 +2259,26 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_health_infrastructure for one nation (hospitals, clinics, decompression chambers, evacuation services), filterable by facility_type, has_surgical_capacity, has_evacuation_capability. Includes cost estimates where available, travel_insurance_recommended, data_confidence, and the same safety_data_warning as /tourism/hazards.",
     priceUsdc: TOURISM_SAFETY_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { facility_type: "hospital", has_evacuation_capability: "true" },
+      inputSchema: {
+        properties: {
+          facility_type: { type: "string", description: "e.g. hospital, clinic, decompression_chamber, evacuation_service" },
+          has_surgical_capacity: { type: "boolean" },
+          has_evacuation_capability: { type: "boolean" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ facility_type: "hospital", has_surgical_capacity: true, has_evacuation_capability: true, travel_insurance_recommended: true }],
+          count: 2,
+          safety_data_warning:
+            "Hazard data is curated_unverified unless explicitly marked verified. Always confirm safety conditions with local authorities before activity. Data may not reflect current conditions.",
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2072,6 +2288,17 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Full tourism_cultural_protocols row (one per nation) — dress codes, sacred site rules, photography restrictions, village visit/kava ceremony/church visit etiquette, taboo behaviours, protocol_overrides JSONB, data_confidence. 404 if no protocol data exists for that nation yet — many nations are gaps initially.",
     priceUsdc: TOURISM_PROTOCOLS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          dress_codes: "Cover shoulders and knees when visiting villages.",
+          sacred_site_rules: "Ask permission before entering a church or visiting a burial site.",
+          village_visit_etiquette: "Remove shoes before entering a fale; sit cross-legged; accept offered food.",
+          data_confidence: "curated_unverified",
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2081,6 +2308,35 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_food_beverage for one nation, filterable by venue_type, cuisine_type, dietary, dining_tier, kava_available, max_price_per_person, source_type. ?limit= (default 20, max 100), ?offset=. Includes operating_hours JSONB, nft_discount_active stub (always false), source_type, data_confidence per record, plus totalCount.",
     priceUsdc: TOURISM_FOOD_MARKETS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { venue_type: "restaurant", kava_available: "true", limit: 20, offset: 0 },
+      inputSchema: {
+        properties: {
+          venue_type: {
+            type: "string",
+            description: "restaurant, bar, cafe, market_stall, food_tour, catering_service, kava_bar, night_market, food_truck, hotel_restaurant, beach_bar",
+          },
+          cuisine_type: { type: "string" },
+          dietary: { type: "string" },
+          dining_tier: { type: "string", enum: ["street_food", "casual", "mid_range", "fine_dining", "buffet", "multiple"] },
+          kava_available: { type: "boolean" },
+          max_price_per_person: { type: "number" },
+          source_type: { type: "string", enum: ["curated", "provider_self_listed", "hybrid"] },
+          limit: { type: "integer", description: "Default 20, max 100" },
+          offset: { type: "integer" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ venue_name: "Paddles Restaurant & Bar", venue_type: "restaurant", kava_available: false, price_per_person_min_usd: 15 }],
+          limit: 20,
+          offset: 0,
+          totalCount: 9,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2090,6 +2346,23 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_markets for one nation, filterable by market_type and day (matched against operating_days). Includes opening/closing time, payment_accepted, signature_products, distance_to_tourist_area_km, data_confidence.",
     priceUsdc: TOURISM_FOOD_MARKETS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { market_type: "produce", day: "saturday" },
+      inputSchema: {
+        properties: {
+          market_type: { type: "string", enum: ["produce", "craft", "fish", "mixed", "flea", "night_market", "farmers_market"] },
+          day: { type: "string", description: "Matched against operating_days — monday through sunday, or public_holiday" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ market_name: "Fugalei Market", market_type: "mixed", opening_time: "06:00", closing_time: "18:00", payment_accepted: "cash_only" }],
+          count: 1,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2099,6 +2372,26 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_transport for one nation, filterable by transport_type and frequency, ordered by transport_type then operator_name. Includes data_confidence per record.",
     priceUsdc: TOURISM_TRANSPORT_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { transport_type: "ferry" },
+      inputSchema: {
+        properties: {
+          transport_type: {
+            type: "string",
+            enum: ["ferry", "domestic_airline", "inter_island_transfer", "airport_transfer", "car_hire", "boat_charter", "water_taxi", "helicopter", "seaplane"],
+          },
+          frequency: { type: "string", enum: ["multiple_daily", "daily", "several_weekly", "weekly", "fortnightly", "monthly", "seasonal", "on_demand"] },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ transport_type: "ferry", operator_name: "Samoa Shipping Corporation", origin: "Apia", destination: "Salelologa", price_min_usd: 10 }],
+          count: 6,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2108,6 +2401,23 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_transport records where either required ?origin= or ?destination= (nation_code or city name) matches any of origin/destination/origin_nation_code/destination_nation_code. Includes data_confidence per record.",
     priceUsdc: TOURISM_TRANSPORT_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { origin: "WS", destination: "Pago Pago" },
+      inputSchema: {
+        properties: {
+          origin: { type: "string", description: "nation_code or city name — matched against origin/origin_nation_code" },
+          destination: { type: "string", description: "nation_code or city name — matched against destination/destination_nation_code" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ transport_type: "domestic_airline", operator_name: "Talofa Airways", origin: "Apia", destination: "Pago Pago" }],
+          count: 2,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2117,6 +2427,25 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "pacific_events for one nation (country_code match), filterable by event_category, from_date/to_date, is_tourist_friendly (default true). Includes ticket_price_min/max, ticket_currency, booking_url, data_confidence, ordered by start_date ascending.",
     priceUsdc: TOURISM_EVENTS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { event_category: "cultural", is_tourist_friendly: "true" },
+      inputSchema: {
+        properties: {
+          event_category: { type: "string" },
+          from_date: { type: "string", description: "ISO date" },
+          to_date: { type: "string", description: "ISO date" },
+          is_tourist_friendly: { type: "boolean", description: "Default true" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ event_name: "Teuila Festival", event_category: "cultural", start_date: "2026-09-01", ticket_price_min: 0, booking_url: "https://example.com" }],
+          count: 3,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2126,6 +2455,15 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "All pacific_events across every Pacific nation where event_category=christmas_new_year or start_date falls in the Dec 15 – Jan 5 seasonal window, grouped by nation_code (nation_name included per group). Priced above the standard events lookup for high Q4 agent demand.",
     priceUsdc: TOURISM_EVENTS_CHRISTMAS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          groups: [{ nation_code: "WS", nation_name: "Samoa", events: [{ event_name: "White Sunday", start_date: "2026-10-11" }] }],
+          nation_count: 8,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2135,6 +2473,40 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Cross-nation tourism search: destination filter first (nation_code/region) determines the matched nation set, then accommodation and activity queries scoped to those nations with the remaining filters (activity_type/diving/surfing/whale_watching/cultural/season/max_budget_per_day_usd/group_size/has_casino/has_conference/has_wedding_venue/accessibility_required/source_type). Returns matched destinations/accommodations/activities, a critical/high hazard summary (max 3 per nation), and data_confidence/source_type summaries. Hard-capped at 10 nations and 50 records per sub-array. Requires at least one query parameter — 400 otherwise.",
     priceUsdc: TOURISM_SEARCH_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { nation_code: "WS", diving: "true", max_budget_per_day_usd: 200 },
+      inputSchema: {
+        properties: {
+          nation_code: { type: "string" },
+          region: { type: "string", description: "Default pacific_island" },
+          activity_type: { type: "string" },
+          source_type: { type: "string", enum: ["all", "curated", "provider_self_listed", "hybrid"], description: "Default all" },
+          max_budget_per_day_usd: { type: "number" },
+          group_size: { type: "integer" },
+          season: { type: "string" },
+          has_casino: { type: "boolean" },
+          has_conference: { type: "boolean" },
+          has_wedding_venue: { type: "boolean" },
+          diving: { type: "boolean" },
+          surfing: { type: "boolean" },
+          whale_watching: { type: "boolean" },
+          cultural: { type: "boolean" },
+          dietary: { type: "string" },
+          accessibility_required: { type: "boolean" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          query: { nation_code: "WS", diving: "true" },
+          nations_matched: ["WS"],
+          results: { destinations: [{ nation_code: "WS", nation_name: "Samoa" }], accommodations: [], activities: [] },
+          data_confidence_summary: { curated_unverified: 40, verified: 2 },
+          source_type_summary: { curated: 38, provider_self_listed: 4 },
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2144,6 +2516,30 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "tourism_providers for one nation, filterable by provider_category and verification_status (default verified). ?limit= (default 20, max 100), ?offset=. Includes source_type and data_confidence per record, plus totalCount.",
     priceUsdc: TOURISM_PROVIDERS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      input: { provider_category: "tour_operator", verification_status: "verified" },
+      inputSchema: {
+        properties: {
+          provider_category: {
+            type: "string",
+            enum: ["accommodation", "tour_operator", "water_activities", "transport", "food_beverage", "conference_events", "local_guide", "market_vendor"],
+          },
+          verification_status: { type: "string", enum: ["pending", "verified", "rejected", "suspended"], description: "Default verified" },
+          limit: { type: "integer", description: "Default 20, max 100" },
+          offset: { type: "integer" },
+        },
+        required: [],
+      },
+      output: {
+        example: {
+          results: [{ business_name: "Samoa Scenic Tours", provider_category: "tour_operator", verification_status: "verified", data_confidence: "provider_self_declared" }],
+          limit: 20,
+          offset: 0,
+          totalCount: 4,
+        },
+      },
+    }),
   },
   {
     method: "GET",
@@ -2153,6 +2549,28 @@ const paidRoutesBase: PaidRouteSpec[] = [
       "Full tourism_weddings row (residency/documents/legal-binding status/beach permit requirements) for one nation, plus up to 5 tourism_accommodations rows flagged is_wedding_venue=true, ordered by star_rating_official descending. 404 if nation_code is not in tourism_destinations; 200 with wedding_requirements=null and wedding_venues=[] if the nation exists but has no curated wedding data yet (see the response's own wedding_data_status and legal_data_warning fields).",
     priceUsdc: TOURISM_WEDDINGS_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
+    discovery: discoveryFor({
+      method: "GET",
+      output: {
+        example: {
+          success: true,
+          data: {
+            wedding_requirements: { residency_waiting_days: 0, legally_binding_available: true, beach_permit_required: true },
+            wedding_venues: [{ property_name: "Example Resort", star_rating_official: 4.5 }],
+            legal_data_warning:
+              "Wedding and marriage law data is curated_unverified. Requirements change. Always verify with the relevant national authority or a licensed local legal practitioner before travel. PDC data is for planning reference only.",
+          },
+          meta: {
+            endpoint: "/tourism/weddings/{nation_code}",
+            nation_code: "WS",
+            price_usdc: 0.25,
+            data_confidence: "curated_unverified",
+            last_verified: "2026-09-01",
+            timestamp: "2026-10-26T00:00:00.000Z",
+          },
+        },
+      },
+    }),
   },
 ];
 
