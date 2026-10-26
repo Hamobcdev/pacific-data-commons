@@ -26,9 +26,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { endpointId, tierPath, amountUsdc, email, walletAddress } = body as Record<string, unknown>;
+  const { endpointId, tierPath, amountUsdc, email, walletAddress, purpose } = body as Record<string, unknown>;
 
-  if (typeof endpointId !== "string" || endpointId.trim().length === 0) {
+  // Phase C (Tourism Data Framework) — registration-fee intents have no
+  // endpoint (they pay for a provider listing, not a data query). Every
+  // other/existing caller omits `purpose`, which defaults to the original
+  // behaviour below unchanged.
+  const trimmedPurpose = typeof purpose === "string" && purpose.trim().length > 0 ? purpose.trim() : "endpoint_query";
+  if (trimmedPurpose !== "endpoint_query" && trimmedPurpose !== "registration_fee") {
+    return NextResponse.json({ error: "purpose must be one of: endpoint_query, registration_fee." }, { status: 400 });
+  }
+
+  if (trimmedPurpose !== "registration_fee" && (typeof endpointId !== "string" || endpointId.trim().length === 0)) {
     return NextResponse.json({ error: "endpointId is required." }, { status: 400 });
   }
   if (typeof tierPath !== "string" || !tierPath.startsWith("/")) {
@@ -53,12 +62,13 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
   const { error } = await supabase.from("payment_intents").insert({
     reference_id: referenceId,
-    endpoint_id: endpointId.trim(),
+    endpoint_id: trimmedPurpose === "registration_fee" ? null : (endpointId as string).trim(),
     tier_path: tierPath,
     amount_usdc: amountUsdc,
     buyer_email: email.trim(),
     buyer_wallet_address: trimmedWalletAddress,
     state: "pending",
+    purpose: trimmedPurpose,
   });
 
   if (error) {

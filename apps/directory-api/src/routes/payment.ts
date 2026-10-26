@@ -131,17 +131,23 @@ paymentRoutes.post("/payment/verify", async (c) => {
     return c.json({ error: "Payment was verified but the download token could not be issued. Contact anthony@synergybcpacific.com with your reference ID." }, 500);
   }
 
-  const emailSent = await sendDownloadTokenEmail(env, {
-    buyerEmail: intent.buyer_email,
-    downloadToken,
-    referenceId: trimmedReferenceId,
-    algoTxId: trimmedTxId,
-  });
-  if (!emailSent) {
-    // Verification genuinely succeeded and the token genuinely exists —
-    // logged loudly here (not surfaced as an error to the buyer) so an
-    // operator can manually relay the link from payment_intents.download_token.
-    logger.error("payment_verify_email_not_sent", { referenceId: trimmedReferenceId, buyerEmail: intent.buyer_email });
+  // Phase C (Tourism Data Framework) — a registration-fee intent has no
+  // dataset to download; sendDownloadTokenEmail's hardcoded "your download
+  // is ready" copy is wrong for this purpose, so it's skipped here. Scoped
+  // exception, approved: this is the only change to this file for Phase C.
+  if (intent.purpose !== "registration_fee") {
+    const emailSent = await sendDownloadTokenEmail(env, {
+      buyerEmail: intent.buyer_email,
+      downloadToken,
+      referenceId: trimmedReferenceId,
+      algoTxId: trimmedTxId,
+    });
+    if (!emailSent) {
+      // Verification genuinely succeeded and the token genuinely exists —
+      // logged loudly here (not surfaced as an error to the buyer) so an
+      // operator can manually relay the link from payment_intents.download_token.
+      logger.error("payment_verify_email_not_sent", { referenceId: trimmedReferenceId, buyerEmail: intent.buyer_email });
+    }
   }
 
   const downloadUrl = `https://pdc.synergybcpacific.com/en/data/download?token=${downloadToken}`;
