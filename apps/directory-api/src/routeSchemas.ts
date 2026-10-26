@@ -1,5 +1,22 @@
 import { declareDiscoveryExtension } from "@x402-avm/extensions";
 
+// Pacific Tourism Data Framework — Phase B. Unlike every other price
+// constant in this file, these are defined in their own route files (not
+// here) per that build's explicit brief — imported here so paidRoutesBase
+// below stays the single source of truth for what the payment gate
+// actually charges, with no risk of drifting from the route file's own
+// exported constant.
+import { TOURISM_DESTINATION_PRICE_USDC } from "./routes/tourism/tourism-destination.js";
+import { TOURISM_ACCOMMODATION_PRICE_USDC } from "./routes/tourism/tourism-accommodation.js";
+import { TOURISM_ACTIVITIES_PRICE_USDC, TOURISM_DIVE_PRICE_USDC, TOURISM_CULTURAL_PRICE_USDC } from "./routes/tourism/tourism-activities.js";
+import { TOURISM_SAFETY_PRICE_USDC, TOURISM_PROTOCOLS_PRICE_USDC } from "./routes/tourism/tourism-safety.js";
+import { TOURISM_FOOD_MARKETS_PRICE_USDC } from "./routes/tourism/tourism-food-markets.js";
+import { TOURISM_TRANSPORT_PRICE_USDC } from "./routes/tourism/tourism-transport.js";
+import { TOURISM_EVENTS_PRICE_USDC, TOURISM_EVENTS_CHRISTMAS_PRICE_USDC } from "./routes/tourism/tourism-events.js";
+import { TOURISM_SEARCH_PRICE_USDC } from "./routes/tourism/tourism-search.js";
+import { TOURISM_PROVIDERS_PRICE_USDC } from "./routes/tourism/tourism-providers.js";
+import { TOURISM_WEDDINGS_PRICE_USDC } from "./routes/tourism/tourism-weddings.js";
+
 /**
  * Extracted from app.ts's createApp() (same fix/session as
  * apps/pilot-endpoint/src/routeSchemas.ts — see that file's doc comment and
@@ -1936,6 +1953,206 @@ const paidRoutesBase: PaidRouteSpec[] = [
         },
       },
     }),
+  },
+
+  // Pacific Tourism Data Framework — Phase B. Reads
+  // tourism_destinations/tourism_accommodations/tourism_activities/
+  // tourism_food_beverage/tourism_transport/tourism_hazards/
+  // tourism_health_infrastructure/tourism_cultural_protocols/
+  // tourism_markets/tourism_providers plus pacific_events (Phase A's
+  // migration: supabase/migrations/20261026000001_pacific_tourism_schema.sql).
+  // No `discovery` field on any of these 20 entries — Phase B's own build
+  // brief: "Do not register any endpoints on GoPlausible" (Bazaar
+  // discovery listing), distinct from the x402 payment-gate enforcement
+  // every route still goes through via addRoute() below.
+  {
+    method: "GET",
+    path: "/tourism/destination/:nation_code",
+    humanDeliverable: false,
+    description:
+      "Full tourism_destinations profile for one nation, plus LEFT-JOIN counts of its registered accommodations/activities/providers. Includes source_type and data_confidence. 404 if nation_code not found.",
+    priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/destinations/pacific",
+    humanDeliverable: false,
+    description:
+      "Lightweight list of all tourism_destinations rows for a region (default pacific_island), ordered by nation_name. Optional ?fields= (comma-separated column subset) to request large array columns excluded by default.",
+    priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/destination/:nation_code/profile",
+    humanDeliverable: false,
+    description:
+      "Minimal destination profile (nation_code, nation_name, capital_city, currency_code, timezone, best_season_start/end, cyclone_risk_rating, tap_water_safe, data_confidence) for agent routing decisions where the full payload is not needed. 404 if nation_code not found.",
+    priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/destination/:nation_code/advisories",
+    humanDeliverable: false,
+    description:
+      "Travel advisory fields only (DFAT, NZ SafeTravel, US State Dept levels, advisory_last_checked, data_confidence) for one nation. Advisory levels are manually refreshed, never live-fetched — see the response's own advisory_data_warning. 404 if nation_code not found.",
+    priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/accommodation/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_accommodations for one nation, filterable by property_type, price band, pool/spa/conference/casino/wedding-venue flags, star_rating_min, source_type. ?limit= (default 20, max 100), ?offset=. Includes source_type and data_confidence per record, plus totalCount.",
+    priceUsdc: TOURISM_ACCOMMODATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/accommodation/:nation_code/conferences",
+    humanDeliverable: false,
+    description:
+      "tourism_accommodations with has_conference_facilities=true for one nation — capacity, AV standard, catering, outdoor space, distance to airport, data_confidence.",
+    priceUsdc: TOURISM_ACCOMMODATION_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/activities/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_activities for one nation, filterable by activity_type, skill_level, season, max_price_usd, certification_required, accessible, source_type. ?limit= (default 20, max 100), ?offset=. reef_coordinate_lat/lng are present on dive_site/snorkel_site rows — the join key for the coral bleaching endpoint (approximate matching only, never exact coordinate equality).",
+    priceUsdc: TOURISM_ACTIVITIES_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/dive/:nation_code",
+    humanDeliverable: false,
+    description:
+      "Full dive/snorkel site data for one nation (depth, visibility, water temp, current, certification, marine life, coral health, hazards, Survivor filming connections). Includes a coral_bleaching_join_hint describing the approximate reef_coordinate_lat/lng match (within 0.025 degrees of NOAA CoralTemp's 0.05-degree grid) against /intelligence/coral-bleaching — never exact coordinate equality.",
+    priceUsdc: TOURISM_DIVE_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/cultural/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_activities restricted to cultural activity types (cultural, fiafia_night, kava_ceremony, church_visit, village_immersion, cooking_class, craft_workshop, historical_site, archaeological_site) for one nation — full description, season dates, pricing, group sizes, accessibility.",
+    priceUsdc: TOURISM_CULTURAL_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/hazards/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_hazards for one nation, filterable by hazard_type, risk_level, island, ordered critical-risk first. data_confidence is CRITICAL here — see the response's own safety_data_warning: curated_unverified unless explicitly marked verified, always confirm with local authorities.",
+    priceUsdc: TOURISM_SAFETY_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/health/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_health_infrastructure for one nation (hospitals, clinics, decompression chambers, evacuation services), filterable by facility_type, has_surgical_capacity, has_evacuation_capability. Includes cost estimates where available, travel_insurance_recommended, data_confidence, and the same safety_data_warning as /tourism/hazards.",
+    priceUsdc: TOURISM_SAFETY_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/protocols/:nation_code",
+    humanDeliverable: false,
+    description:
+      "Full tourism_cultural_protocols row (one per nation) — dress codes, sacred site rules, photography restrictions, village visit/kava ceremony/church visit etiquette, taboo behaviours, protocol_overrides JSONB, data_confidence. 404 if no protocol data exists for that nation yet — many nations are gaps initially.",
+    priceUsdc: TOURISM_PROTOCOLS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/food/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_food_beverage for one nation, filterable by venue_type, cuisine_type, dietary, dining_tier, kava_available, max_price_per_person, source_type. ?limit= (default 20, max 100), ?offset=. Includes operating_hours JSONB, nft_discount_active stub (always false), source_type, data_confidence per record, plus totalCount.",
+    priceUsdc: TOURISM_FOOD_MARKETS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/markets/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_markets for one nation, filterable by market_type and day (matched against operating_days). Includes opening/closing time, payment_accepted, signature_products, distance_to_tourist_area_km, data_confidence.",
+    priceUsdc: TOURISM_FOOD_MARKETS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/transport/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_transport for one nation, filterable by transport_type and frequency, ordered by transport_type then operator_name. Includes data_confidence per record.",
+    priceUsdc: TOURISM_TRANSPORT_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/transport/routes",
+    humanDeliverable: false,
+    description:
+      "tourism_transport records where either required ?origin= or ?destination= (nation_code or city name) matches any of origin/destination/origin_nation_code/destination_nation_code. Includes data_confidence per record.",
+    priceUsdc: TOURISM_TRANSPORT_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/events/:nation_code",
+    humanDeliverable: false,
+    description:
+      "pacific_events for one nation (country_code match), filterable by event_category, from_date/to_date, is_tourist_friendly (default true). Includes ticket_price_min/max, ticket_currency, booking_url, data_confidence, ordered by start_date ascending.",
+    priceUsdc: TOURISM_EVENTS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/events/pacific/christmas",
+    humanDeliverable: false,
+    description:
+      "All pacific_events across every Pacific nation where event_category=christmas_new_year or start_date falls in the Dec 15 – Jan 5 seasonal window, grouped by nation_code (nation_name included per group). Priced above the standard events lookup for high Q4 agent demand.",
+    priceUsdc: TOURISM_EVENTS_CHRISTMAS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/search",
+    humanDeliverable: false,
+    description:
+      "Cross-nation tourism search: destination filter first (nation_code/region) determines the matched nation set, then accommodation and activity queries scoped to those nations with the remaining filters (activity_type/diving/surfing/whale_watching/cultural/season/max_budget_per_day_usd/group_size/has_casino/has_conference/has_wedding_venue/accessibility_required/source_type). Returns matched destinations/accommodations/activities, a critical/high hazard summary (max 3 per nation), and data_confidence/source_type summaries. Hard-capped at 10 nations and 50 records per sub-array. Requires at least one query parameter — 400 otherwise.",
+    priceUsdc: TOURISM_SEARCH_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/providers/:nation_code",
+    humanDeliverable: false,
+    description:
+      "tourism_providers for one nation, filterable by provider_category and verification_status (default verified). ?limit= (default 20, max 100), ?offset=. Includes source_type and data_confidence per record, plus totalCount.",
+    priceUsdc: TOURISM_PROVIDERS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
+  },
+  {
+    method: "GET",
+    path: "/tourism/weddings/:nation_code",
+    humanDeliverable: false,
+    description:
+      "Full tourism_weddings row (residency/documents/legal-binding status/beach permit requirements) for one nation, plus up to 5 tourism_accommodations rows flagged is_wedding_venue=true, ordered by star_rating_official descending. 404 if nation_code is not in tourism_destinations; 200 with wedding_requirements=null and wedding_venues=[] if the nation exists but has no curated wedding data yet (see the response's own wedding_data_status and legal_data_warning fields).",
+    priceUsdc: TOURISM_WEDDINGS_PRICE_USDC,
+    payToAddress: process.env.AVM_ADDRESS ?? "",
   },
 ];
 
