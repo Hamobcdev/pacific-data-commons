@@ -77,7 +77,7 @@ def build_url(row: dict) -> str:
     if path == "/tourism/search":
         path += "?nation_code=WS"
     if path == "/tourism/transport/routes":
-        path += "?origin=WS"
+        path += "?origin=WS&destination=WS"
     return base + path
 
 def supabase_headers() -> dict:
