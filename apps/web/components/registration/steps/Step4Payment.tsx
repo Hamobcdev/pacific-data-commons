@@ -21,7 +21,7 @@ export interface Step4PaymentProps {
   onSubmitted: (result: RegisterProviderResult) => void;
 }
 
-type PaymentChoice = "usdc_algorand" | "stripe" | "bank_transfer" | null;
+type PaymentChoice = "usdc_algorand" | "stripe" | "bank_transfer" | "paypal" | null;
 type IntentState = "idle" | "creating" | "ready" | "error";
 type SearchState = "idle" | "searching" | "found" | "not_found" | "error";
 type ConfirmState = "idle" | "verifying" | "submitting" | "error";
@@ -47,6 +47,7 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
   const email = (formState.contact_email as string) ?? "";
   const walletAddress = (formState.wallet_address as string) ?? undefined;
   const businessName = (formState.business_name as string) ?? "";
+  const nationCode = (formState.nation_code as string) ?? "";
 
   // Returning from a Stripe redirect — Step4Payment is mounted with
   // _paymentMethod/_paymentReference already set by RegistrationStepper, so
@@ -139,6 +140,16 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
   // formState._paymentMethod === "bank_transfer" branch for the resulting copy.
   function handleBankTransferContinue() {
     updateFields({ _paymentMethod: "bank_transfer" });
+    onSubmitted({ success: true, business_name: businessName });
+  }
+
+  // PayPal is a static hosted payment link (NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK)
+  // with no return URL or webhook wired into this app — same unverified-intent
+  // posture as bank transfer above. The link opens in a new tab (rel="noopener
+  // noreferrer" — target="_blank" without it lets the opened page access
+  // window.opener) while this tab advances immediately, per the brief.
+  function handlePaypalContinue() {
+    updateFields({ _paymentMethod: "paypal" });
     onSubmitted({ success: true, business_name: businessName });
   }
 
@@ -239,20 +250,39 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
       )}
 
       {choice === null && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Button type="button" onClick={startUsdcPayment}>
-            Pay with USDC (Algorand)
-          </Button>
-          <Button type="button" variant="secondary" onClick={startStripeCheckout} disabled={checkoutLoading}>
-            {checkoutLoading ? "Redirecting…" : "Pay with Card"}
-          </Button>
-          <button type="button" onClick={() => setChoice("bank_transfer")} className="text-left sm:col-span-2">
-            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
-              <p className="text-base font-semibold text-navy">Pay by Bank Transfer (Samoa &amp; Pacific)</p>
-              <p className="mt-1 text-sm text-gray-600">Transfer directly from a Samoa or Pacific bank account.</p>
-            </div>
-          </button>
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Button type="button" onClick={startUsdcPayment}>
+              Pay with USDC (Algorand)
+            </Button>
+            <Button type="button" variant="secondary" onClick={startStripeCheckout} disabled={checkoutLoading}>
+              {checkoutLoading ? "Redirecting…" : "Pay with Card"}
+            </Button>
+            {nationCode === "WS" && (
+              <button type="button" onClick={() => setChoice("bank_transfer")} className="text-left sm:col-span-2">
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
+                  <p className="text-base font-semibold text-navy">Pay by Bank Transfer (Samoa &amp; Pacific)</p>
+                  <p className="mt-1 text-sm text-gray-600">Transfer directly from a Samoa or Pacific bank account.</p>
+                </div>
+              </button>
+            )}
+            <a
+              href={process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handlePaypalContinue}
+              className="text-left sm:col-span-2"
+            >
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
+                <p className="text-base font-semibold text-navy">Pay with PayPal or Card</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Pay securely via PayPal, Visa, or Mastercard. No PayPal account required.
+                </p>
+              </div>
+            </a>
+          </div>
+          <p className="text-xs text-gray-500">For Samoa-based businesses: bank transfer is available at zero transaction fees.</p>
+        </>
       )}
 
       {choice === "bank_transfer" && (
@@ -271,12 +301,12 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
               <span className="font-medium">Reference:</span> {businessName || "(enter your business name on the previous step)"}
             </p>
             <p>
-              <span className="font-medium">Amount:</span> $27 WST (equivalent to $10 USD — rate may vary)
+              <span className="font-medium">Amount:</span> $27 WST (approximately $10 USD)
             </p>
           </div>
 
           <Alert variant="info" className="text-xs">
-            WST amount is approximate. Contact anthony@synergybcpacific.com to confirm current rate.
+            WST amount approximate — contact anthony@synergybcpacific.com to confirm before transferring
           </Alert>
 
           <p className="text-sm text-gray-700">
