@@ -48,12 +48,30 @@ export const ACTIVITY_TYPE_VALUES = [
   "waterfall",
   "blue_hole",
   "volcano_tour",
+  // Added post-PR-#193-review (migration 20261026000005): 6 of the 10
+  // originally requested values were genuinely new — whale_watching/
+  // kayaking/kitesurfing already existed above, and paddleboarding was
+  // dropped in favour of relabelling the existing paddleboard value below.
+  "scuba_diving",
+  "freediving",
+  "snorkelling",
+  "surfing",
+  "beach_tour",
+  "lagoon_tour",
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPE_VALUES)[number];
 
+// paddleboard's stored value didn't change, but the approved dropdown copy
+// is "Paddleboarding" rather than toOption()'s auto-generated "Paddleboard"
+// — avoids adding a near-duplicate "paddleboarding" value to the CHECK
+// constraint just to get the "-ing" label.
+const LABEL_OVERRIDES: Partial<Record<string, string>> = {
+  paddleboard: "Paddleboarding",
+};
+
 function toOption(value: string): SelectOption {
-  return { value, label: value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
+  return { value, label: LABEL_OVERRIDES[value] ?? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
 }
 
 /** Curated subset shown when provider_category === 'water_activities'. */
@@ -74,6 +92,12 @@ export const WATER_ACTIVITY_OPTIONS: SelectOption[] = [
   "glassbottom_boat",
   "sandbar_excursion",
   "blue_hole",
+  "scuba_diving",
+  "freediving",
+  "snorkelling",
+  "surfing",
+  "beach_tour",
+  "lagoon_tour",
 ].map(toOption);
 
 /** Curated subset shown when provider_category === 'tour_operator'. */
