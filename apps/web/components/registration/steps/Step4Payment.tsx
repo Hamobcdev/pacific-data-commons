@@ -21,7 +21,7 @@ export interface Step4PaymentProps {
   onSubmitted: (result: RegisterProviderResult) => void;
 }
 
-type PaymentChoice = "usdc_algorand" | "stripe" | null;
+type PaymentChoice = "usdc_algorand" | "stripe" | "bank_transfer" | "paypal" | null;
 type IntentState = "idle" | "creating" | "ready" | "error";
 type SearchState = "idle" | "searching" | "found" | "not_found" | "error";
 type ConfirmState = "idle" | "verifying" | "submitting" | "error";
@@ -46,6 +46,8 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
 
   const email = (formState.contact_email as string) ?? "";
   const walletAddress = (formState.wallet_address as string) ?? undefined;
+  const businessName = (formState.business_name as string) ?? "";
+  const nationCode = (formState.nation_code as string) ?? "";
 
   // Returning from a Stripe redirect — Step4Payment is mounted with
   // _paymentMethod/_paymentReference already set by RegistrationStepper, so
@@ -128,6 +130,27 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
       setIntentError("Card payment is not available right now.");
       setCheckoutLoading(false);
     }
+  }
+
+  // Bank transfer is never verified automatically (no payment_intents row,
+  // no Stripe session) — registerProvider() is deliberately never called
+  // here. Anthony confirms the actual transfer by email and activates the
+  // listing manually; this only records the user's declared intent and
+  // moves the wizard to the confirmation step. See Step5Confirmation's
+  // formState._paymentMethod === "bank_transfer" branch for the resulting copy.
+  function handleBankTransferContinue() {
+    updateFields({ _paymentMethod: "bank_transfer" });
+    onSubmitted({ success: true, business_name: businessName });
+  }
+
+  // PayPal is a static hosted payment link (NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK)
+  // with no return URL or webhook wired into this app — same unverified-intent
+  // posture as bank transfer above. The link opens in a new tab (rel="noopener
+  // noreferrer" — target="_blank" without it lets the opened page access
+  // window.opener) while this tab advances immediately, per the brief.
+  function handlePaypalContinue() {
+    updateFields({ _paymentMethod: "paypal" });
+    onSubmitted({ success: true, business_name: businessName });
   }
 
   async function handleSearchPayment() {
@@ -227,12 +250,74 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
       )}
 
       {choice === null && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Button type="button" onClick={startUsdcPayment}>
-            Pay with USDC (Algorand)
-          </Button>
-          <Button type="button" variant="secondary" onClick={startStripeCheckout} disabled={checkoutLoading}>
-            {checkoutLoading ? "Redirecting…" : "Pay with Card"}
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Button type="button" onClick={startUsdcPayment}>
+              Pay with USDC (Algorand)
+            </Button>
+            <Button type="button" variant="secondary" onClick={startStripeCheckout} disabled={checkoutLoading}>
+              {checkoutLoading ? "Redirecting…" : "Pay with Card"}
+            </Button>
+            {nationCode === "WS" && (
+              <button type="button" onClick={() => setChoice("bank_transfer")} className="text-left sm:col-span-2">
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
+                  <p className="text-base font-semibold text-navy">Pay by Bank Transfer (Samoa &amp; Pacific)</p>
+                  <p className="mt-1 text-sm text-gray-600">Transfer directly from a Samoa or Pacific bank account.</p>
+                </div>
+              </button>
+            )}
+            <a
+              href={process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handlePaypalContinue}
+              className="text-left sm:col-span-2"
+            >
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
+                <p className="text-base font-semibold text-navy">Pay with PayPal or Card</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Pay securely via PayPal, Visa, or Mastercard. No PayPal account required.
+                </p>
+              </div>
+            </a>
+          </div>
+          <p className="text-xs text-gray-500">For Samoa-based businesses: bank transfer is available at zero transaction fees.</p>
+        </>
+      )}
+
+      {choice === "bank_transfer" && (
+        <div className="space-y-4">
+          <div className="space-y-1 rounded-md bg-light-bg p-3 text-sm text-gray-700">
+            <p>
+              <span className="font-medium">Bank:</span> Samoa Commercial Bank
+            </p>
+            <p>
+              <span className="font-medium">Account name:</span> SYNERGY BLOCKCHAIN PACIFIC LIMITED
+            </p>
+            <p>
+              <span className="font-medium">Account number:</span> 1000042672
+            </p>
+            <p>
+              <span className="font-medium">Reference:</span> {businessName || "(enter your business name on the previous step)"}
+            </p>
+            <p>
+              <span className="font-medium">Amount:</span> $27 WST (approximately $10 USD)
+            </p>
+          </div>
+
+          <Alert variant="info" className="text-xs">
+            WST amount approximate — contact anthony@synergybcpacific.com to confirm before transferring
+          </Alert>
+
+          <p className="text-sm text-gray-700">
+            After transferring, email your payment receipt to{" "}
+            <span className="font-medium">anthony@synergybcpacific.com</span> with subject: PDC Registration —{" "}
+            {businessName || "[Business Name]"}. Your listing will be activated within 2 business days of payment
+            confirmation.
+          </p>
+
+          <Button type="button" className="w-full" onClick={handleBankTransferContinue}>
+            I&apos;ve noted my payment details — continue
           </Button>
         </div>
       )}

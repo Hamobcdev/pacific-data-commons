@@ -19,6 +19,23 @@ const CATEGORIES: CategoryDef[] = [
   { value: "market_vendor", label: "Market Vendor", description: "Food stall, clothing, souvenirs, carvings, crafts" },
 ];
 
+/** Not yet selectable — no provider_category/detail-table support exists
+ * for these yet (registerProvider.ts's DETAIL_TABLE_BY_CATEGORY only covers
+ * the 8 tourism categories above). Display-only "coming soon" stubs. */
+interface StubCategoryDef {
+  label: string;
+  description: string;
+}
+
+const STUB_CATEGORIES: StubCategoryDef[] = [
+  { label: "Retail & E-commerce", description: "List your retail store or online shop" },
+  { label: "Professional Services", description: "Lawyers, accountants, consultants" },
+  { label: "Health & Wellness", description: "Clinics, practitioners, pharmacies" },
+  { label: "Education & Training", description: "Tutors, training providers, institutions" },
+  { label: "Agriculture & Fishing", description: "Producers, exporters, fishing operators" },
+  { label: "Construction & Trade", description: "Contractors, suppliers, engineers" },
+];
+
 export interface Step1CategoryProps {
   formState: RegistrationFormState;
   onSelect: (category: ProviderCategory) => void;
@@ -40,6 +57,25 @@ export function Step1Category({ formState, onSelect }: Step1CategoryProps) {
           </button>
         ))}
       </div>
+
+      <h3 className="text-sm font-semibold text-gray-500 mt-8 mb-4">More industries coming soon</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {STUB_CATEGORIES.map((stub) => (
+          <Card key={stub.label} aria-disabled="true" className="cursor-not-allowed opacity-50">
+            <CardTitle>{stub.label}</CardTitle>
+            <CardContent>{stub.description}</CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <p className="mt-6 text-sm text-gray-600">
+        Want your industry listed? Pacific Data Commons is expanding the directory to cover every sector of the Pacific
+        economy. If your business type isn&apos;t listed yet, contact us at{" "}
+        <a href="mailto:anthony@synergybcpacific.com" className="text-ocean underline">
+          anthony@synergybcpacific.com
+        </a>{" "}
+        to be notified when your category opens, or to discuss early listing options.
+      </p>
     </div>
   );
 }

@@ -11,6 +11,23 @@ export function Step5Confirmation({ formState, result }: Step5ConfirmationProps)
   const businessName = result?.business_name ?? (formState.business_name as string) ?? "your business";
   const contactEmail = (formState.contact_email as string) ?? "";
 
+  // Bank transfer never goes through registerProvider() — there is no
+  // verified payment and no provider row yet, only the user's declared
+  // intent (Step4Payment.tsx's handleBankTransferContinue). Must be checked
+  // before the generic success copy below, which assumes a paid, completed
+  // registration.
+  if (formState._paymentMethod === "bank_transfer") {
+    return (
+      <div className="space-y-4 text-center py-6">
+        <h2 className="text-xl font-semibold text-navy">Thank you, {businessName}.</h2>
+        <p className="text-sm text-gray-700">
+          Your registration is pending payment confirmation. We will activate your listing within 2 business days of
+          receiving your bank transfer.
+        </p>
+      </div>
+    );
+  }
+
   if (!result || !result.success) {
     return (
       <div className="space-y-4">
