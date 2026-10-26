@@ -179,3 +179,67 @@ export async function sendDeploymentReceipt(params: DeploymentReceiptParams): Pr
     });
   }
 }
+
+export interface ProviderRegistrationNotificationParams {
+  businessName: string;
+  providerCategory: string;
+  nationCode: string;
+  contactEmail: string;
+  submittedAt: string;
+  paymentMethod: string;
+  paymentReference: string;
+  /** Claude's suggested public-facing label/tags (actions/tourism/registerProvider.ts) —
+   * informational only, for whoever on SBP's team later creates the real
+   * endpoint listing. Never persisted to the database. */
+  suggestedEndpointLabel: string;
+  suggestedTags: string[];
+}
+
+/** Phase C (Tourism Data Framework) — SBP's internal "new provider
+ * registration" notification, sent to RESEND_TO_EMAIL once registerProvider
+ * has successfully written the provider + detail records. Same never-throw
+ * posture as the three functions above. */
+export async function sendProviderRegistrationNotification(params: ProviderRegistrationNotificationParams): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("[provider_registration_notification_skipped_no_provider]", { businessName: params.businessName });
+    return;
+  }
+
+  const toEmail = process.env.RESEND_TO_EMAIL;
+  if (!toEmail) {
+    console.warn("[provider_registration_notification_skipped_no_recipient]", { businessName: params.businessName });
+    return;
+  }
+
+  try {
+    const resend = getClient(apiKey);
+    await resend.emails.send({
+      from: getFromAddress(),
+      to: toEmail,
+      subject: `New provider registration pending verification — ${params.businessName}`,
+      text: [
+        `New provider self-registration received — pending verification.`,
+        ``,
+        `Business name: ${params.businessName}`,
+        `Category: ${params.providerCategory}`,
+        `Nation: ${params.nationCode}`,
+        `Contact email: ${params.contactEmail}`,
+        `Submitted: ${params.submittedAt}`,
+        `Payment method: ${params.paymentMethod}`,
+        `Payment reference: ${params.paymentReference}`,
+        ``,
+        `Claude's suggested public-facing label: ${params.suggestedEndpointLabel}`,
+        `Claude's suggested tags: ${params.suggestedTags.join(", ")}`,
+        ``,
+        `Review in Supabase (tourism_providers, verification_status = 'pending'):`,
+        `https://supabase.com/dashboard/project/poiiwcbriqwczmppoevd/editor`,
+      ].join("\n"),
+    });
+  } catch (err) {
+    console.error("[provider_registration_notification_send_failed]", {
+      businessName: params.businessName,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}

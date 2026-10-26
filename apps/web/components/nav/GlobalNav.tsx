@@ -92,7 +92,11 @@ export function GlobalNav({ provider }: GlobalNavProps) {
       {agentMarketplaceLink}
       {developersLink}
       {psrLink}
-      <Link href="/for-providers" onClick={() => setMobileOpen(false)} className={linkClass}>
+      {/* Phase C: points directly at the tourism provider self-registration
+          flow now, not the institutional data-provider onboarding (/welcome
+          via the /for-providers redirect) — that flow is unchanged and still
+          reachable from its own direct links elsewhere. */}
+      <Link href="/register" onClick={() => setMobileOpen(false)} className={linkClass}>
         {t("forProviders")}
       </Link>
       {faqLink}
@@ -132,7 +136,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
               </form>
             ) : (
               <Link
-                href="/onboarding/register"
+                href="/register"
                 className="px-3 py-1.5 text-base text-white bg-pacific-green hover:bg-pacific-green-dark
                   rounded-md transition-colors"
               >
@@ -182,7 +186,7 @@ export function GlobalNav({ provider }: GlobalNavProps) {
               </form>
             ) : (
               <Link
-                href="/onboarding/register"
+                href="/register"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center justify-center px-3 py-2.5 text-base text-white bg-pacific-green
                   hover:bg-pacific-green-dark rounded-md transition-colors min-h-[44px]"

@@ -12,7 +12,7 @@ interface CheckoutRequestBody {
 }
 
 function isCheckoutPurpose(value: unknown): value is CheckoutPurpose {
-  return value === "upload_fee" || value === "deployment_standard" || value === "deployment_complex";
+  return value === "upload_fee" || value === "deployment_standard" || value === "deployment_complex" || value === "registration_fee";
 }
 
 /**
@@ -46,6 +46,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     priceId = STRIPE_PRICE_IDS.uploadFee;
     metadata = { ...metadata, providerId: body.providerId, datasetSlot: body.sessionToken, pdfSurcharge: String(body.pdfSurcharge === true) };
+  } else if (body.purpose === "registration_fee") {
+    const contactEmail = body.contactEmail?.trim();
+    if (!contactEmail) {
+      return NextResponse.json({ error: "invalid_request", message: "contactEmail is required for registration_fee checkout." }, { status: 400 });
+    }
+    priceId = STRIPE_PRICE_IDS.registrationFee;
+    metadata = { ...metadata, contactEmail };
   } else {
     const contactEmail = body.contactEmail?.trim();
     if (!contactEmail) {
@@ -65,14 +72,23 @@ export async function POST(request: Request): Promise<NextResponse> {
     lineItems.push({ price: STRIPE_PRICE_IDS.scannedPdfSurcharge, quantity: 1 });
   }
 
+  // Phase C's /register page lives under the always-prefixed [locale] route
+  // (localePrefix: "always" — see i18n/routing.ts) — every other purpose
+  // here redirects back to /onboarding/upload, which is unaffected.
+  const successUrl =
+    body.purpose === "registration_fee"
+      ? `${appUrl}/en/register?stripe=success&session_id={CHECKOUT_SESSION_ID}`
+      : `${appUrl}/onboarding/upload?stripe=success`;
+  const cancelUrl = body.purpose === "registration_fee" ? `${appUrl}/en/register?stripe=cancelled` : `${appUrl}/onboarding/upload?stripe=cancelled`;
+
   try {
     const stripe = getStripeClient();
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
       metadata,
-      success_url: `${appUrl}/onboarding/upload?stripe=success`,
-      cancel_url: `${appUrl}/onboarding/upload?stripe=cancelled`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
 
     if (!session.url) {

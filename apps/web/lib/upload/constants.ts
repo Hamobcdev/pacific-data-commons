@@ -15,3 +15,6 @@ export const PDC_UPLOADS_BUCKET = "pdc-uploads";
  */
 export const UPLOAD_FEE_USDC = 25.0;
 export const SCANNED_PDF_SURCHARGE_USDC = 10.0;
+
+/** Phase C (Tourism Data Framework) — provider self-registration fee. */
+export const REGISTRATION_FEE_USD = 10;

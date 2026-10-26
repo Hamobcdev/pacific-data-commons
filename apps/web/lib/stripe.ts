@@ -43,6 +43,8 @@ export const STRIPE_PRICE_IDS = {
   scannedPdfSurcharge: process.env.STRIPE_PRICE_SCANNED_PDF_SURCHARGE,
   deploymentStandard: process.env.STRIPE_PRICE_DEPLOYMENT_STANDARD,
   deploymentComplex: process.env.STRIPE_PRICE_DEPLOYMENT_COMPLEX,
+  // Phase C (Tourism Data Framework) — $10 USD provider registration fee.
+  registrationFee: process.env.STRIPE_PRICE_REGISTRATION_FEE,
 } as const;
 
-export type CheckoutPurpose = "upload_fee" | "deployment_standard" | "deployment_complex";
+export type CheckoutPurpose = "upload_fee" | "deployment_standard" | "deployment_complex" | "registration_fee";
