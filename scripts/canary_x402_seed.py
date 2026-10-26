@@ -74,6 +74,8 @@ def build_url(row: dict) -> str:
     base  = (row.get("endpoint_url") or "").rstrip("/")
     tiers = row.get("pricing_tiers") or []
     path  = (tiers[0].get("path", "") if tiers else "").replace(":nation_code", "WS")
+    if path == "/tourism/search":
+        path += "?nation_code=WS"
     return base + path
 
 def supabase_headers() -> dict:
