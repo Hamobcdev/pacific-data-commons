@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacific Data Commons — Proposal for the Samoa Tourism Authority</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --samoa-blue:#002B7F;
+    --samoa-blue-light:#163F96;
+    --samoa-red:#CE1126;
+    --gold:#D4A017;
+    --white:#FFFFFF;
+    --grey-bg:#F8F9FA;
+    --dark-text:#1A1A2E;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color:var(--dark-text);
+    background:var(--white);
+    line-height:1.65;
+    font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  h1,h2,h3,h4{
+    font-family:'Playfair Display', Georgia, serif;
+    font-weight:700;
+    line-height:1.2;
+  }
+
+  img{ max-width:100%; display:block; }
+
+  .section{
+    padding:72px 8%;
+    position:relative;
+  }
+
+  .section-inner{
+    max-width:1140px;
+    margin:0 auto;
+  }
+
+  .eyebrow{
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--samoa-red);
+    margin-bottom:14px;
+  }
+
+  /* ============ SECTION 1 — COVER / HERO ============ */
+  .hero{
+    position:relative;
+    min-height:100vh;
+    width:100%;
+    background:
+      linear-gradient(180deg, rgba(0,20,60,0.55) 0%, rgba(0,20,60,0.35) 35%, rgba(0,12,40,0.78) 78%, rgba(0,10,30,0.92) 100%),
+      url('img-hero.jpg') center center / cover no-repeat;
+    color:var(--white);
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:40px 6%;
+  }
+
+  .hero-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .hero-logo{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .hero-logo img{
+    height:56px;
+    width:56px;
+    object-fit:contain;
+    border-radius:10px;
+    background:rgba(255,255,255,0.92);
+    padding:6px;
+  }
+
+  .hero-logo-text{
+    font-family:'Inter', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:0.05em;
+    color:var(--white);
+    line-height:1.3;
+  }
+
+  .hero-logo-text span{
+    display:block;
+    font-weight:400;
+    font-size:11px;
+    opacity:0.78;
+    letter-spacing:0.08em;
+  }
+
+  .hero-date-badge{
+    font-size:13px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    border:1px solid rgba(255,255,255,0.45);
+    padding:8px 16px;
+    border-radius:999px;
+    font-weight:600;
+  }
+
+  .hero-center{
+    text-align:center;
+    padding:60px 0;
+  }
+
+  .hero-title{
+    font-size:clamp(40px, 6.4vw, 78px);
+    letter-spacing:0.01em;
+    color:var(--white);
+    text-shadow:0 4px 24px rgba(0,0,0,0.35);
+  }
+
+  .hero-subtitle{
+    font-family:'Inter', sans-serif;
+    font-weight:500;
+    font-size:clamp(17px, 2.1vw, 24px);
+    color:var(--white);
+    margin-top:18px;
+    letter-spacing:0.01em;
+  }
+
+  .hero-rule{
+    width:72px;
+    height:3px;
+    background:var(--gold);
+    margin:26px auto;
+  }
+
+  .hero-tag{
+    font-size:15px;
+    letter-spacing:0.04em;
+    color:rgba(255,255,255,0.92);
+  }
+
+  .hero-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-top:1px solid rgba(255,255,255,0.25);
+    padding-top:22px;
+    font-size:13.5px;
+    color:rgba(255,255,255,0.88);
+  }
+
+  .hero-bottom-label{
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    font-size:10.5px;
+    opacity:0.7;
+    margin-bottom:4px;
+  }
+
+  .hero-bottom-value{
+    font-weight:600;
+    font-size:15px;
+  }
+
+  /* ============ SECTION 2 — EXECUTIVE SUMMARY ============ */
+  .section-summary{
+    background:var(--grey-bg);
+    border-left:8px solid var(--samoa-blue);
+  }
+
+  .section-summary h2{
+    font-size:34px;
+    color:var(--samoa-blue);
+    margin-bottom:22px;
+  }
+
+  .section-summary p{
+    font-size:17.5px;
+    color:#30303f;
+    max-width:880px;
+    margin-bottom:16px;
+  }
+
+  .section-summary p:last-child{ margin-bottom:0; }
+
+  /* ============ SECTION 3 — PROBLEM ============ */
+  .section-problem{ background:var(--white); }
+
+  .problem-grid{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:56px;
+    align-items:start;
+  }
+
+  .problem-grid h2{
+    font-size:32px;
+    color:var(--dark-text);
+    margin-bottom:20px;
+  }
+
+  .problem-grid p{
+    font-size:16px;
+    color:#3a3a48;
+    margin-bottom:16px;
+  }
+
+  .stat-cards{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+
+  .stat-card{
+    background:var(--samoa-blue);
+    color:var(--white);
+    border-radius:12px;
+    padding:26px 20px;
+    text-align:center;
+  }
+
+  .stat-number{
+    font-family:'Playfair Display', serif;
+    font-weight:800;
+    font-size:34px;
+    color:var(--gold);
+    margin-bottom:8px;
+    line-height:1;
+  }
+
+  .stat-label{
+    font-size:12.5px;
+    letter-spacing:0.01em;
+    color:rgba(255,255,255,0.92);
+    line-height:1.4;
+  }
+
+  /* ============ SECTION 4 — ECOSYSTEM ============ */
+  .section-ecosystem{ background:var(--white); }
+
+  .section-ecosystem h2{
+    font-size:32px;
+    color:var(--samoa-blue);
+    text-align:center;
+    margin-bottom:34px;
+  }
+
+  .ecosystem-img-wrap{
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,43,127,0.16);
+  }
+
+  .img-caption{
+    text-align:center;
+    font-size:14px;
+    color:#5a5a6a;
+    font-style:italic;
+    margin-top:18px;
+    max-width:720px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  /* ============ SECTION 5 — WHAT PDC PROVIDES ============ */
+  .section-provides{ background:var(--grey-bg); }
+
+  .section-provides h2{
+    font-size:32px;
+    color:var(--dark-text);
+    text-align:center;
+    margin-bottom:40px;
+  }
+
+  .provides-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:24px;
+  }
+
+  .provides-card{
+    background:var(--white);
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(20,20,40,0.08);
+    display:flex;
+    flex-direction:column;
+  }
+
+  .provides-card-header{
+    padding:20px 22px;
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:18.5px;
+    color:var(--white);
+  }
+
+  .provides-card.blue .provides-card-header{ background:var(--samoa-blue); }
+  .provides-card.red .provides-card-header{ background:var(--samoa-red); }
+  .provides-card.gold .provides-card-header{ background:var(--gold); color:var(--dark-text); }
+
+  .provides-card ul{
+    list-style:none;
+    padding:22px 24px 26px;
+    flex:1;
+  }
+
+  .provides-card li{
+    position:relative;
+    padding-left:20px;
+    font-size:14.5px;
+    color:#3a3a48;
+    margin-bottom:13px;
+    line-height:1.5;
+  }
+
+  .provides-card li::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:8px;
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--gold);
+  }
+
+  .provides-card.blue li::before{ background:var(--samoa-blue); }
+  .provides-card.red li::before{ background:var(--samoa-red); }
+  .provides-card li:last-child{ margin-bottom:0; }
+
+  /* ============ SECTION 6 — ROI ============ */
+  .section-roi{
+    background:var(--samoa-blue);
+    color:var(--white);
+  }
+
+  .roi-grid{
+    display:grid;
+    grid-template-columns:0.9fr 1.1fr;
+    gap:56px;
+    align-items:center;
+  }
+
+  .roi-img-wrap{
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  }
+
+  .roi-grid h2{
+    font-size:32px;
+    color:var(--gold);
+    margin-bottom:20px;
+  }
+
+  .roi-grid p{
+    font-size:16.5px;
+    color:rgba(255,255,255,0.94);
+    margin-bottom:16px;
+  }
+
+  .roi-grid p:last-child{ margin-bottom:0; }
+
+  /* ============ SECTION 7 — PROVIDER JOURNEY ============ */
+  .section-journey{ background:var(--white); }
+
+  .section-journey h2{
+    font-size:32px;
+    color:var(--samoa-blue);
+    text-align:center;
+    margin-bottom:34px;
+  }
+
+  .journey-img-wrap{
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,43,127,0.16);
+    margin-bottom:40px;
+  }
+
+  .journey-cols{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:30px;
+  }
+
+  .journey-col{
+    text-align:center;
+    padding:0 10px;
+  }
+
+  .journey-col-num{
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    background:var(--samoa-blue);
+    color:var(--white);
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 auto 14px;
+  }
+
+  .journey-col p{
+    font-size:14.5px;
+    color:#3a3a48;
+  }
+
+  /* ============ SECTION 8 — BLOCKCHAIN CONCERNS ============ */
+  .section-concerns{
+    background:var(--grey-bg);
+    border-left:8px solid var(--samoa-red);
+  }
+
+  .section-concerns h2{
+    font-size:32px;
+    color:var(--samoa-red);
+    margin-bottom:22px;
+  }
+
+  .section-concerns p{
+    font-size:16px;
+    color:#30303f;
+    max-width:860px;
+    margin-bottom:16px;
+  }
+
+  .section-concerns p:last-child{ margin-bottom:0; }
+
+  /* ============ SECTION 9 — CRUISE ============ */
+  .section-cruise{ background:var(--white); }
+
+  .cruise-grid{
+    display:grid;
+    grid-template-columns:0.9fr 1.1fr;
+    gap:56px;
+    align-items:center;
+  }
+
+  .cruise-img-wrap{
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,43,127,0.16);
+  }
+
+  .cruise-grid h2{
+    font-size:32px;
+    color:var(--samoa-blue);
+    margin-bottom:20px;
+  }
+
+  .cruise-grid p{
+    font-size:16px;
+    color:#3a3a48;
+    margin-bottom:16px;
+  }
+
+  .cruise-grid p:last-child{ margin-bottom:0; }
+
+  /* ============ SECTION 10 — ASKS ============ */
+  .section-asks{
+    background:var(--samoa-blue);
+    color:var(--white);
+  }
+
+  .section-asks h2{
+    font-size:32px;
+    color:var(--gold);
+    text-align:center;
+    margin-bottom:40px;
+  }
+
+  .asks-list{
+    display:flex;
+    flex-direction:column;
+    gap:26px;
+    max-width:860px;
+    margin:0 auto;
+  }
+
+  .ask-item{
+    display:flex;
+    gap:22px;
+    align-items:flex-start;
+    background:rgba(255,255,255,0.06);
+    border-radius:12px;
+    padding:22px 26px;
+    border:1px solid rgba(255,255,255,0.12);
+  }
+
+  .ask-num{
+    font-family:'Playfair Display', serif;
+    font-weight:800;
+    font-size:30px;
+    color:var(--gold);
+    flex-shrink:0;
+    width:44px;
+  }
+
+  .ask-item p{
+    font-size:15.5px;
+    color:rgba(255,255,255,0.94);
+    line-height:1.55;
+  }
+
+  /* ============ SECTION 11 — REGISTER ============ */
+  .section-register{
+    background:var(--grey-bg);
+    text-align:center;
+  }
+
+  .section-register h2{
+    font-size:32px;
+    color:var(--dark-text);
+    margin-bottom:16px;
+  }
+
+  .section-register > .section-inner > p{
+    font-size:16px;
+    color:#3a3a48;
+    max-width:620px;
+    margin:0 auto 32px;
+  }
+
+  .qr-wrap{
+    background:var(--white);
+    display:inline-block;
+    padding:20px;
+    border-radius:16px;
+    box-shadow:0 14px 40px rgba(20,20,40,0.12);
+    margin-bottom:30px;
+  }
+
+  .qr-wrap img{
+    width:190px;
+    height:auto;
+  }
+
+  .register-url{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:22px;
+    color:var(--samoa-blue);
+    letter-spacing:0.01em;
+    margin-bottom:28px;
+    word-break:break-word;
+  }
+
+  .register-btn{
+    display:inline-block;
+    background:var(--samoa-blue);
+    color:var(--white);
+    text-decoration:none;
+    font-weight:700;
+    font-size:15.5px;
+    padding:16px 38px;
+    border-radius:999px;
+    letter-spacing:0.02em;
+    box-shadow:0 10px 26px rgba(0,43,127,0.28);
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .register-btn:hover{
+    transform:translateY(-2px);
+    box-shadow:0 14px 32px rgba(0,43,127,0.36);
+  }
+
+  /* ============ SECTION 12 — FOOTER ============ */
+  .footer{
+    background:var(--dark-text);
+    color:rgba(255,255,255,0.88);
+    padding:48px 8%;
+  }
+
+  .footer-grid{
+    max-width:1140px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:36px;
+    align-items:start;
+  }
+
+  .footer-brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+
+  .footer-brand img{
+    height:40px;
+    width:40px;
+    object-fit:contain;
+    border-radius:8px;
+    background:rgba(255,255,255,0.92);
+    padding:4px;
+  }
+
+  .footer-brand-text{
+    font-size:13.5px;
+    font-weight:600;
+    line-height:1.4;
+  }
+
+  .footer-center{
+    font-size:13.5px;
+    line-height:2;
+    text-align:center;
+  }
+
+  .footer-center a{
+    color:rgba(255,255,255,0.88);
+    text-decoration:none;
+  }
+
+  .footer-right{
+    font-size:11.5px;
+    line-height:1.6;
+    color:rgba(255,255,255,0.62);
+    text-align:right;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 860px){
+    .section{ padding:52px 6%; }
+    .problem-grid,
+    .roi-grid,
+    .cruise-grid{
+      grid-template-columns:1fr;
+    }
+    .provides-grid,
+    .journey-cols{
+      grid-template-columns:1fr;
+    }
+    .stat-cards{ margin-top:30px; }
+    .footer-grid{
+      grid-template-columns:1fr;
+      text-align:center;
+    }
+    .footer-brand{ justify-content:center; }
+    .footer-right{ text-align:center; }
+    .hero-bottom{ flex-direction:column; gap:14px; align-items:flex-start; }
+  }
+
+  /* ============ PRINT ============ */
+  @media print{
+    @page{
+      size:A4;
+      margin:0;
+    }
+
+    html, body{
+      -webkit-print-color-adjust:exact !important;
+      print-color-adjust:exact !important;
+      color-adjust:exact !important;
+    }
+
+    .hero{ min-height:100vh; }
+
+    .section{ padding:36px 7%; }
+
+    .section-ecosystem{ page-break-before:always; }
+    .section-roi{ page-break-before:always; }
+    .section-concerns{ page-break-before:always; }
+    .section-asks{ page-break-before:always; }
+
+    .provides-grid,
+    .stat-cards,
+    .journey-cols,
+    .asks-list,
+    .ask-item,
+    .provides-card{
+      break-inside:avoid;
+    }
+
+    .register-btn:hover{
+      transform:none;
+      box-shadow:0 10px 26px rgba(0,43,127,0.28);
+    }
+
+    a[href]::after{ content:""; }
+
+    body{ font-size:13.5px; }
+    .hero-title{ font-size:52px; }
+    .hero-subtitle{ font-size:18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ SECTION 1 — HEADER / COVER ============ -->
+<header class="hero">
+  <div class="hero-top">
+    <div class="hero-logo">
+      <img src="img-pdc-logo.png" alt="Synergy Blockchain Pacific logo">
+      <div class="hero-logo-text">SYNERGY BLOCKCHAIN PACIFIC<span>Pacific Data Commons</span></div>
+    </div>
+    <div class="hero-date-badge">October 2026</div>
+  </div>
+
+  <div class="hero-center">
+    <h1 class="hero-title">PACIFIC DATA COMMONS</h1>
+    <p class="hero-subtitle">Digital Infrastructure for Samoa Tourism</p>
+    <div class="hero-rule"></div>
+    <p class="hero-tag">Prepared for the Samoa Tourism Authority</p>
+  </div>
+
+  <div class="hero-bottom">
+    <div>
+      <div class="hero-bottom-label">Prepared By</div>
+      <div class="hero-bottom-value">Synergy Blockchain Pacific Limited</div>
+    </div>
+    <div>
+      <div class="hero-bottom-label">Date</div>
+      <div class="hero-bottom-value">October 2026</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ SECTION 2 — EXECUTIVE SUMMARY ============ -->
+<section class="section section-summary">
+  <div class="section-inner">
+    <h2>Executive Summary</h2>
+    <p>Pacific Data Commons (PDC) is a sovereign digital infrastructure platform built in Samoa by Synergy Blockchain Pacific. It enables tourism businesses, government agencies, and researchers to make their services discoverable to AI travel assistants, booking platforms, and digital marketplaces worldwide — 24 hours a day.</p>
+    <p>PDC has already transacted over $200 USD in live data queries since launch, with 69 active endpoints registered on the GoPlausible global AI marketplace. This proposal outlines how the Samoa Tourism Authority can leverage PDC to increase the visibility of Samoan tourism providers to the next generation of AI-powered travel planning, while retaining the economic value of tourism transactions within Samoa and the Pacific.</p>
+  </div>
+</section>
+
+<!-- ============ SECTION 3 — THE PROBLEM ============ -->
+<section class="section section-problem">
+  <div class="section-inner">
+    <div class="problem-grid">
+      <div>
+        <h2>The Problem</h2>
+        <p>International travellers increasingly use AI assistants to plan and book holidays. When someone asks an AI travel agent "what accommodation is available in Samoa" or "what activities can I do in Apia," the AI queries structured data directories — not websites, not TripAdvisor, not Google. If Samoan businesses are not in those directories, they are invisible to that traffic.</p>
+        <p>Currently, platforms that dominate AI travel data — Sabre, Amadeus, Booking.com — charge tourism providers 18–25% commission on every booking. For a Samoan beach fale earning $80 per night, that is $16–20 per booking going to an overseas platform.</p>
+      </div>
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="stat-number">18–25%</div>
+          <div class="stat-label">Commission charged by global platforms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">$0</div>
+          <div class="stat-label">Commission charged by PDC</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">69</div>
+          <div class="stat-label">Live PDC endpoints already active</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">$200+</div>
+          <div class="stat-label">Transacted in live queries since launch</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 4 — ECOSYSTEM DIAGRAM ============ -->
+<section class="section section-ecosystem">
+  <div class="section-inner">
+    <h2>How Pacific Data Commons Works</h2>
+    <div class="ecosystem-img-wrap">
+      <img src="img-ecosystem.png" alt="Diagram of the Pacific Data Commons ecosystem connecting Pacific data providers to global AI consumers">
+    </div>
+    <p class="img-caption">The PDC ecosystem connects Pacific data providers directly to global AI consumers — with value flowing back to the Pacific.</p>
+  </div>
+</section>
+
+<!-- ============ SECTION 5 — WHAT PDC PROVIDES ============ -->
+<section class="section section-provides">
+  <div class="section-inner">
+    <h2>What PDC Provides</h2>
+    <div class="provides-grid">
+      <div class="provides-card blue">
+        <div class="provides-card-header">For Tourism Providers</div>
+        <ul>
+          <li>One-time $10 USD registration fee</li>
+          <li>Permanent listing discoverable by AI agents worldwide</li>
+          <li>Unique PDC referral tag tracking all traffic and bookings from PDC</li>
+          <li>Direct booking and payment links</li>
+          <li>No ongoing fees, no commission on bookings</li>
+          <li>Optional wallet to receive micropayments from AI queries</li>
+        </ul>
+      </div>
+      <div class="provides-card red">
+        <div class="provides-card-header">For Samoa Tourism Authority</div>
+        <ul>
+          <li>A verified, curated directory of Samoan providers</li>
+          <li>Real-time data on global AI query volumes</li>
+          <li>Co-branding opportunity as the official AI-ready directory for Samoa tourism</li>
+          <li>Ability to sponsor registrations for STA members — covering the $10 fee positions STA as the digital enabler for Samoa tourism</li>
+        </ul>
+      </div>
+      <div class="provides-card gold">
+        <div class="provides-card-header">For Samoa</div>
+        <ul>
+          <li>Tourism transaction value retained in the Pacific</li>
+          <li>A regional booking rail competing with Sabre and Amadeus at a fraction of the cost</li>
+          <li>Sovereign data infrastructure — Samoa tourism data governed under Pacific jurisdiction</li>
+          <li>Foundation for the broader Pacific digital economy</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 6 — ADVERTISING THAT PAYS YOU BACK ============ -->
+<section class="section section-roi">
+  <div class="section-inner">
+    <div class="roi-grid">
+      <div class="roi-img-wrap">
+        <img src="img-roi.png" alt="Infographic showing how a PDC listing earns micropayments from AI queries">
+      </div>
+      <div>
+        <h2>The Only Advertising That Pays You Back</h2>
+        <p>A PDC listing is not passive advertising. Every time an AI agent queries your endpoint — searching for accommodation in Samoa, activities in Apia, or transport options for cruise passengers — you receive a micropayment directly to your wallet.</p>
+        <p>At $0.05–$0.25 per query, a provider whose endpoint is queried just 200 times has already recovered their $10 registration fee. Every query after that is pure income — automatic, on-chain, 24 hours a day.</p>
+        <p>No other advertising platform pays the advertiser. PDC does.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 7 — PROVIDER JOURNEY ============ -->
+<section class="section section-journey">
+  <div class="section-inner">
+    <h2>How It Works for Your Members</h2>
+    <div class="journey-img-wrap">
+      <img src="img-journey.png" alt="Illustration of the Pacific Data Commons provider registration journey">
+    </div>
+    <div class="journey-cols">
+      <div class="journey-col">
+        <div class="journey-col-num">1</div>
+        <p>Simple self-service registration — 5 minutes to complete, no technical knowledge required.</p>
+      </div>
+      <div class="journey-col">
+        <div class="journey-col-num">2</div>
+        <p>SBP verifies every listing — quality control ensures the directory remains trustworthy for AI agents and travellers.</p>
+      </div>
+      <div class="journey-col">
+        <div class="journey-col-num">3</div>
+        <p>Permanent visibility — one payment, listed forever, discoverable 24/7 by AI travel agents worldwide.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 8 — ADDRESSING BLOCKCHAIN CONCERNS ============ -->
+<section class="section section-concerns">
+  <div class="section-inner">
+    <h2>Addressing Concerns About Blockchain</h2>
+    <p>We understand the Samoa Tourism Authority has expressed concern about blockchain and cryptocurrency. We want to address this directly.</p>
+    <p>Payments for tourism providers and their customers are entirely conventional. Businesses register and receive payments via PayPal, direct bank transfer to a Samoan Commercial Bank account, or standard card payment. There is no requirement for providers or customers to hold or understand cryptocurrency.</p>
+    <p>The blockchain layer operates invisibly in the background for one specific purpose: enabling AI agents to pay for data queries automatically, instantly, and at very low cost. This is how AI systems transact internationally — they cannot use credit cards or bank accounts. Blockchain micropayments are the emerging standard for AI-to-AI transactions, adopted by Coinbase, Google, and major technology platforms globally.</p>
+    <p>To compete for AI-generated travel traffic, accepting this payment method is necessary — just as accepting Visa and Mastercard was necessary when international card payments became the norm. PDC is building the Pacific's own rail for this, so the fees stay in the region.</p>
+  </div>
+</section>
+
+<!-- ============ SECTION 9 — CRUISE LINER OPPORTUNITY ============ -->
+<section class="section section-cruise">
+  <div class="section-inner">
+    <div class="cruise-grid">
+      <div class="cruise-img-wrap">
+        <img src="img-cruise.png" alt="Cruise ship arriving at Apia port, Samoa">
+      </div>
+      <div>
+        <h2>The Cruise Liner Opportunity</h2>
+        <p>Samoa receives thousands of cruise ship passengers annually through Apia port. These passengers typically have 6–8 hours ashore actively looking for activities, transport, food, and cultural experiences.</p>
+        <p>When a cruise ship arrives in port, the vessel's AI concierge or the cruise line's passenger app can query PDC for what is available in Apia that day. Providers listed on PDC with booking links and WhatsApp numbers receive direct, real-time referrals from cruise passengers.</p>
+        <p>The PDC referral tag tracks how many bookings originated from cruise passenger queries — creating documented evidence of value. This connects directly to Samoa's One Maritime Window system, creating a potential integration where PDC automatically surfaces relevant providers when a cruise vessel is confirmed in port.</p>
+        <p>No global booking platform currently does this for Samoa. PDC can.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 10 — WHAT WE ASK OF STA ============ -->
+<section class="section section-asks">
+  <div class="section-inner">
+    <h2>What We Are Asking of STA</h2>
+    <div class="asks-list">
+      <div class="ask-item">
+        <div class="ask-num">1</div>
+        <p>Endorse PDC as the recommended AI-ready directory for STA-registered tourism providers.</p>
+      </div>
+      <div class="ask-item">
+        <div class="ask-num">2</div>
+        <p>Sponsor registrations for verified STA members — cover the $10 USD fee for providers already on the STA register.</p>
+      </div>
+      <div class="ask-item">
+        <div class="ask-num">3</div>
+        <p>Collaborate on a cruise liner pilot — develop a PDC integration surfacing Samoan providers to cruise passenger apps when vessels are in port.</p>
+      </div>
+      <div class="ask-item">
+        <div class="ask-num">4</div>
+        <p>Co-brand the tourism directory — the PDC tourism section can carry STA branding as the official verified Samoa tourism data layer.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECTION 11 — REGISTER NOW ============ -->
+<section class="section section-register">
+  <div class="section-inner">
+    <h2>See It Live</h2>
+    <p>The provider registration form is live now. Scan the QR code or visit the link below to see exactly what a Samoan tourism provider experiences when they join PDC.</p>
+    <div class="qr-wrap">
+      <img src="img-qr-register.png" alt="QR code linking to the PDC provider registration form">
+    </div>
+    <div class="register-url">pdc.synergybcpacific.com/en/register</div>
+    <a class="register-btn" href="https://pdc.synergybcpacific.com/en/register">Register Your Business →</a>
+  </div>
+</section>
+
+<!-- ============ SECTION 12 — FOOTER ============ -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <img src="img-pdc-logo.png" alt="Synergy Blockchain Pacific logo">
+      <div class="footer-brand-text">Synergy Blockchain<br>Pacific Limited</div>
+    </div>
+    <div class="footer-center">
+      <div><a href="mailto:anthony@synergybcpacific.com">anthony@synergybcpacific.com</a></div>
+      <div>+685 759 3360</div>
+      <div><a href="https://pdc.synergybcpacific.com">pdc.synergybcpacific.com</a></div>
+    </div>
+    <div class="footer-right">
+      Pacific Data Commons is built in Samoa, governed under Pacific jurisdiction. Customary land and traditional fishing rights are permanently excluded from all platform operations.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
