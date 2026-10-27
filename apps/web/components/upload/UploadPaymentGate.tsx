@@ -38,6 +38,12 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState("");
   const [submitting, setSubmitting] = useState<"usdc" | "invoice" | "card" | null>(null);
+  // PayPal, like the USDC claim and invoice request above, is an unverified
+  // declared-intent path — there is no webhook wiring it to a confirmed row.
+  // Selecting it opens the static hosted link in a new tab; the explicit
+  // confirmation button below moves the gate to "pending", same as the
+  // other two manual-verification paths.
+  const [paypalConfirming, setPaypalConfirming] = useState(false);
   // Set when returning from Stripe Checkout (?stripe=success) and the
   // webhook hasn't written the confirmed row yet (it fires async, on
   // Stripe's own delivery timing — not this request). Read from
@@ -100,6 +106,17 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
     }
   };
 
+  const handleSelectPaypal = () => {
+    setPaypalConfirming(true);
+    if (paypalLink) {
+      window.open(paypalLink, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handlePaypalContinue = () => {
+    setStatus("pending");
+  };
+
   /** Redirects to Stripe Checkout. The webhook (app/api/stripe/webhook)
    * writes the confirmed upload_payments row once Stripe reports the
    * payment succeeded — this tab won't see 'confirmed' until the provider
@@ -146,6 +163,7 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
   }
 
   const collectionAddress = process.env.NEXT_PUBLIC_SBP_UPLOAD_FEE_WALLET;
+  const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK;
 
   if (status === "unpaid" && awaitingWebhook) {
     return (
@@ -221,6 +239,44 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
         >
           {submitting === "card" ? t("submitting") : t("card.pay")}
         </button>
+      </div>
+
+      {/* Hardcoded English copy, not t() — consistent with the registration
+          flow's Step4Payment.tsx, and no locale keys were added for this
+          addition. */}
+      <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+        <h3 className="text-sm font-medium text-navy">Pay with PayPal or Card</h3>
+        {paypalLink ? (
+          <>
+            <p className="text-sm text-gray-600">
+              Pay securely via PayPal, Visa, or Mastercard. No PayPal account required.
+            </p>
+            {!paypalConfirming ? (
+              <button
+                type="button"
+                onClick={handleSelectPaypal}
+                className="w-full rounded-md border border-ocean px-4 py-2 text-sm font-medium text-ocean"
+              >
+                Pay with PayPal
+              </button>
+            ) : (
+              <>
+                <Alert variant="info">
+                  After completing payment on PayPal, click below to continue your registration.
+                </Alert>
+                <button
+                  type="button"
+                  onClick={handlePaypalContinue}
+                  className="w-full rounded-md bg-ocean px-4 py-2 text-sm font-medium text-white"
+                >
+                  I&apos;ve completed my PayPal payment
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-gray-500">PayPal temporarily unavailable — please use USDC or request an invoice</p>
+        )}
       </div>
 
       <div className="space-y-3 rounded-lg border border-gray-200 p-4">
