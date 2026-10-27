@@ -13,7 +13,7 @@ export const PDC_UPLOADS_BUCKET = "pdc-uploads";
  * only export async functions, not constants, and UploadPaymentGate.tsx
  * (client component) needs these for its own display copy.
  */
-export const UPLOAD_FEE_USDC = 25.0;
+export const UPLOAD_FEE_USDC = 10.0;
 export const SCANNED_PDF_SURCHARGE_USDC = 10.0;
 
 /** Phase C (Tourism Data Framework) — provider self-registration fee. */

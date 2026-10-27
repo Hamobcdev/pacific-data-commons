@@ -163,7 +163,9 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
   }
 
   const collectionAddress = process.env.NEXT_PUBLIC_SBP_UPLOAD_FEE_WALLET;
-  const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK;
+  // Falls back to the registration-flow link when an upload-specific one
+  // isn't configured yet — same $10 amount, same link is fine for now.
+  const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_UPLOAD_LINK ?? process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK;
 
   if (status === "unpaid" && awaitingWebhook) {
     return (
@@ -188,7 +190,12 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
     <div className="mt-6 space-y-6 rounded-lg border border-gray-200 bg-white p-6">
       <div>
         <h2 className="text-lg font-semibold text-navy">{t("title")}</h2>
-        <p className="mt-1 text-sm text-gray-600">{t("fee", { amount: UPLOAD_FEE_USDC.toFixed(2) })}</p>
+        {/* Hardcoded, not t("fee", ...) — this exact wording was requested
+            and no locale keys were added for it. ${UPLOAD_FEE_USDC} keeps the
+            figure tied to the constant rather than a second hardcoded number. */}
+        <p className="mt-1 text-sm text-gray-600">
+          ${UPLOAD_FEE_USDC.toFixed(0)} per endpoint — pay once for each dataset you want to list.
+        </p>
       </div>
 
       <ul className="space-y-1 text-sm text-gray-600">
@@ -197,6 +204,52 @@ export function UploadPaymentGate({ children }: { children: ReactNode }) {
         <li>✓ {t("covers.review")}</li>
         <li>✓ {t("covers.registration")}</li>
       </ul>
+
+      {/* Hardcoded English copy, not t() — no locale keys were added for
+          this panel. */}
+      <details className="rounded-lg border border-gray-200 bg-light-bg p-4">
+        <summary className="cursor-pointer text-sm font-medium text-navy">PDC Endpoint Pricing</summary>
+        <div className="mt-3 space-y-4 text-sm text-gray-700">
+          <div>
+            <p className="font-medium text-navy">$10 per endpoint — Self-service (this form)</p>
+            <p className="mt-1">
+              Upload your own data. Claude automatically reformats it to a structured JSON endpoint. SBP verifies and
+              publishes. Pay once per endpoint — add as many as you need.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-navy">
+              $150 — SBP Standard Package{" "}
+              <a href="mailto:anthony@synergybcpacific.com" className="font-normal text-ocean underline">
+                Get in touch →
+              </a>
+            </p>
+            <p className="mt-1">
+              SBP processes and structures up to 10 endpoints from your raw data (PDFs, spreadsheets, documents).
+              Includes formatting, schema mapping, and deployment.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-navy">
+              $300 — SBP Complex Package{" "}
+              <a href="mailto:anthony@synergybcpacific.com" className="font-normal text-ocean underline">
+                Get in touch →
+              </a>
+            </p>
+            <p className="mt-1">
+              SBP builds custom pipelines and creates up to 25 endpoints from complex or multi-source data. For
+              government ministries and large research organisations.
+            </p>
+          </div>
+          <p className="text-xs text-gray-500">
+            Large datasets or ongoing partnerships? Contact us at{" "}
+            <a href="mailto:anthony@synergybcpacific.com" className="text-ocean underline">
+              anthony@synergybcpacific.com
+            </a>{" "}
+            to discuss custom pricing.
+          </p>
+        </div>
+      </details>
 
       <div className="space-y-3 rounded-lg border border-gray-200 bg-light-bg p-4">
         <h3 className="text-sm font-medium text-navy">{t("usdc.title")}</h3>
