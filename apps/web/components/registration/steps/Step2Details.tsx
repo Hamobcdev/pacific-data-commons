@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import type { NationOption } from "@/app/[locale]/(public)/register/page";
 import type { RegistrationFormState } from "../RegistrationStepper";
+import { ListingTipsPanel } from "../ListingTipsPanel";
 import {
   PROPERTY_TYPE_VALUES,
   TRANSPORT_TYPE_VALUES,
@@ -499,6 +500,8 @@ export function Step2Details({ formState, nations, updateFields, onNext, onBack 
       {category === "food_beverage" && <FoodBeverageFields formState={formState} updateFields={updateFields} />}
       {category === "conference_events" && <ConferenceEventsFields formState={formState} updateFields={updateFields} />}
       {category === "market_vendor" && <MarketVendorFields formState={formState} updateFields={updateFields} />}
+
+      <ListingTipsPanel category={category} />
 
       <div className="flex justify-between pt-2">
         <Button type="button" variant="secondary" onClick={onBack}>
