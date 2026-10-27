@@ -48,6 +48,7 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
   const walletAddress = (formState.wallet_address as string) ?? undefined;
   const businessName = (formState.business_name as string) ?? "";
   const nationCode = (formState.nation_code as string) ?? "";
+  const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK;
 
   // Returning from a Stripe redirect — Step4Payment is mounted with
   // _paymentMethod/_paymentReference already set by RegistrationStepper, so
@@ -145,9 +146,17 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
 
   // PayPal is a static hosted payment link (NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK)
   // with no return URL or webhook wired into this app — same unverified-intent
-  // posture as bank transfer above. The link opens in a new tab (rel="noopener
-  // noreferrer" — target="_blank" without it lets the opened page access
-  // window.opener) while this tab advances immediately, per the brief.
+  // posture as bank transfer above. Selecting the card opens the link in a new
+  // tab (rel="noopener noreferrer" — target="_blank" without it lets the
+  // opened page access window.opener) and this tab waits for the user to
+  // confirm before advancing.
+  function handleSelectPaypal() {
+    setChoice("paypal");
+    if (paypalLink) {
+      window.open(paypalLink, "_blank", "noopener,noreferrer");
+    }
+  }
+
   function handlePaypalContinue() {
     updateFields({ _paymentMethod: "paypal" });
     onSubmitted({ success: true, business_name: businessName });
@@ -255,9 +264,6 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
             <Button type="button" onClick={startUsdcPayment}>
               Pay with USDC (Algorand)
             </Button>
-            <Button type="button" variant="secondary" onClick={startStripeCheckout} disabled={checkoutLoading}>
-              {checkoutLoading ? "Redirecting…" : "Pay with Card"}
-            </Button>
             {nationCode === "WS" && (
               <button type="button" onClick={() => setChoice("bank_transfer")} className="text-left sm:col-span-2">
                 <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
@@ -266,20 +272,25 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
                 </div>
               </button>
             )}
-            <a
-              href={process.env.NEXT_PUBLIC_PAYPAL_REGISTRATION_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handlePaypalContinue}
-              className="text-left sm:col-span-2"
-            >
-              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
-                <p className="text-base font-semibold text-navy">Pay with PayPal or Card</p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Pay securely via PayPal, Visa, or Mastercard. No PayPal account required.
-                </p>
+            {paypalLink ? (
+              <button type="button" onClick={handleSelectPaypal} className="text-left sm:col-span-2">
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-ocean/50 transition-colors">
+                  <p className="text-base font-semibold text-navy">Pay with PayPal or Card</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Pay securely via PayPal, Visa, or Mastercard. No PayPal account required.
+                  </p>
+                </div>
+              </button>
+            ) : (
+              <div className="text-left sm:col-span-2 cursor-not-allowed" aria-disabled="true">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 opacity-60">
+                  <p className="text-base font-semibold text-navy">Pay with PayPal or Card</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    PayPal temporarily unavailable — please use USDC or bank transfer
+                  </p>
+                </div>
               </div>
-            </a>
+            )}
           </div>
           <p className="text-xs text-gray-500">For Samoa-based businesses: bank transfer is available at zero transaction fees.</p>
         </>
@@ -317,7 +328,18 @@ export function Step4Payment({ formState, updateFields, onBack, onSubmitted }: S
           </p>
 
           <Button type="button" className="w-full" onClick={handleBankTransferContinue}>
-            I&apos;ve noted my payment details — continue
+            I&apos;ve sent my bank transfer
+          </Button>
+        </div>
+      )}
+
+      {choice === "paypal" && (
+        <div className="space-y-4">
+          <Alert variant="info" className="text-xs">
+            After completing payment on PayPal, click below to continue your registration.
+          </Alert>
+          <Button type="button" className="w-full" onClick={handlePaypalContinue}>
+            I&apos;ve completed my PayPal payment
           </Button>
         </div>
       )}
