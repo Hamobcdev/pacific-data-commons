@@ -75,6 +75,17 @@ export const BaseProviderSchema = z.object({
   // the real columns are a boolean + a notes field.
   local_resident_rate_available: z.boolean().default(false),
   local_resident_rate_notes: optionalTrimmed(),
+  // feature/provider-urls — added by migration 20261028000001. Deliberately
+  // the exact validators specified for this change rather than this file's
+  // own optionalUrl()/optionalTrimmed() helpers (no http(s)-only restriction,
+  // '' accepted alongside a valid URL). pdc_referral_tag is NOT here — it's
+  // server-generated (registerProvider.ts), never a user input field.
+  booking_url: z.string().url().optional().or(z.literal("")),
+  payment_url: z.string().url().optional().or(z.literal("")),
+  booking_platform: z.string().max(100).optional(),
+  facebook_url: z.string().url().optional().or(z.literal("")),
+  instagram_url: z.string().url().optional().or(z.literal("")),
+  whatsapp_number: z.string().max(20).optional(),
 });
 export type BaseProviderFields = z.infer<typeof BaseProviderSchema>;
 

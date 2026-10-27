@@ -75,6 +75,22 @@ function toggleInArray(current: string[], value: string, checked: boolean): stri
   return checked ? [...current, value] : current.filter((v) => v !== value);
 }
 
+/**
+ * Preview-only — mirrors generatePdcReferralTag() in registerProvider.ts
+ * exactly. Duplicated rather than shared: that file is a "use server"
+ * action and this task was scoped to four specific files, so a shared util
+ * module wasn't an option. Keep both in sync if this logic ever changes.
+ * The server action remains the source of truth for the value actually
+ * stored — this is display only.
+ */
+function previewPdcReferralTag(businessName: string, nationCode: string): string {
+  const slug = businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `pdc-${slug}-${nationCode.toLowerCase()}`;
+}
+
 function BaseFields({ formState, nations, updateFields }: { formState: RegistrationFormState; nations: NationOption[]; updateFields: (p: RegistrationFormState) => void }) {
   return (
     <div className="space-y-4">
@@ -90,6 +106,71 @@ function BaseFields({ formState, nations, updateFields }: { formState: Registrat
       <Field label="Website URL">
         <Input value={str(formState.website_url)} onChange={(e) => updateFields({ website_url: e.target.value })} placeholder="https://" />
       </Field>
+      <Field label="Booking link (optional)">
+        <Input
+          value={str(formState.booking_url)}
+          onChange={(e) => updateFields({ booking_url: e.target.value })}
+          placeholder="https://your-booking-page.com"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Direct link where customers or AI agents can book your services. Can be your own website, Airbnb,
+          Booking.com, or any booking platform.
+        </p>
+      </Field>
+      <Field label="Online payment link (optional)">
+        <Input
+          value={str(formState.payment_url)}
+          onChange={(e) => updateFields({ payment_url: e.target.value })}
+          placeholder="https://pay.your-business.com"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Link where customers can pay you directly online. PayPal link, Stripe checkout, bank payment portal, or
+          e-commerce store.
+        </p>
+      </Field>
+      <Field label="Primary booking platform (optional)">
+        <Input
+          value={str(formState.booking_platform)}
+          onChange={(e) => updateFields({ booking_platform: e.target.value })}
+          placeholder="e.g. Airbnb, Booking.com, direct website"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Name of your main booking or sales platform — helps AI agents route customers correctly.
+        </p>
+      </Field>
+      <Field label="Facebook page (optional)">
+        <Input
+          value={str(formState.facebook_url)}
+          onChange={(e) => updateFields({ facebook_url: e.target.value })}
+          placeholder="https://facebook.com/yourbusiness"
+        />
+      </Field>
+      <Field label="Instagram (optional)">
+        <Input
+          value={str(formState.instagram_url)}
+          onChange={(e) => updateFields({ instagram_url: e.target.value })}
+          placeholder="https://instagram.com/yourbusiness"
+        />
+      </Field>
+      <Field label="WhatsApp number (optional)">
+        <Input
+          value={str(formState.whatsapp_number)}
+          onChange={(e) => updateFields({ whatsapp_number: e.target.value })}
+          placeholder="+685 XXXXXXX"
+        />
+        <p className="mt-1 text-xs text-gray-500">Many Pacific customers prefer WhatsApp for enquiries and bookings.</p>
+      </Field>
+      {str(formState.business_name).trim().length > 0 && str(formState.nation_code).length > 0 && (
+        <Field label="Your PDC referral tag (auto-generated)">
+          <p className="rounded-md bg-light-bg px-3 py-2 font-mono text-sm text-gray-700">
+            {previewPdcReferralTag(str(formState.business_name), str(formState.nation_code))}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            This tag is automatically added to your booking link so you can track traffic and bookings that came
+            from Pacific Data Commons. Useful for future referral commission arrangements.
+          </p>
+        </Field>
+      )}
       <Field label="Nation" required>
         <Select
           value={str(formState.nation_code)}

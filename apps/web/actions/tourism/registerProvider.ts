@@ -60,6 +60,11 @@ const PROVIDER_COLUMN_ALLOWLIST = new Set([
   "website_url",
   "facebook_url",
   "instagram_url",
+  "booking_url",
+  "payment_url",
+  "booking_platform",
+  "pdc_referral_tag",
+  "whatsapp_number",
   "languages_spoken",
   "years_operating",
   "locally_owned",
@@ -185,6 +190,31 @@ function filterByAllowlist(record: Record<string, unknown>, allowlist: Set<strin
   return out;
 }
 
+/**
+ * Change 4 (feature/provider-urls). Duplicated in Step2Details.tsx as
+ * previewPdcReferralTag() for the client-side preview — this file is a
+ * "use server" action and can't be imported into a client component, and
+ * the task scoped this PR to four specific files, so a shared util module
+ * wasn't an option. This function is the source of truth for the value
+ * actually stored; the client copy is display-only. Keep both in sync if
+ * this logic ever changes.
+ */
+function slugifyBusinessName(businessName: string): string {
+  return businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function generatePdcReferralTag(businessName: string, nationCode: string): string {
+  return `pdc-${slugifyBusinessName(businessName)}-${nationCode.toLowerCase()}`;
+}
+
+function appendUtmParams(url: string, referralTag: string): string {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}utm_source=pdc&utm_medium=directory&utm_campaign=${encodeURIComponent(referralTag)}`;
+}
+
 const ClaudeOutputSchema = z.object({
   provider_record: z.record(z.unknown()),
   detail_record: z.record(z.unknown()),
@@ -210,7 +240,10 @@ Rules:
 - Set data_confidence to 'provider_self_declared'
 - Set verification_status to 'pending'
 - Do not invent any field values not present in the form submission
-- Do not modify nation_code`;
+- Do not modify nation_code
+- Include booking_url, payment_url, booking_platform, pdc_referral_tag, facebook_url, instagram_url, and whatsapp_number in provider_record if provided
+- Never invent booking URLs, payment URLs, or social media handles not supplied by the provider
+- The booking_url will already have UTM parameters appended — do not modify it`;
 }
 
 type ClaudeFormattingResult = { ok: true; data: z.infer<typeof ClaudeOutputSchema> } | { ok: false; error: string };
@@ -324,9 +357,23 @@ export async function registerProvider(input: RegisterProviderInput): Promise<Re
     }
   }
 
-  // 4. Claude API formatting (P9 — output validated against a strict schema
+  // 4. Generate the referral tag and UTM-tagged booking link before the
+  // Claude call — the prompt tells Claude these are already final and not
+  // to invent or modify them, so it needs to see the final values to echo
+  // them back into provider_record. No booking_url_original column exists
+  // on tourism_providers (migration 20261028000001 didn't add one), so only
+  // the UTM-appended version is stored.
+  const pdcReferralTag = generatePdcReferralTag(formData.business_name, formData.nation_code);
+  const bookingUrlWithUtm = formData.booking_url ? appendUtmParams(formData.booking_url, pdcReferralTag) : undefined;
+  const formDataForClaude: Record<string, unknown> = {
+    ...formData,
+    pdc_referral_tag: pdcReferralTag,
+    ...(bookingUrlWithUtm !== undefined ? { booking_url: bookingUrlWithUtm } : {}),
+  };
+
+  // 5. Claude API formatting (P9 — output validated against a strict schema
   // before any of it is used; see runClaudeFormatting).
-  const formatted = await runClaudeFormatting(formData);
+  const formatted = await runClaudeFormatting(formDataForClaude);
   if (!formatted.ok) {
     return { success: false, error: formatted.error };
   }
@@ -351,6 +398,13 @@ export async function registerProvider(input: RegisterProviderInput): Promise<Re
     contact_email: formData.contact_email,
     contact_phone: formData.contact_phone ?? null,
     website_url: formData.website_url ?? null,
+    facebook_url: formData.facebook_url ?? null,
+    instagram_url: formData.instagram_url ?? null,
+    booking_url: bookingUrlWithUtm ?? null,
+    payment_url: formData.payment_url ?? null,
+    booking_platform: formData.booking_platform ?? null,
+    pdc_referral_tag: pdcReferralTag,
+    whatsapp_number: formData.whatsapp_number ?? null,
     provider_category: formData.provider_category,
     nation_code: formData.nation_code,
     town_or_area: formData.town_or_area ?? null,
@@ -368,7 +422,7 @@ export async function registerProvider(input: RegisterProviderInput): Promise<Re
     data_confidence: "provider_self_declared",
   };
 
-  // 5. Supabase write.
+  // 6. Supabase write.
   const { data: insertedProvider, error: providerInsertError } = await supabase
     .from("tourism_providers")
     .insert(providerRecord)
@@ -412,7 +466,7 @@ export async function registerProvider(input: RegisterProviderInput): Promise<Re
     }
   }
 
-  // 6. Resend notification — never let a send failure affect the result
+  // 7. Resend notification — never let a send failure affect the result
   // already committed above.
   await sendProviderRegistrationNotification({
     businessName: formData.business_name,
