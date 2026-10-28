@@ -59,6 +59,12 @@ export default async function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col bg-light-bg">
       <GlobalNav provider={null} />
+      <div
+        className="relative w-full h-[200px] md:h-[280px] bg-cover bg-center"
+        style={{ backgroundImage: "url('/proposals/img-hero.jpg')" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 to-black/70" />
+      </div>
       <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold text-navy mb-2">List Your Tourism Business</h1>
         <p className="text-sm text-gray-600 mb-8">
