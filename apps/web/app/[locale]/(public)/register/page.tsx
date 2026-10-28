@@ -72,6 +72,12 @@ export default async function RegisterPage() {
           platforms, and digital marketplaces query when searching for Pacific products and services. Tourism providers:
           register now. More industries opening soon.
         </p>
+        <p className="text-center text-gray-500 text-[0.9rem] mb-4">
+          Not sure if PDC is right for you?{" "}
+          <a href="/proposals/provider-explainer-2026.html" className="underline hover:text-navy">
+            Read how it works →
+          </a>
+        </p>
         <RegistrationStepper nations={nations} />
       </main>
       <GlobalFooter />
