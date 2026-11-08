@@ -25,6 +25,62 @@ const ALGORAND_TESTNET_CAIP2 = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOU
 const ALGORAND_NETWORK = process.env.NEXT_PUBLIC_ALGORAND_NETWORK === "testnet" ? "testnet" : "mainnet";
 const CAIP2_NETWORK = ALGORAND_NETWORK === "testnet" ? ALGORAND_TESTNET_CAIP2 : ALGORAND_MAINNET_CAIP2;
 
+/**
+ * Multi-chain expansion (2026-11-09, feature/multi-chain-adapter) — adds
+ * Base and Solana as *declared* supported payment chains alongside
+ * Algorand. Deliberately does not touch the 32-entry endpoints array
+ * below: every registered route still settles on Algorand only
+ * (pdc-x402-adapter's new verifyAndSettleBase/Solana schemes are not yet
+ * wired into any live route). This just lets Base/Solana-aware agent
+ * crawlers see what's coming, gated behind PDC_MULTICHAIN_ENABLED so it
+ * can be toggled without a redeploy.
+ */
+const MULTICHAIN_ENABLED = process.env.PDC_MULTICHAIN_ENABLED === "true";
+const BASE_MAINNET_CAIP2 = "eip155:8453";
+const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+
+interface SupportedChainEntry {
+  chain: string;
+  caip2: string;
+  currency: "USDC";
+  status: "primary" | "supported";
+  /** Never fabricated — null when the merchant wallet env var isn't set. */
+  merchant_address: string | null;
+}
+
+function buildSupportedChains(): SupportedChainEntry[] {
+  const chains: SupportedChainEntry[] = [
+    {
+      chain: `algorand-${ALGORAND_NETWORK}`,
+      caip2: CAIP2_NETWORK,
+      currency: "USDC",
+      status: "primary",
+      merchant_address: process.env.AVM_ADDRESS ?? null,
+    },
+  ];
+
+  if (MULTICHAIN_ENABLED) {
+    chains.push(
+      {
+        chain: "base-mainnet",
+        caip2: BASE_MAINNET_CAIP2,
+        currency: "USDC",
+        status: "supported",
+        merchant_address: process.env.PDC_BASE_MERCHANT_ADDRESS ?? null,
+      },
+      {
+        chain: "solana-mainnet",
+        caip2: SOLANA_MAINNET_CAIP2,
+        currency: "USDC",
+        status: "supported",
+        merchant_address: process.env.PDC_SOLANA_MERCHANT_ADDRESS ?? null,
+      },
+    );
+  }
+
+  return chains;
+}
+
 const DIRECTORY_API_URL = process.env.NEXT_PUBLIC_DIRECTORY_API_URL || "https://api.synergybcpacific.com";
 // 2026-10-18 — the Render fallback here (pdc-web.onrender.com) is confirmed
 // dead (CLAUDE.md Section 26.6, returns HTTP 503); apps/web is live on
@@ -790,6 +846,7 @@ export async function GET() {
       currency: "USDC",
       network: `algorand-${ALGORAND_NETWORK}`,
       caip2: CAIP2_NETWORK,
+      supported_chains: buildSupportedChains(),
       facilitator: "https://facilitator.goplausible.xyz",
       leaderboard_tag: "x402-global-challenge",
       contact: "anthony@synergybcpacific.com",

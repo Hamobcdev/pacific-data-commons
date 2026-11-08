@@ -2,7 +2,7 @@
   "name": "@pdc/x402-adapter",
   "version": "0.1.0",
   "private": true,
-  "description": "Internal adapter around @x402/* packages. Every PDC app talks to x402 through this module only — never import @x402/* directly elsewhere (CLAUDE.md P-stack rule, Section 17 and 18).",
+  "description": "Internal adapter around @x402/* packages and chain-verification libraries (viem, @solana/kit, algosdk). Every PDC app talks to payment chains through this module only — never import these directly elsewhere (CLAUDE.md P-stack rule, Section 17 and 18).",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +16,10 @@
     "@x402/avm": "^2.19.0",
     "@x402/core": "^2.19.0",
     "@x402/fetch": "^2.19.0",
-    "@x402/hono": "^2.19.0"
+    "@x402/hono": "^2.19.0",
+    "@solana/kit": "^8.6.0",
+    "algosdk": "^3.9.0",
+    "viem": "2.55.8"
   },
   "peerDependencies": {
     "hono": "^4.12.0"
