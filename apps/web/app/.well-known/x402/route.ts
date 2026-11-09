@@ -39,15 +39,34 @@ const MULTICHAIN_ENABLED = process.env.PDC_MULTICHAIN_ENABLED === "true";
 const BASE_MAINNET_CAIP2 = "eip155:8453";
 const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
 
+/** Circle's official USDC addresses — same values verified in PR #209. */
+const USDC_CONTRACT_BASE_MAINNET = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const USDC_MINT_SOLANA_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
 interface SupportedChainEntry {
   chain: string;
   caip2: string;
   currency: "USDC";
   status: "primary" | "supported";
-  /** Never fabricated — null when the merchant wallet env var isn't set. */
+  /** Never fabricated — null only for the Algorand entry, which stays
+   * unchanged from PR #209 and is never omitted even if unset. */
   merchant_address: string | null;
+  /** EVM token contract address (Base only). */
+  contract?: string;
+  /** SPL token mint address (Solana only). */
+  mint?: string;
 }
 
+/**
+ * 2026-11-09 (feature/multichain-manifest) — unlike the Algorand entry
+ * below (unchanged from PR #209, always included even with a null
+ * merchant_address), Base and Solana are each omitted entirely — with a
+ * console.warn, never a thrown error — when their merchant address env
+ * var isn't set. Matches buildEndpoints()'s own established "don't
+ * publish a chain/route we can't actually route to" posture elsewhere in
+ * this file, which PR #209's version of this function didn't yet follow
+ * for the two new chains.
+ */
 function buildSupportedChains(): SupportedChainEntry[] {
   const chains: SupportedChainEntry[] = [
     {
@@ -60,22 +79,39 @@ function buildSupportedChains(): SupportedChainEntry[] {
   ];
 
   if (MULTICHAIN_ENABLED) {
-    chains.push(
-      {
+    const baseMerchantAddress = process.env.PDC_BASE_MERCHANT_ADDRESS;
+    if (baseMerchantAddress) {
+      chains.push({
         chain: "base-mainnet",
         caip2: BASE_MAINNET_CAIP2,
         currency: "USDC",
         status: "supported",
-        merchant_address: process.env.PDC_BASE_MERCHANT_ADDRESS ?? null,
-      },
-      {
+        merchant_address: baseMerchantAddress,
+        contract: USDC_CONTRACT_BASE_MAINNET,
+      });
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "x402_wellknown_manifest: PDC_MULTICHAIN_ENABLED is true but PDC_BASE_MERCHANT_ADDRESS is not set — omitting Base from supported_chains",
+      );
+    }
+
+    const solanaMerchantAddress = process.env.PDC_SOLANA_MERCHANT_ADDRESS;
+    if (solanaMerchantAddress) {
+      chains.push({
         chain: "solana-mainnet",
         caip2: SOLANA_MAINNET_CAIP2,
         currency: "USDC",
         status: "supported",
-        merchant_address: process.env.PDC_SOLANA_MERCHANT_ADDRESS ?? null,
-      },
-    );
+        merchant_address: solanaMerchantAddress,
+        mint: USDC_MINT_SOLANA_MAINNET,
+      });
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "x402_wellknown_manifest: PDC_MULTICHAIN_ENABLED is true but PDC_SOLANA_MERCHANT_ADDRESS is not set — omitting Solana from supported_chains",
+      );
+    }
   }
 
   return chains;
