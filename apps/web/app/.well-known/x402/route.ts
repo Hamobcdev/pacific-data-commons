@@ -18,9 +18,18 @@ import { createServiceClient } from "@/lib/supabase/server";
  * pdc-x402-adapter, never @x402 directly" rule governs live payment code
  * paths — this file is a static discovery document, not one), and adding
  * that dependency for one constant isn't warranted.
+ *
+ * Short-form hashes (fix/x402-route-headers, 2026-11-09) — pdc-x402-adapter's
+ * @x402/avm pin moved 2.19.0 -> 2.30.0, which emits this shorter CAIP-2 id
+ * (every release from 2.20.0 onward does); this file's own copies must track
+ * whatever the adapter's pinned version actually constructs live challenges
+ * with, since they're hand-copied literals, not imported. Confirmed live:
+ * GoPlausible's facilitator (facilitator.goplausible.xyz/supported) already
+ * advertises both the old full-hash and this short form for Algorand
+ * mainnet/testnet.
  */
-const ALGORAND_MAINNET_CAIP2 = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=";
-const ALGORAND_TESTNET_CAIP2 = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=";
+const ALGORAND_MAINNET_CAIP2 = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73k";
+const ALGORAND_TESTNET_CAIP2 = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDe";
 
 // Same convention as lib/agents/algorand.ts: NEXT_PUBLIC_ALGORAND_NETWORK
 // already exists in apps/web for this exact purpose.

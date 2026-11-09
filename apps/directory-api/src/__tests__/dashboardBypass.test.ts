@@ -12,7 +12,12 @@ const TEST_KEY = "test-dashboard-key-value";
 // — the "network" value the real PdcPaymentGate registers with
 // x402ResourceServer and therefore the value a facilitator's /supported
 // response must echo back for x402ResourceServer.initialize() to accept it.
-const ALGORAND_MAINNET_CAIP2 = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=";
+// Short-form hash (fix/x402-route-headers, @x402/avm 2.19.0 -> 2.30.0) — every
+// @x402/avm release from 2.20.0 onward uses this form, not the full genesis
+// hash the previous value here held. GoPlausible's live facilitator already
+// advertises both forms for Algorand mainnet/testnet; this fixture must match
+// whichever form the installed @x402/avm actually constructs routes with.
+const ALGORAND_MAINNET_CAIP2 = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73k";
 
 /**
  * Non-bypassed requests in the tests below still reach the real, wrapped
