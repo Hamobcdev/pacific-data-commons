@@ -243,6 +243,32 @@ const ICON_URL = `${APP_URL}/images/sbp-logo.png`;
  * still adds, rather than taking down the whole discovery route external
  * crawlers poll.
  */
+
+/**
+ * 2026-11-09 — found via a live Supabase query (not visible from
+ * migrations alone): 3 active rows (crypto-history, pacific-ocean-
+ * forecast, fiji-gdp) have their path already baked into `endpoint_url`
+ * itself (e.g. ".../finance/crypto-history") and a `pricing_tiers[].path`
+ * of `null` — even though PricingTier types that field as a required
+ * `string`. Concatenating `${baseUrl}${tier.path}` for those rows would
+ * have published a broken URL ending in the literal string "null".
+ * Treats `tier.path` as untrusted at runtime regardless of its compile-
+ * time type: when present, builds the URL the normal way; when absent,
+ * uses endpoint_url as the full URL and derives `path` from it instead.
+ * Returns null (caller skips that one tier, not the whole endpoint) only
+ * if endpoint_url itself isn't a parseable absolute URL.
+ */
+function resolveManifestPathAndUrl(baseUrl: string, tierPath: string | null | undefined): { path: string; full_url: string } | null {
+  if (tierPath) {
+    return { path: tierPath, full_url: `${baseUrl}${tierPath}` };
+  }
+  try {
+    return { path: new URL(baseUrl).pathname, full_url: baseUrl };
+  } catch {
+    return null;
+  }
+}
+
 async function buildEndpoints(): Promise<ManifestEndpoint[]> {
   const manifestEndpoints: ManifestEndpoint[] = [];
 
@@ -277,9 +303,17 @@ async function buildEndpoints(): Promise<ManifestEndpoint[]> {
         }
 
         for (const tier of endpoint.pricing_tiers ?? []) {
+          const resolved = resolveManifestPathAndUrl(baseUrl, tier.path);
+          if (!resolved) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `x402_wellknown_manifest: endpoint ${endpoint.id} (${endpoint.title}) tier ${tier.tier} has no usable path and endpoint_url "${baseUrl}" isn't a valid absolute URL — omitting this tier`,
+            );
+            continue;
+          }
           manifestEndpoints.push({
-            path: tier.path,
-            full_url: `${baseUrl}${tier.path}`,
+            path: resolved.path,
+            full_url: resolved.full_url,
             price_usdc: tier.price_usdc.toString(),
             description: tier.description || endpoint.description,
             category: endpoint.data_category,
