@@ -310,6 +310,54 @@ export function discoveryFor(config: DiscoveryConfig) {
   return declareDiscoveryExtension(config).bazaar;
 }
 
+/**
+ * x402-merchant extension (fix/x402-route-headers) — fixed identity fields
+ * every paid route declares, so GoPlausible's dashboard shows "Pacific Data
+ * Commons" with a logo instead of a raw payTo address.
+ */
+export const PDC_MERCHANT_INFO = {
+  name: "Pacific Data Commons",
+  website: "https://pdc.synergybcpacific.com",
+  logo: "https://pdc.synergybcpacific.com/images/sbp-logo.png",
+} as const;
+
+/**
+ * Best-effort data_category tag for the x402-merchant extension's
+ * `categories` field. Unlike DB-driven provider endpoints (which carry a
+ * real `data_category` column), directory-api's own first-party routes
+ * have no category field to read — this derives one from each route's
+ * existing path convention instead of hand-annotating ~65 entries by hand.
+ * Falls back to "other" for anything ambiguous. This is merchant-listing
+ * metadata, not a trust/sensitivity classification.
+ */
+export function categorizeRoute(path: string): string[] {
+  if (path === "/search" || path.startsWith("/provider/") || path.startsWith("/endpoint/") || path.startsWith("/verify/")) {
+    return ["directory"];
+  }
+  if (path.startsWith("/invest/") || path.startsWith("/pacific/samoa-") || path.startsWith("/pacific/vanuatu-")) {
+    return ["governance"];
+  }
+  if (path.startsWith("/algorand/") || path.startsWith("/finance/")) {
+    return ["financial_flows"];
+  }
+  if (path.startsWith("/climate/") || path === "/pacific/weather") {
+    return ["climate"];
+  }
+  if (path.startsWith("/fisheries/")) {
+    return ["fisheries"];
+  }
+  if (path.startsWith("/demographics/")) {
+    return ["demographics"];
+  }
+  if (path === "/intelligence/pacific-brief") {
+    return ["research"];
+  }
+  if (path === "/intelligence/pacific-travel" || path === "/pacific/events" || path.startsWith("/tourism/")) {
+    return ["tourism"];
+  }
+  return ["other"];
+}
+
 export interface PaidRouteSpec {
   // Widened from "GET" only (Session 24 through the ENSO/crypto-rates/
   // arbitrage-signals routes above, which are all GET) to also allow

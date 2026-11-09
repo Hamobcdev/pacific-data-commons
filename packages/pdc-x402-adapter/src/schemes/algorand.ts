@@ -9,7 +9,11 @@
  * the repo (apps/directory-api, apps/pilot-endpoint, apps/agents,
  * apps/sbp-agent, apps/web) keep working without modification.
  *
- * Pinned to @x402/* 2.19.x — bump the pin here, once, when upgrading.
+ * Pinned to @x402/* 2.30.x (bumped 2026-11-09, fix/x402-route-headers —
+ * 2.19.x's ALGORAND_MAINNET_CAIP2/ALGORAND_TESTNET_CAIP2 used the full
+ * genesis hash; every @x402/avm release from 2.20.0 onward uses the
+ * short-form CAIP-2 id GoPlausible and the rest of the ecosystem expect).
+ * Bump the pin here, once, when upgrading again.
  */
 import { paymentMiddleware } from "@x402/hono";
 import {
@@ -20,7 +24,7 @@ import {
   type RoutesConfig,
 } from "@x402/core/server";
 import { x402Client } from "@x402/core/client";
-import { decodePaymentResponseHeader } from "@x402/core/http";
+import { decodePaymentResponseHeader, type PaymentOption } from "@x402/core/http";
 import { wrapFetchWithPayment } from "@x402/fetch";
 import type { Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedResponse, VerifyResponse } from "@x402/core/types";
 import {
@@ -124,6 +128,19 @@ export interface PdcPaidRouteSpec {
    * name x402-core expects.
    */
   extensions?: Record<string, unknown>;
+  /**
+   * Non-Algorand payment options to publish alongside the Algorand entry.
+   * @x402/core's RouteConfig.accepts natively supports PaymentOption |
+   * PaymentOption[] (confirmed from its own type defs) — addRoute() below
+   * always builds the Algorand PaymentOption itself; this lets a caller
+   * append other chains' options without this adapter needing to know
+   * anything about those chains. Deliberately unused by any call site yet
+   * (2026-11-09 fix/x402-route-headers) — cross-chain settlement through
+   * GoPlausible hasn't been verified, so no route passes this today.
+   */
+  additionalAccepts?: PaymentOption[];
+  /** -> RouteConfig.mimeType. Omitted entirely (library default) when unset. */
+  mimeType?: string;
 }
 
 /**
@@ -372,23 +389,25 @@ export class PdcPaymentGate {
   addRoute(spec: PdcPaidRouteSpec): void {
     const key = `${spec.method.toUpperCase()} ${spec.path}`;
     const identity = this.merchantIdentity;
-    this.routesConfig[key] = {
-      accepts: {
-        scheme: "exact",
-        payTo: spec.payToAddress ?? this.payToAddress,
-        // Decimal USDC amount — ExactAvmScheme.parsePrice converts this to the
-        // network's default asset (USDC) atomic amount for us.
-        price: spec.priceUsdc,
-        network: this.caip2Network,
-        extra: {
-          tag: COMPETITION_TAG,
-          ...(identity?.description ? { merchant_description: identity.description } : {}),
-          ...(identity?.url ? { merchant_url: identity.url } : {}),
-          ...spec.extra,
-        },
+    const algorandAccept: PaymentOption = {
+      scheme: "exact",
+      payTo: spec.payToAddress ?? this.payToAddress,
+      // Decimal USDC amount — ExactAvmScheme.parsePrice converts this to the
+      // network's default asset (USDC) atomic amount for us.
+      price: spec.priceUsdc,
+      network: this.caip2Network,
+      extra: {
+        tag: COMPETITION_TAG,
+        ...(identity?.description ? { merchant_description: identity.description } : {}),
+        ...(identity?.url ? { merchant_url: identity.url } : {}),
+        ...spec.extra,
       },
+    };
+    this.routesConfig[key] = {
+      accepts: spec.additionalAccepts?.length ? [algorandAccept, ...spec.additionalAccepts] : algorandAccept,
       resource: spec.resource,
       description: spec.description,
+      ...(spec.mimeType ? { mimeType: spec.mimeType } : {}),
       ...(identity?.serviceName ? { serviceName: identity.serviceName } : {}),
       ...(identity?.iconUrl ? { iconUrl: identity.iconUrl } : {}),
       ...(identity?.tags ? { tags: identity.tags } : {}),

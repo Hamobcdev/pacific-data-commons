@@ -1,7 +1,8 @@
 import { Hono, type Context } from "hono";
 import { PdcPaymentGate, installBazaarAjvWorkersLogFilter } from "@pdc/x402-adapter";
 import { logger } from "./lib/logger.js";
-import { paidRoutes } from "./routeSchemas.js";
+import { paidRoutes, categorizeRoute, PDC_MERCHANT_INFO } from "./routeSchemas.js";
+import { declarePaymentIdentifierExtension } from "@x402-avm/extensions/payment-identifier";
 import type { Env } from "./lib/env.js";
 import { createSupabaseClient } from "./lib/supabase.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -191,7 +192,15 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   // for why (routeSchemas.test.ts calls ajv.compile() on every route's
   // discovery.schema directly in Node at test time).
   for (const route of paidRoutes) {
-    paymentGate.addRoute({
+    // x402-merchant + payment-identifier (fix/x402-route-headers) — declared
+    // on every paid route alongside the existing bazaar extension, so
+    // GoPlausible's dashboard shows "Pacific Data Commons" with a logo
+    // instead of a raw payTo address, and clients retrying a dropped
+    // connection can supply an idempotency key. declarePaymentIdentifierExtension()
+    // comes from @x402-avm/extensions (already a directory-api dependency,
+    // GoPlausible's own fork — not the generic @x402/extensions package,
+    // which isn't installed here).
+    const routeConfig = {
       method: route.method,
       path: route.path,
       priceUsdc: route.priceUsdc ?? DIRECTORY_QUERY_PRICE_USDC,
@@ -201,9 +210,27 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
       // file's matching comment for how this was confirmed live against
       // the facilitator.
       resource: `${env.PUBLIC_URL}${route.path}`,
+      mimeType: "application/json",
       ...(route.payToAddress ? { payToAddress: route.payToAddress } : {}),
-      ...(route.discovery ? { extensions: { bazaar: route.discovery } } : {}),
-    });
+      extensions: {
+        ...(route.discovery ? { bazaar: route.discovery } : {}),
+        "x402-merchant": { info: { ...PDC_MERCHANT_INFO, categories: categorizeRoute(route.path) } },
+        "payment-identifier": declarePaymentIdentifierExtension(),
+      },
+    };
+    paymentGate.addRoute(routeConfig);
+
+    // HEAD workaround (x402-foundation/x402#3796, fix/x402-route-headers) —
+    // @x402/hono keys its route table by exact "METHOD path", so a HEAD
+    // request against a registered GET route never matches and falls
+    // through ungated, answering 200 with no payment check once Hono's own
+    // router auto-handles HEAD from the GET handler. Registering the same
+    // RouteConfig under a second "HEAD path" key closes that gap without
+    // touching the adapter — addRoute() already accepts an arbitrary
+    // method string.
+    if (route.method === "GET") {
+      paymentGate.addRoute({ ...routeConfig, method: "HEAD" });
+    }
   }
 
   paymentGate.onSettled(async (payment) => {
