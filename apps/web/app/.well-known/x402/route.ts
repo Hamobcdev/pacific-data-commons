@@ -35,10 +35,9 @@ const CAIP2_NETWORK = ALGORAND_NETWORK === "testnet" ? ALGORAND_TESTNET_CAIP2 : 
  * registered route still settles on Algorand only (pdc-x402-adapter's new
  * verifyAndSettleBase/Solana schemes are not yet wired into any live
  * route). This just lets Base/Solana-aware agent crawlers see what's
- * coming, gated behind PDC_MULTICHAIN_ENABLED so it can be toggled
- * without a redeploy.
+ * coming, gated behind PDC_MULTICHAIN_ENABLED. Read inside GET() below
+ * (not at module scope) — see the comment there.
  */
-const MULTICHAIN_ENABLED = process.env.PDC_MULTICHAIN_ENABLED === "true";
 const BASE_MAINNET_CAIP2 = "eip155:8453";
 const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
 
@@ -70,7 +69,7 @@ interface SupportedChainEntry {
  * this file, which PR #209's version of this function didn't yet follow
  * for the two new chains.
  */
-function buildSupportedChains(): SupportedChainEntry[] {
+function buildSupportedChains(multichainEnabled: boolean): SupportedChainEntry[] {
   const chains: SupportedChainEntry[] = [
     {
       chain: `algorand-${ALGORAND_NETWORK}`,
@@ -81,7 +80,7 @@ function buildSupportedChains(): SupportedChainEntry[] {
     },
   ];
 
-  if (MULTICHAIN_ENABLED) {
+  if (multichainEnabled) {
     const baseMerchantAddress = process.env.PDC_BASE_MERCHANT_ADDRESS;
     if (baseMerchantAddress) {
       chains.push({
@@ -389,6 +388,8 @@ function buildAgentCatalogue() {
 }
 
 export async function GET() {
+  // Evaluated per-request — env var change takes effect without redeploy
+  const MULTICHAIN_ENABLED = process.env.PDC_MULTICHAIN_ENABLED === "true";
   const endpoints = await buildEndpoints();
 
   return NextResponse.json(
@@ -402,7 +403,7 @@ export async function GET() {
       currency: "USDC",
       network: `algorand-${ALGORAND_NETWORK}`,
       caip2: CAIP2_NETWORK,
-      supported_chains: buildSupportedChains(),
+      supported_chains: buildSupportedChains(MULTICHAIN_ENABLED),
       facilitator: "https://facilitator.goplausible.xyz",
       leaderboard_tag: "x402-global-challenge",
       contact: "anthony@synergybcpacific.com",
