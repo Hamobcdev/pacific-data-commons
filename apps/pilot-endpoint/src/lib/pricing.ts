@@ -8,7 +8,7 @@
 export const TIER_PRICING = {
   summary: 0.01,
   slice: 0.5,
-  full: 25.0,
+  full: 5.0,
   expert: 200.0,
   commission: 1000.0,
 } as const;

@@ -17,7 +17,7 @@ import type { AppBindings } from "../../types.js";
 //
 // Pacific Tourism Data Framework — Phase A Decision Register (see
 // supabase/migrations/20261026000001_pacific_tourism_schema.sql).
-export const TOURISM_DESTINATION_PRICE_USDC = 0.1;
+export const TOURISM_DESTINATION_PRICE_USDC = 0.05;
 
 export const tourismDestinationRoute = new Hono<AppBindings>();
 

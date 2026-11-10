@@ -58,16 +58,16 @@ describe("routeSchemas: Agent Dataset Gateway per-dataset pricing", () => {
     return paidRoutes.find((r) => r.method === "POST" && r.path === `/api/v1/datasets/${datasetId}/query`);
   }
 
-  it("charges pacific-sea-level's own $0.15, not a flat $0.01", () => {
+  it("charges pacific-sea-level's own $0.05 (reprice/november-2026), not a flat $0.01", () => {
     const route = gatewayRouteFor("pacific-sea-level");
     expect(route).toBeDefined();
-    expect(route?.priceUsdc).toBe(0.15);
+    expect(route?.priceUsdc).toBe(0.05);
   });
 
-  it("charges samoa-cpi's own $0.20 (2026-10-18 pricing uplift, was $0.01)", () => {
+  it("charges samoa-cpi's own $0.01 (reprice/november-2026 volume strategy)", () => {
     const route = gatewayRouteFor("samoa-cpi");
     expect(route).toBeDefined();
-    expect(route?.priceUsdc).toBe(0.2);
+    expect(route?.priceUsdc).toBe(0.01);
   });
 
   it("registers exactly one POST /api/v1/datasets/:id/query entry per cataloged dataset — no flat shared-price entry survives", () => {

@@ -8,7 +8,7 @@ import type { AppBindings } from "../../types.js";
 // x402-gated in routeSchemas.ts — never call @x402 packages directly from
 // here. Premium tier: highest-value endpoint, joins across multiple
 // tables in one call, per the Phase B build brief.
-export const TOURISM_SEARCH_PRICE_USDC = 1.0;
+export const TOURISM_SEARCH_PRICE_USDC = 0.25;
 
 export const tourismSearchRoute = new Hono<AppBindings>();
 

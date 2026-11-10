@@ -8,8 +8,8 @@ import type { AppBindings } from "../../types.js";
 // x402-gated in routeSchemas.ts — never call @x402 packages directly from
 // here. Standard events lookup is Tier 1; the seasonal Christmas endpoint
 // is priced higher for high Q4 agent demand, per the Phase B build brief.
-export const TOURISM_EVENTS_PRICE_USDC = 0.1;
-export const TOURISM_EVENTS_CHRISTMAS_PRICE_USDC = 0.25;
+export const TOURISM_EVENTS_PRICE_USDC = 0.05;
+export const TOURISM_EVENTS_CHRISTMAS_PRICE_USDC = 0.10;
 
 export const tourismEventsRoute = new Hono<AppBindings>();
 

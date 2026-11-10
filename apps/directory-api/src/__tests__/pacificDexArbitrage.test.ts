@@ -754,7 +754,7 @@ describe("routeSchemas: /finance/arbitrage-signals payment gate", () => {
   it("is registered as a paid route with the expected Tier 2 price", () => {
     const route = paidRoutes.find((r) => r.path === "/finance/arbitrage-signals" && r.method === "GET");
     expect(route).toBeDefined();
-    expect(route?.priceUsdc).toBe(0.4); // 2026-10-18 pricing uplift, was 0.05
+    expect(route?.priceUsdc).toBe(0.1); // reprice/november-2026 volume strategy, was 0.4 (2026-10-18 uplift, originally 0.05)
     // 2026-10-13 wallet consolidation: payToAddress now resolves from
     // process.env.AVM_ADDRESS (env-dependent), same posture as
     // /finance/crypto-rates and /climate/pacific-ocean-temp — no longer a

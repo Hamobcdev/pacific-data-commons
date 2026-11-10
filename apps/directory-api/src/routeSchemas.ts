@@ -42,7 +42,7 @@ const WALLET_BALANCE_PRICE_USDC = 0.1;
 // multiple times per day, not once), so low friction per call mattered
 // more than per-call revenue for generating leaderboard transaction count.
 // 2026-10-18 pricing uplift — raised to $0.10.
-const FX_PRICE_USDC = 0.1;
+const FX_PRICE_USDC = 0.01;
 
 // Session 31 — Pacific Intelligence Orchestrator. Originally priced well
 // above its own ~$0.016 in sub-endpoint payments (fisheries $0.01 + fx
@@ -94,7 +94,7 @@ const PACIFIC_TRAVEL_PRICE_USDC = 0.5;
 // (lib/agentDatasetCatalog.ts, routes/agentDatasetGateway.ts) reuses this
 // exact value as its own paidRoutes entry's priceUsdc below, so the
 // gateway's pass-through price can never drift from this route's price.
-export const SAMOA_CPI_PRICE_USDC = 0.2;
+export const SAMOA_CPI_PRICE_USDC = 0.01;
 
 // Decision 59/60 — same Tier 1 cap, first-party wrappers over genuinely
 // open (no-auth, free) aggregator APIs: World Bank Open Data (GDP,
@@ -104,9 +104,9 @@ export const SAMOA_CPI_PRICE_USDC = 0.2;
 // / spcPacificCpiService.ts for the full sourcing doc comments. Were $0.01.
 // 2026-10-18 pricing uplift — raised to $0.20, matching SAMOA_CPI_PRICE_USDC
 // above.
-const PACIFIC_GDP_PRICE_USDC = 0.2;
-const PACIFIC_POPULATION_PRICE_USDC = 0.2;
-const PACIFIC_CPI_PRICE_USDC = 0.2;
+const PACIFIC_GDP_PRICE_USDC = 0.01;
+const PACIFIC_POPULATION_PRICE_USDC = 0.01;
+const PACIFIC_CPI_PRICE_USDC = 0.01;
 
 // Decision 63 — Samoa Jurisdiction Intelligence tier. These are SBP-curated
 // regulatory intelligence endpoints (research, structuring, and maintenance
@@ -114,32 +114,32 @@ const PACIFIC_CPI_PRICE_USDC = 0.2;
 // that cap applies only to first-party wrappers over a genuinely open
 // external source, which this is not. Four distinct prices per endpoint
 // complexity, confirmed under Decision 63.
-const SAMOA_COMPLIANCE_STATUS_PRICE_USDC = 1.00;
-const SAMOA_SERVICE_PROVIDERS_PRICE_USDC = 1.50;
-const SAMOA_ENTITY_SETUP_PRICE_USDC = 3.00;
-const SAMOA_BANKING_SETUP_PRICE_USDC = 5.00;
+const SAMOA_COMPLIANCE_STATUS_PRICE_USDC = 0.50;
+const SAMOA_SERVICE_PROVIDERS_PRICE_USDC = 0.50;
+const SAMOA_ENTITY_SETUP_PRICE_USDC = 1.00;
+const SAMOA_BANKING_SETUP_PRICE_USDC = 1.00;
 
 // Vanuatu Jurisdiction Intelligence — SBP-curated regulatory intelligence,
 // same posture as the Samoa prices above (Decision 60's $0.01 open-data cap
 // does not apply). Prices per PDC-POL-2026-001. vanuatu-banking-setup is
 // deliberately not priced here — on hold pending RBV source verification.
-const VANUATU_IBC_SETUP_PRICE_USDC = 1.30;
-const VANUATU_IBC_COMPLIANCE_PRICE_USDC = 0.60;
-const VANUATU_VFSC_LICENSES_PRICE_USDC = 1.00;
-const VANUATU_REGISTERED_AGENTS_PRICE_USDC = 0.60;
-const VANUATU_CITIZENSHIP_INVESTMENT_PRICE_USDC = 1.30;
+const VANUATU_IBC_SETUP_PRICE_USDC = 1.00;
+const VANUATU_IBC_COMPLIANCE_PRICE_USDC = 0.50;
+const VANUATU_VFSC_LICENSES_PRICE_USDC = 0.50;
+const VANUATU_REGISTERED_AGENTS_PRICE_USDC = 0.50;
+const VANUATU_CITIZENSHIP_INVESTMENT_PRICE_USDC = 1.00;
 
 // Pacific Investment Intelligence suite — 6 synthesis endpoints.
 // Decision 23 Bronze ceiling ($0.50 max) applies. Decision 60 does NOT apply —
 // these are SBP proprietary synthesis (multi-source regulatory data aggregated
 // from 6 national authorities), not raw wrappers of a single no-auth free API.
 // Decision 59: PDC is first-party publisher of its own aggregation layer.
-const PACIFIC_SETUP_COMPARISON_PRICE_USDC = 0.50;  // flagship — 6-nation comparison
-const PACIFIC_TAX_COMPARISON_PRICE_USDC   = 0.30;  // tax rates across all nations
-const PACIFIC_LAND_TENURE_PRICE_USDC      = 0.30;  // land tenure systems
-const PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC = 0.40; // by-sector restriction matrix
-const PACIFIC_REGULATORY_SCORES_PRICE_USDC = 0.50; // proprietary SBP scoring model
-const PACIFIC_SETUP_CHECKLIST_PRICE_USDC  = 0.50;  // per-nation step-by-step checklist
+const PACIFIC_SETUP_COMPARISON_PRICE_USDC = 0.25;  // flagship — 6-nation comparison
+const PACIFIC_TAX_COMPARISON_PRICE_USDC   = 0.25;  // tax rates across all nations
+const PACIFIC_LAND_TENURE_PRICE_USDC      = 0.25;  // land tenure systems
+const PACIFIC_SECTOR_RESTRICTIONS_PRICE_USDC = 0.25; // by-sector restriction matrix
+const PACIFIC_REGULATORY_SCORES_PRICE_USDC = 0.25; // proprietary SBP scoring model
+const PACIFIC_SETUP_CHECKLIST_PRICE_USDC  = 0.25;  // per-nation step-by-step checklist
 
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC directly above — Tier
 // 1 capped, first-party wrapper over a genuinely open (no-auth) external
@@ -147,7 +147,7 @@ const PACIFIC_SETUP_CHECKLIST_PRICE_USDC  = 0.50;  // per-nation step-by-step ch
 // confirmation that Open-Meteo Marine needs no key for non-commercial use).
 // Was $0.01.
 // 2026-10-18 pricing uplift — raised to $0.15.
-const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.15;
+const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.05;
 
 // Decision 42 — governance/research endpoint over an openly-accessible
 // government report (Samoa Bureau of Statistics' own published GDP
@@ -158,21 +158,21 @@ const CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC = 0.15;
 // value as SAMOA_CPI_PRICE_USDC at the time.
 // 2026-10-18 pricing uplift — raised to $0.20, still matching
 // SAMOA_CPI_PRICE_USDC above.
-const SAMOA_GDP_PRICE_USDC = 0.2;
+const SAMOA_GDP_PRICE_USDC = 0.01;
 
 // Same Decision 42 reasoning as SAMOA_GDP_PRICE_USDC directly above —
 // governance/research endpoint over an openly-accessible government
 // report (Fiji Bureau of Statistics' own published GDP rebase release),
 // Tier 1 capped, underlying document never paywalled. Was $0.01.
 // 2026-10-18 pricing uplift — raised to $0.20.
-const FIJI_GDP_PRICE_USDC = 0.2;
+const FIJI_GDP_PRICE_USDC = 0.01;
 
 // Same Decision 42 reasoning as FIJI_GDP_PRICE_USDC/SAMOA_GDP_PRICE_USDC
 // above — governance/research endpoint over openly-accessible government
 // releases (Fiji Bureau of Statistics' own monthly CPI press releases),
 // Tier 1 capped, underlying releases never paywalled. Was $0.01.
 // 2026-10-18 pricing uplift — raised to $0.20.
-const FIJI_CPI_PRICE_USDC = 0.2;
+const FIJI_CPI_PRICE_USDC = 0.01;
 
 // Same Decision 60 reasoning as SAMOA_CPI_PRICE_USDC/CLIMATE_OCEAN_TEMPERATURE_PRICE_USDC
 // above — Tier 1 capped, first-party wrapper over a genuinely open (no-auth)
@@ -208,7 +208,7 @@ const PACIFIC_PURSE_SEINE_PAYTO = process.env.AVM_ADDRESS ?? "";
 // regional-mean computation per request, not a single-value lookup.
 // Was $0.05.
 // 2026-10-18 pricing uplift — raised to $0.20.
-const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.2;
+const PACIFIC_OCEAN_FORECAST_PRICE_USDC = 0.05;
 
 const PACIFIC_OCEAN_FORECAST_PAYTO = process.env.AVM_ADDRESS ?? "";
 
@@ -229,7 +229,7 @@ const PACIFIC_CORAL_BLEACHING_PAYTO = process.env.AVM_ADDRESS ?? "";
 // $0.50-$5.00/location; $0.05 was the early-adopter floor pending
 // institutional buyer validation, flagged to raise on next pricing review.
 // 2026-10-18 pricing uplift — that review: raised to $0.30.
-const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.3;
+const PACIFIC_CYCLONE_HISTORY_PRICE_USDC = 0.05;
 const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Priced above the other static-bundle first-party rows ($0.05) per this
@@ -237,13 +237,13 @@ const PACIFIC_CYCLONE_HISTORY_PAYTO = process.env.AVM_ADDRESS ?? "";
 // multi-source (two UHSLC datasets reconciled per station, see
 // scripts/preprocess-sea-level.mjs) monthly aggregate, not a single-value
 // lookup.
-const PACIFIC_SEA_LEVEL_PRICE_USDC = 0.15;
+const PACIFIC_SEA_LEVEL_PRICE_USDC = 0.05;
 const PACIFIC_SEA_LEVEL_PAYTO = process.env.AVM_ADDRESS ?? "";
 // NOAA PSL MEI.v2 static bundle — same tier/payTo reasoning as
 // PACIFIC_CYCLONE_HISTORY_PRICE_USDC directly above: static reference data,
 // no live upstream refetch. Was $0.05 (same early-adopter floor).
 // 2026-10-18 pricing uplift — raised to $0.25.
-const PACIFIC_ENSO_INDEX_PRICE_USDC = 0.25;
+const PACIFIC_ENSO_INDEX_PRICE_USDC = 0.05;
 const PACIFIC_ENSO_INDEX_PAYTO = process.env.AVM_ADDRESS ?? "";
 
 // Decision 59/60 first-party wrapper over CoinGecko's openly-accessible
@@ -271,7 +271,7 @@ const PACIFIC_CRYPTO_RATES_PAYTO = process.env.AVM_ADDRESS;
 // 2026-10-18 pricing uplift — raised to $0.15 (priced slightly above the
 // plain current-price lookup, same "windowed series costs a bit more"
 // reasoning as elsewhere in this file).
-const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.15;
+const PACIFIC_CRYPTO_HISTORY_PRICE_USDC = 0.10;
 const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.AVM_ADDRESS;
 
 // Decision 59/60 first-party wrapper over GeckoTerminal/Tinyman/Pact's
@@ -282,7 +282,7 @@ const PACIFIC_CRYPTO_HISTORY_PAYTO = process.env.AVM_ADDRESS;
 // same reasoning as the other Tier 2 first-party endpoints above.
 // Was $0.05.
 // 2026-10-18 pricing uplift — raised to $0.40, matching PACIFIC_PURSE_SEINE_PRICE_USDC.
-const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.4;
+const PACIFIC_DEX_ARBITRAGE_PRICE_USDC = 0.10;
 
 const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
@@ -294,7 +294,7 @@ const PACIFIC_DEX_ARBITRAGE_PAYTO = process.env.AVM_ADDRESS ?? "";
 // lightweight fetch, same tier as this codebase's other Tier 1 first-party
 // rows. Was $0.01.
 // 2026-10-18 pricing uplift — raised to $0.25.
-const PACIFIC_REMITTANCE_PRICE_USDC = 0.25;
+const PACIFIC_REMITTANCE_PRICE_USDC = 0.10;
 
 const PACIFIC_REMITTANCE_PAYTO = process.env.AVM_ADDRESS ?? "";
 
@@ -398,11 +398,19 @@ export interface PaidRouteSpec {
 // $0.01 for any future route that omits priceUsdc.
 const DIRECTORY_METADATA_PRICE_USDC = 0.1;
 
+// reprice/november-2026 — isolated from DIRECTORY_METADATA_PRICE_USDC
+// deliberately: /search is going to $0.001 as part of the volume-first
+// strategy, but /provider/:id, /endpoint/:id, /verify/:certHash share
+// that constant and are staying at $0.10. Giving /search its own
+// constant means those three are untouched by construction, not by
+// convention.
+const SEARCH_PRICE_USDC = 0.001;
+
 const paidRoutesBase: PaidRouteSpec[] = [
   {
     method: "GET",
     path: "/search",
-    priceUsdc: DIRECTORY_METADATA_PRICE_USDC,
+    priceUsdc: SEARCH_PRICE_USDC,
     humanDeliverable: false,
     description: "Search Pacific data endpoints by category, country, price, keywords",
     discovery: discoveryFor({
