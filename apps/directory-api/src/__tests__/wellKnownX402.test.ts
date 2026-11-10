@@ -77,7 +77,7 @@ describe("GET /.well-known/x402", () => {
     expect(cpiEndpoint?.pay_to).not.toBe(TEST_AVM_ADDRESS);
 
     const seaLevelEndpoint = body.endpoints.find((e) => e.path === "/climate/pacific-sea-level");
-    expect(seaLevelEndpoint?.price_usdc).toBe("0.15"); // sourced from paidRoutes, not a flat default
+    expect(seaLevelEndpoint?.price_usdc).toBe("0.05"); // sourced from paidRoutes, not a flat default (reprice/november-2026, was 0.15)
 
     expect(body.agents.marketplace_url).toBe("https://pdc.synergybcpacific.com/en/agents");
     expect(body.agents.catalogue.length).toBe(7);

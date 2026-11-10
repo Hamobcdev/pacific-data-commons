@@ -9,9 +9,9 @@ import type { AppBindings } from "../../types.js";
 // here. Three distinct prices in this one file per the Phase B build
 // brief: standard activities (Tier 2), dive sites (Tier 3), cultural
 // activities (Tier 2).
-export const TOURISM_ACTIVITIES_PRICE_USDC = 0.25;
-export const TOURISM_DIVE_PRICE_USDC = 0.5;
-export const TOURISM_CULTURAL_PRICE_USDC = 0.25;
+export const TOURISM_ACTIVITIES_PRICE_USDC = 0.10;
+export const TOURISM_DIVE_PRICE_USDC = 0.25;
+export const TOURISM_CULTURAL_PRICE_USDC = 0.10;
 
 // Rule 9 — NOAA reef coordinate join is approximate matching only, never
 // exact equality. This hint is handed to consumers (agents) rather than

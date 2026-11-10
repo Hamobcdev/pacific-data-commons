@@ -7,7 +7,7 @@ import type { AppBindings } from "../../types.js";
 //
 // x402-gated in routeSchemas.ts — never call @x402 packages directly from
 // here. Tier 1 per the Phase B build brief.
-export const TOURISM_TRANSPORT_PRICE_USDC = 0.1;
+export const TOURISM_TRANSPORT_PRICE_USDC = 0.05;
 
 export const tourismTransportRoute = new Hono<AppBindings>();
 

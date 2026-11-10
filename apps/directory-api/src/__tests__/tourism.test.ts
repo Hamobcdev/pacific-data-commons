@@ -93,7 +93,7 @@ describe("GET /tourism/weddings/:nation_code", () => {
 
     expect(body.meta.endpoint).toBe("/tourism/weddings/{nation_code}");
     expect(body.meta.nation_code).toBe("FJ");
-    expect(body.meta.price_usdc).toBe(0.25);
+    expect(body.meta.price_usdc).toBe(0.1); // reprice/november-2026 volume strategy, was 0.25
     expect(body.meta.data_confidence).toBe("curated_unverified");
     expect(body.meta.last_verified).toBe("2026-10-26");
     expect(() => new Date(body.meta.timestamp).toISOString()).not.toThrow();
