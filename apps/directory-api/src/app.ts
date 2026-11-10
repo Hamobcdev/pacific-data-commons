@@ -8,6 +8,7 @@ import { createSupabaseClient } from "./lib/supabase.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { rateLimit } from "./middleware/rateLimit.js";
 import { withDashboardBypass } from "./middleware/dashboardBypass.js";
+import { preGateRequiredParamValidation } from "./middleware/preGateRequiredParams.js";
 import { logSettledDirectoryQuery } from "./services/directoryPaymentLogger.js";
 import { healthRoute } from "./routes/health.js";
 import { brandingRoute } from "./routes/branding.js";
@@ -273,6 +274,17 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   // no-op for an unregistered path at request time.
   app.route("/", paymentRoutes);
   app.route("/", internalDataFetchRoute);
+
+  // Pre-gate required-query-param check (fix/pregate-param-validation) —
+  // must run BEFORE the payment gate below. The gate is mounted globally
+  // and fires before any app.route() handler is dispatched, so a route
+  // with a required param that's only validated inside its own handler
+  // never gets a chance to 400 — the gate answers a 402 with no
+  // Payment-Required header first, which an x402 agent can't act on. See
+  // middleware/preGateRequiredParams.ts's doc comment for the full
+  // root-cause writeup (Frits Zwager / Fizzl x402 Doctor bug report,
+  // 10 Nov 2026) and the 7 routes this covers.
+  app.use("*", preGateRequiredParamValidation());
 
   // Payment gate is mounted globally but only intercepts the paths
   // registered via addRoute() above — everything else passes through.
