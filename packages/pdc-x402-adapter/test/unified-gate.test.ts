@@ -117,6 +117,47 @@ describe("PdcUnifiedPaymentGate", () => {
     expect(typeof gate.middleware()).toBe("function");
   });
 
+  it("GoPlausible handles Algorand alone when Base/Solana are disabled — startup log reports goplausible-scoped, both chains disabled", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    new PdcUnifiedPaymentGate(BASE_CONFIG);
+    const call = infoSpy.mock.calls.find(([event]) => event === "unified_gate_initialized");
+    expect(call?.[1]).toMatchObject({
+      baseActive: false,
+      solanaActive: false,
+      facilitators: { algorand: "goplausible-scoped", base: "disabled", solana: "disabled" },
+    });
+    infoSpy.mockRestore();
+  });
+
+  it("GoPlausible primary for Base, PayAI fallback wired correctly when payaiFacilitatorUrl is configured", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    new PdcUnifiedPaymentGate(ALL_CHAINS_CONFIG);
+    const call = infoSpy.mock.calls.find(([event]) => event === "unified_gate_initialized");
+    expect(call?.[1]).toMatchObject({
+      baseActive: true,
+      solanaActive: true,
+      facilitators: {
+        algorand: "goplausible-scoped",
+        base: "goplausible-primary/payai-fallback",
+        solana: "goplausible-primary/payai-fallback",
+      },
+    });
+    infoSpy.mockRestore();
+  });
+
+  it("Base/Solana run goplausible-only when enabled but payaiFacilitatorUrl is omitted", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const { payaiFacilitatorUrl, ...configWithoutPayai } = ALL_CHAINS_CONFIG;
+    new PdcUnifiedPaymentGate(configWithoutPayai);
+    const call = infoSpy.mock.calls.find(([event]) => event === "unified_gate_initialized");
+    expect(call?.[1]).toMatchObject({
+      baseActive: true,
+      solanaActive: true,
+      facilitators: { base: "goplausible-only", solana: "goplausible-only" },
+    });
+    infoSpy.mockRestore();
+  });
+
   describe("402 challenge contents", () => {
     it("with only Algorand enabled, the 402 challenge's accepts[] has exactly one entry (Algorand) — same shape PdcPaymentGate alone would produce", async () => {
       const gate = new PdcUnifiedPaymentGate(BASE_CONFIG);

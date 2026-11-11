@@ -51,8 +51,8 @@ describe("PdcPaymentGate — facilitator timeout (regression: 2026-10-03 product
     const app = buildTestApp();
     const resPromise = app.request("/paid");
 
-    // FACILITATOR_TIMEOUT_MS (8000ms, packages/pdc-x402-adapter/src/index.ts)
-    await vi.advanceTimersByTimeAsync(8001);
+    // FACILITATOR_TIMEOUT_MS (15000ms as of 2026-11-12, packages/pdc-x402-adapter/src/schemes/gate-shared.ts)
+    await vi.advanceTimersByTimeAsync(15001);
 
     const res = await resPromise;
     expect(res.status).toBe(503);
@@ -62,14 +62,14 @@ describe("PdcPaymentGate — facilitator timeout (regression: 2026-10-03 product
     expect(body).toEqual({ error: "payment_facilitator_unavailable", retry_after: 10 });
   });
 
-  it("still resolves via the facilitator-specific 503 at 8s, not the outer 12s deadline, when the hang is a facilitator fetch", async () => {
+  it("still resolves via the facilitator-specific 503 at 15s, not the outer 30s deadline, when the hang is a facilitator fetch", async () => {
     // Regression guard for the new outer deadline (below): a hang mediated
     // by the facilitator client must still surface as the more specific
     // payment_facilitator_unavailable error at FACILITATOR_TIMEOUT_MS
-    // (8000ms), not be swallowed by PAYMENT_GATE_TIMEOUT_MS (12000ms) firing
-    // first. Since 8000 < 12000, the inner race always wins — this just
-    // pins that ordering so a future change to either constant can't
-    // silently invert it.
+    // (15000ms as of 2026-11-12), not be swallowed by PAYMENT_GATE_TIMEOUT_MS
+    // (30000ms) firing first. Since 15000 < 30000, the inner race always
+    // wins — this just pins that ordering so a future change to either
+    // constant can't silently invert it.
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise(() => {})),
@@ -78,7 +78,7 @@ describe("PdcPaymentGate — facilitator timeout (regression: 2026-10-03 product
     const app = buildTestApp();
     const resPromise = app.request("/paid");
 
-    await vi.advanceTimersByTimeAsync(8001);
+    await vi.advanceTimersByTimeAsync(15001);
 
     const res = await resPromise;
     expect(res.status).toBe(503);
@@ -143,10 +143,11 @@ describe("PdcPaymentGate — outer payment-gate deadline (confirmed root cause, 
     // but this isolates PdcPaymentGate.middleware()'s own composition: it
     // must still answer within PAYMENT_GATE_TIMEOUT_MS even in a world
     // where (hypothetically) the inner FacilitatorTimeoutError path did not
-    // exist. Exercised by advancing straight past the outer deadline in one
-    // jump rather than stopping at 8s, so whichever race arm wins, the
-    // caller is guaranteed a 503 within 12s — the property this test is
-    // actually pinning down.
+    // exist. Exercised by advancing straight past the REAL outer deadline
+    // (PAYMENT_GATE_TIMEOUT_MS, 30000ms — gate-shared.ts) in one jump rather
+    // than stopping at the facilitator-specific timeout, so whichever race
+    // arm wins, the caller is guaranteed a 503 within 30s — the property
+    // this test is actually pinning down.
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise(() => {})),
@@ -155,7 +156,7 @@ describe("PdcPaymentGate — outer payment-gate deadline (confirmed root cause, 
     const app = buildTestApp();
     const resPromise = app.request("/paid");
 
-    await vi.advanceTimersByTimeAsync(12001);
+    await vi.advanceTimersByTimeAsync(30001);
 
     const res = await resPromise;
     expect(res.status).toBe(503);

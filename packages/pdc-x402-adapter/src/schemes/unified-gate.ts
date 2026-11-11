@@ -24,18 +24,39 @@
  * 1. x402ResourceServer accepts `FacilitatorClient | FacilitatorClient[]`.
  *    With an array, `initialize()` calls `getSupported()` on every client
  *    and records, per (x402Version, network, scheme), whichever facilitator
- *    first claimed support for it — so GoPlausible (Algorand-only) and
- *    PayAI (Base/Solana) can coexist in one array and each request still
- *    reaches the correct facilitator automatically, driven by each
- *    facilitator's own advertised coverage, not by array order alone.
- *    (`getFacilitatorClient()`'s lookup falls back to trying every client
- *    in order only on a genuine cache miss — a resilience fallback, not the
- *    primary routing mechanism.)
+ *    FIRST claimed support for it — a plain first-write-wins merge, not a
+ *    deliberate pairing. (`getFacilitatorClient()`'s lookup falls back to
+ *    trying every client in order only on a genuine cache miss — a
+ *    resilience fallback, not the primary routing mechanism.)
  * 2. `.register(network, scheme)` and `.onAfterSettle(hook)` were never
  *    Algorand-specific — both operate on a bare CAIP-2 Network string and a
  *    chain-agnostic SettleResultContext (confirmed from @x402/core's own
  *    type defs), which is what makes one resourceServer registering three
  *    chains' schemes at once a real, supported pattern rather than a hack.
+ *
+ * CORRECTION (2026-11-12, this gate's own prior doc comment was wrong):
+ * GoPlausible is NOT Algorand-only. Its live /supported response advertises
+ * `exact` on Base (eip155:8453) and Solana mainnet/devnet too, with 188k+
+ * confirmed EIP-3009 settlements on its Base signer and confirmed SPL-USDC
+ * `transferChecked` settlements on its Solana signer — real, production
+ * traffic, not an unused advertisement. Combined with point 1 above (plain
+ * first-write-wins, no pairing), this gate's own flat facilitatorClients
+ * array was silently routing Base/Solana to GoPlausible by array-order
+ * accident, not by the Algorand-only design this comment used to assume.
+ * GoPlausible is now the explicit, intentional PRIMARY for all three
+ * chains; PayAI (Base/Solana only — it has no Algorand support) is wired
+ * in as an explicit FALLBACK for resilience, not a second, competing
+ * advertisement for the same chain — every facilitator client is wrapped
+ * in gate-shared.ts's ChainScopedFacilitatorClient so it can only ever
+ * report the one chain it's actually intended for, regardless of what it
+ * advertises on its own. See gate-shared.ts's ChainScopedFacilitatorClient
+ * and FallbackFacilitatorClient doc comments for why "let the client pick
+ * a facilitator" was rejected: the x402 v2 spec has no field for a client
+ * to express that choice with, and @x402/core resolves settle()/verify()
+ * to exactly one facilitator per (network, scheme) regardless of which
+ * accepts[] entry the client actually paid against — two entries for the
+ * same chain pointed at two different facilitators would silently collapse
+ * onto whichever one wins the merge, not the one the client intended.
  */
 import { x402ResourceServer, type FacilitatorClient, type RouteConfig } from "@x402/core/server";
 import type { Network } from "@x402/core/types";
@@ -50,6 +71,8 @@ import { getCaip2Network, type PdcAlgorandNetwork, type PdcPaidRouteSpec } from 
 import {
   COMPETITION_TAG,
   FACILITATOR_TIMEOUT_MS,
+  ChainScopedFacilitatorClient,
+  FallbackFacilitatorClient,
   atomicUsdcToDecimalString,
   buildGuardedMiddleware,
   createGuardedFacilitator,
@@ -78,18 +101,26 @@ export interface PdcUnifiedGateConfig {
 
   // Base — optional, enabled only when the flag is true AND the chain's
   // own required config is present (see PdcUnifiedPaymentGate's
-  // constructor for the exact compound condition).
+  // constructor for the exact compound condition). GoPlausible
+  // (algorandFacilitatorUrl) is this chain's PRIMARY facilitator — it does
+  // not require PayAI to be configured at all (2026-11-12: GoPlausible is
+  // a confirmed-real Base facilitator, not Algorand-only). payaiFacilitatorUrl
+  // below is optional and, when present, wires PayAI in as a FALLBACK only.
   enableBase?: boolean;
   /** PDC_BASE_MERCHANT_ADDRESS. */
   baseMerchantAddress?: `0x${string}`;
-  /** PayAI's facilitator URL — shared with Solana below, not a second,
-   * independent URL to reuse-if-equal: there is only ever one configured
-   * PayAI endpoint in this config, used for whichever of Base/Solana are
-   * enabled. */
+  /** PayAI's facilitator URL — optional FALLBACK for Base/Solana only
+   * (PayAI has no Algorand support). Shared between Base and Solana below,
+   * not a second, independent URL to reuse-if-equal: there is only ever
+   * one configured PayAI endpoint in this config. Omitting this leaves
+   * Base/Solana running on GoPlausible alone ("goplausible-only" — see
+   * PdcUnifiedPaymentGate's startup log), which is a fully supported,
+   * deliberate configuration, not a degraded one. */
   payaiFacilitatorUrl?: string;
 
   // Solana — optional, enabled only when the flag is true AND the chain's
-  // own required config is present.
+  // own required config is present. Same GoPlausible-primary/PayAI-fallback
+  // relationship as Base above.
   enableSolana?: boolean;
   /** PDC_SOLANA_MERCHANT_ADDRESS. */
   solanaMerchantAddress?: string;
@@ -97,8 +128,9 @@ export interface PdcUnifiedGateConfig {
   solanaRpcUrl?: string;
 
   // Shared.
-  /** Overrides gate-shared.ts's FACILITATOR_TIMEOUT_MS (8000ms) for every
-   * facilitator client this gate constructs, Algorand and PayAI alike. */
+  /** Overrides gate-shared.ts's FACILITATOR_TIMEOUT_MS (15000ms) for every
+   * facilitator client this gate constructs — every GoPlausible-scoped
+   * client and every PayAI-scoped fallback client alike. */
   facilitatorTimeoutMs?: number;
   merchant: PdcMerchantIdentity;
 }
@@ -152,25 +184,64 @@ export class PdcUnifiedPaymentGate {
     this.algorandMerchantAddress = config.algorandMerchantAddress;
     this.merchant = config.merchant;
 
-    // Each chain's own three-way AND — matches the task spec's Step 3
-    // items 3/4 exactly: a flag with incomplete config must not half-enable
-    // a chain (e.g. registering the scheme but never actually being able to
-    // reach a facilitator for it).
-    this.baseActive = Boolean(config.enableBase && config.payaiFacilitatorUrl && config.baseMerchantAddress);
+    // GoPlausible is a confirmed-real, intentional PRIMARY for Base/Solana
+    // now (2026-11-12) — it no longer requires PayAI to be configured at
+    // all. PayAI remains optional and, when present, is wired in as a
+    // fallback only (see payaiFacilitatorUrl's doc comment). Each chain
+    // still needs its own enable flag + merchant address — a flag with no
+    // payTo address must not half-enable a chain.
+    this.baseActive = Boolean(config.enableBase && config.baseMerchantAddress);
     this.baseMerchantAddress = config.baseMerchantAddress;
-    this.solanaActive = Boolean(
-      config.enableSolana && config.payaiFacilitatorUrl && config.solanaMerchantAddress && config.solanaRpcUrl,
-    );
+    this.solanaActive = Boolean(config.enableSolana && config.solanaMerchantAddress && config.solanaRpcUrl);
     this.solanaMerchantAddress = config.solanaMerchantAddress;
 
     const timeoutMs = config.facilitatorTimeoutMs ?? FACILITATOR_TIMEOUT_MS;
-    const facilitatorClients: FacilitatorClient[] = [createGuardedFacilitator(config.algorandFacilitatorUrl, timeoutMs)];
-    if ((this.baseActive || this.solanaActive) && config.payaiFacilitatorUrl) {
-      // One PayAI client serves both chains — there is only one configured
-      // PayAI URL in this config to begin with (see payaiFacilitatorUrl's
-      // doc comment above), so there is no "reuse if same URL" branch to
-      // write: it's structurally one client either way.
-      facilitatorClients.push(createGuardedFacilitator(config.payaiFacilitatorUrl, timeoutMs));
+
+    // Every call to createGuardedFacilitator() below builds an independent
+    // client instance scoped (via ChainScopedFacilitatorClient) to exactly
+    // one chain — calling it more than once with the SAME url (GoPlausible
+    // serves all three chains) is intentional, not a reuse bug: each
+    // instance's timeout guard and chain scoping are independent of the
+    // others, and none of them can shadow another chain's entry in
+    // x402ResourceServer's facilitatorClientsMap merge (gate-shared.ts).
+    const facilitatorClients: FacilitatorClient[] = [
+      new ChainScopedFacilitatorClient(createGuardedFacilitator(config.algorandFacilitatorUrl, timeoutMs), [
+        this.algorandCaip2,
+      ]),
+    ];
+
+    if (this.baseActive) {
+      const goplausibleBase = new ChainScopedFacilitatorClient(
+        createGuardedFacilitator(config.algorandFacilitatorUrl, timeoutMs),
+        [BASE_MAINNET_CAIP2],
+      );
+      facilitatorClients.push(
+        config.payaiFacilitatorUrl
+          ? new FallbackFacilitatorClient(
+              goplausibleBase,
+              new ChainScopedFacilitatorClient(createGuardedFacilitator(config.payaiFacilitatorUrl, timeoutMs), [
+                BASE_MAINNET_CAIP2,
+              ]),
+            )
+          : goplausibleBase,
+      );
+    }
+
+    if (this.solanaActive) {
+      const goplausibleSolana = new ChainScopedFacilitatorClient(
+        createGuardedFacilitator(config.algorandFacilitatorUrl, timeoutMs),
+        [SOLANA_MAINNET_CAIP2 as Network],
+      );
+      facilitatorClients.push(
+        config.payaiFacilitatorUrl
+          ? new FallbackFacilitatorClient(
+              goplausibleSolana,
+              new ChainScopedFacilitatorClient(createGuardedFacilitator(config.payaiFacilitatorUrl, timeoutMs), [
+                SOLANA_MAINNET_CAIP2 as Network,
+              ]),
+            )
+          : goplausibleSolana,
+      );
     }
 
     this.resourceServer = new x402ResourceServer(facilitatorClients);
@@ -184,6 +255,20 @@ export class PdcUnifiedPaymentGate {
         new ExactSvmScheme(config.solanaRpcUrl ? { rpcUrl: config.solanaRpcUrl } : undefined),
       );
     }
+
+    // eslint-disable-next-line no-console
+    console.info("unified_gate_initialized", {
+      algorand: this.algorandCaip2,
+      baseActive: this.baseActive,
+      solanaActive: this.solanaActive,
+      facilitators: {
+        algorand: "goplausible-scoped",
+        base: this.baseActive ? (config.payaiFacilitatorUrl ? "goplausible-primary/payai-fallback" : "goplausible-only") : "disabled",
+        solana: this.solanaActive
+          ? (config.payaiFacilitatorUrl ? "goplausible-primary/payai-fallback" : "goplausible-only")
+          : "disabled",
+      },
+    });
 
     this.resourceServer.onAfterSettle(async (ctx) => {
       const transport = ctx.transportContext as

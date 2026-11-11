@@ -22,7 +22,8 @@ import {
   type RoutesConfig,
   x402ResourceServer,
 } from "@x402/core/server";
-import type { PaymentPayload, PaymentRequirements, SettleResponse, SupportedResponse, VerifyResponse } from "@x402/core/types";
+import type { Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedResponse, VerifyResponse } from "@x402/core/types";
+import { SettleError } from "@x402/core/types";
 import type { MiddlewareHandler } from "hono";
 
 /**
@@ -101,8 +102,12 @@ export interface PdcMerchantIdentity {
  * nothing to cancel from the outside. Racing achieves the same outcome
  * that matters — the service stops waiting and responds — even though
  * the abandoned in-flight request isn't torn down at the network level.
+ *
+ * Raised from 8s to 15s on 2026-11-12 to accommodate GoPlausible cold-start
+ * round trips on Base/Solana (confirmed via ray a58ccd9d9bad000c: 10,996ms
+ * wall time on first Base payment before 8s timeout fired).
  */
-export const FACILITATOR_TIMEOUT_MS = 8000;
+export const FACILITATOR_TIMEOUT_MS = 15000;
 
 export class FacilitatorTimeoutError extends Error {
   constructor(operation: string, timeoutMs: number) {
@@ -205,6 +210,162 @@ class TimeoutGuardedFacilitatorClient implements FacilitatorClient {
  */
 export function createGuardedFacilitator(facilitatorUrl: string, timeoutMs: number = FACILITATOR_TIMEOUT_MS): FacilitatorClient {
   return new TimeoutGuardedFacilitatorClient(new HTTPFacilitatorClient({ url: facilitatorUrl }), timeoutMs);
+}
+
+/**
+ * Wraps a FacilitatorClient so its `getSupported()` only ever reports the
+ * networks it's explicitly scoped to, regardless of what the underlying
+ * facilitator actually advertises.
+ *
+ * Why this exists: x402ResourceServer.initialize() (confirmed by reading
+ * @x402/core 2.30.0's actual source) merges every facilitator client in its
+ * array into one Map<x402Version, Map<network, Map<scheme, ...>>>, keyed
+ * strictly by (x402Version, network, scheme) — first facilitator to claim a
+ * key wins, later claims to the same key are silently dropped. GoPlausible's
+ * live /supported response now advertises `exact` on Base (eip155:8453) and
+ * Solana mainnet/devnet in addition to Algorand — it is no longer
+ * Algorand-only in practice, even though PdcUnifiedPaymentGate's own
+ * historical assumption (and apps/directory-api's env.ts comment) said it
+ * was. Without this wrapper, registering GoPlausible first in the array
+ * silently makes it win Base/Solana too, by accident, regardless of intent.
+ * This wrapper makes the scoping explicit and enforced in code instead of
+ * an unenforced comment: a GoPlausible client scoped to [algorandCaip2]
+ * can never shadow a Base/Solana entry again, no matter what GoPlausible's
+ * own /supported response claims or how it changes in the future.
+ *
+ * verify()/settle() pass through unchanged — x402ResourceServer only ever
+ * routes a verify/settle call to this client for a (network, scheme) this
+ * same client already advertised via getSupported(), so no second check is
+ * needed at that layer.
+ */
+export class ChainScopedFacilitatorClient implements FacilitatorClient {
+  constructor(
+    private readonly inner: FacilitatorClient,
+    private readonly allowedNetworks: readonly Network[],
+  ) {}
+
+  async getSupported(): Promise<SupportedResponse> {
+    const supported = await this.inner.getSupported();
+    return {
+      ...supported,
+      kinds: supported.kinds.filter((kind) => this.allowedNetworks.includes(kind.network)),
+    };
+  }
+
+  verify(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<VerifyResponse> {
+    return this.inner.verify(paymentPayload, paymentRequirements);
+  }
+
+  settle(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<SettleResponse> {
+    return this.inner.settle(paymentPayload, paymentRequirements);
+  }
+}
+
+/**
+ * Mirrors @x402/core's own internal SETTLEMENT_PENDING_REASON constant
+ * (confirmed by reading @x402/core 2.30.0's actual source at
+ * chunk-U5TAZTKB.mjs:713 — not exported from any public @x402/core entry
+ * point, so duplicated here as a literal rather than imported).
+ */
+const SETTLEMENT_PENDING_REASON = "settlement_pending";
+
+/**
+ * Wraps two FacilitatorClients (intended: both already scoped to the same
+ * chain via ChainScopedFacilitatorClient) so the resource server sees one
+ * client, with `fallback` used only when `primary` genuinely can't serve
+ * the request — for resilience, not for letting a client "pick" a
+ * facilitator (the x402 spec gives clients no field to express that choice
+ * with; facilitator selection is purely a resource-server concern).
+ *
+ * verify() is read-only (no funds move) and falls back on ANY primary
+ * failure — a thrown error, or a resolved `{ isValid: false }` — since
+ * retrying a read against a different facilitator carries no settlement
+ * risk.
+ *
+ * settle() is deliberately NOT a blanket fallback-on-any-failure, because
+ * settlement moves real funds and falling back to a different facilitator
+ * after an AMBIGUOUS primary outcome risks a double-settlement:
+ *   - A `FacilitatorTimeoutError` from `primary` (this file's own guarded
+ *     client, above) means the call was abandoned without knowing whether
+ *     the facilitator actually broadcast the transaction server-side
+ *     (confirmed by this file's own FACILITATOR_TIMEOUT_MS doc comment:
+ *     "the abandoned in-flight request isn't torn down"). Falling back to
+ *     a different facilitator in that case could cause both facilitators
+ *     to attempt settling the same authorization.
+ *   - A `settlement_pending` outcome (thrown as @x402/core's SettleError,
+ *     or returned with `success: false`) specifically means the primary
+ *     facilitator already has a broadcast transaction it's tracking for
+ *     reconciliation. @x402/core's own settleWithPendingRetry (confirmed
+ *     by reading its source) retries this exact case by calling the SAME
+ *     facilitatorClient again — i.e. this class's own settle() — relying
+ *     on that facilitator's PendingSettlementStore to reconcile against
+ *     the already-broadcast tx instead of re-broadcasting. Falling back
+ *     to `fallback` here would break that reconciliation path entirely
+ *     and risk a second, independent settlement attempt.
+ * Both cases are re-thrown/returned unchanged so the existing retry
+ * machinery (settleWithPendingRetry) and timeout handling
+ * (buildGuardedMiddleware) apply exactly as they already do for a single
+ * facilitator. Every other settle() failure — a clean, terminal rejection
+ * that couldn't have resulted in a broadcast — is safe to hand to
+ * `fallback`.
+ */
+export class FallbackFacilitatorClient implements FacilitatorClient {
+  constructor(
+    private readonly primary: FacilitatorClient,
+    private readonly fallback: FacilitatorClient,
+  ) {}
+
+  /**
+   * Queries both concurrently (read-only discovery, not a funds-moving
+   * call — no settlement-ordering concern here) and unions their kinds,
+   * rather than trying primary then falling back only on a thrown error.
+   * This matters because an empty-but-successful `{ kinds: [] }` from
+   * primary (it simply doesn't support this chain, or hasn't advertised
+   * it yet) is NOT a throw — a naive try/catch would silently report zero
+   * support for this chain even though fallback can actually serve it,
+   * which would make x402ResourceServer.initialize()'s merge treat this
+   * chain as entirely unsupported (missing_facilitator) instead of
+   * resolving through fallback. Throws only if BOTH fail.
+   */
+  async getSupported(): Promise<SupportedResponse> {
+    const [primaryResult, fallbackResult] = await Promise.allSettled([this.primary.getSupported(), this.fallback.getSupported()]);
+    const fulfilled = [primaryResult, fallbackResult].filter(
+      (r): r is PromiseFulfilledResult<SupportedResponse> => r.status === "fulfilled",
+    );
+    if (fulfilled.length === 0) {
+      throw primaryResult.status === "rejected" ? primaryResult.reason : (fallbackResult as PromiseRejectedResult).reason;
+    }
+    const results = fulfilled.map((r) => r.value);
+    return {
+      kinds: results.flatMap((r) => r.kinds),
+      extensions: [...new Set(results.flatMap((r) => r.extensions))],
+      signers: Object.assign({}, ...results.map((r) => r.signers)),
+    };
+  }
+
+  async verify(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<VerifyResponse> {
+    try {
+      const result = await this.primary.verify(paymentPayload, paymentRequirements);
+      if (result.isValid) return result;
+      return await this.fallback.verify(paymentPayload, paymentRequirements);
+    } catch {
+      return this.fallback.verify(paymentPayload, paymentRequirements);
+    }
+  }
+
+  async settle(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<SettleResponse> {
+    try {
+      const result = await this.primary.settle(paymentPayload, paymentRequirements);
+      if (result.success || result.errorReason === SETTLEMENT_PENDING_REASON) {
+        return result;
+      }
+      return await this.fallback.settle(paymentPayload, paymentRequirements);
+    } catch (error) {
+      if (error instanceof FacilitatorTimeoutError) throw error;
+      if (error instanceof SettleError && error.errorReason === SETTLEMENT_PENDING_REASON) throw error;
+      return this.fallback.settle(paymentPayload, paymentRequirements);
+    }
+  }
 }
 
 export function parseJsonSafely(buffer: Buffer | undefined): unknown {
