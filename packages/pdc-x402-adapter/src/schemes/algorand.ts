@@ -47,6 +47,8 @@ export {
   FacilitatorTimeoutError,
   PaymentGateTimeoutError,
   raceWithTimeout,
+  ChainScopedFacilitatorClient,
+  FallbackFacilitatorClient,
   type PdcMerchantIdentity,
 } from "./gate-shared.js";
 
