@@ -60,13 +60,25 @@ LOG_LEVEL = "info"
 EMAIL_FROM = "Pacific Data Commons <alerts@synergybcpacific.com>"
 
 # PayAI/Base/Solana via PdcUnifiedPaymentGate (feat/unified-payment-gate).
-# PAYAI_FACILITATOR_URL and SOLANA_RPC_URL are public URLs, and the two
-# ENABLED flags are plain config, not credentials — all four belong here
-# as versioned [vars], same reasoning as AVM_ADDRESS/FACILITATOR_URL
-# above. Both flags MUST stay "false" here until Base/Solana support is
-# verified live — see PdcUnifiedPaymentGate's own process.exit(1)-on-
-# RouteConfigurationError risk if a chain is enabled without a
-# facilitator that actually supports it.
+# PAYAI_FACILITATOR_URL and SOLANA_RPC_URL are public URLs, so they belong
+# here as versioned [vars], same reasoning as AVM_ADDRESS/FACILITATOR_URL
+# above.
+#
+# PDC_BASE_ENABLED / PDC_SOLANA_ENABLED are now dashboard-only (removed
+# from [vars] 2026-11-12, fix/wrangler-chain-flags-dashboard-only) — set
+# via Workers & Pages > pdc-directory-api > Settings > Variables and
+# Secrets if needed, not versioned in this file.
+# Caveat (see this [vars] block's own header comment above, and CLAUDE.md
+# §26.6): a plain `wrangler deploy` treats this [vars] block as the
+# complete, authoritative set and silently drops any var set only via
+# the dashboard that isn't declared here — the same pattern that already
+# wiped dashboard-only vars on pilot-endpoint, financial-rails, and this
+# file's own EMAIL_FROM var previously. A dashboard value set for either
+# flag will not survive the next deploy unless it's promoted back into
+# this [vars] block first. lib/env.ts's zod schema defaults both to
+# "false" when unset, so Base/Solana stay disabled either way — this
+# just means "dashboard-only" control here isn't durable across deploys,
+# not that leaving them unset is unsafe.
 #
 # PDC_BASE_MERCHANT_ADDRESS/PDC_SOLANA_MERCHANT_ADDRESS are deliberately
 # NOT declared here — they're SBP's payTo wallets for those chains, so
@@ -74,8 +86,6 @@ EMAIL_FROM = "Pacific Data Commons <alerts@synergybcpacific.com>"
 # block, even though a wallet address isn't itself a private key.
 PAYAI_FACILITATOR_URL = "https://facilitator.payai.network"
 SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
-PDC_BASE_ENABLED = "false"
-PDC_SOLANA_ENABLED = "false"
 
 [observability]
 enabled = true
@@ -130,8 +140,9 @@ crons = ["*/15 * * * *", "*/4 * * * *"]
 # CLAUDE_MODEL
 #
 # PDC_BASE_MERCHANT_ADDRESS / PDC_SOLANA_MERCHANT_ADDRESS — SBP's Base and
-# Solana payTo wallets (feat/unified-payment-gate). Not set yet — both
-# PDC_BASE_ENABLED and PDC_SOLANA_ENABLED above stay "false" until these
+# Solana payTo wallets (feat/unified-payment-gate). Not set yet — PDC_BASE_ENABLED
+# and PDC_SOLANA_ENABLED are dashboard-only now (see the [vars] block's
+# comment above) and should stay unset/"false" there until these wallets
 # are actually provisioned and set here, and Base/Solana support against
 # the live PayAI facilitator is verified.
 # PDC_BASE_MERCHANT_ADDRESS
