@@ -21,6 +21,33 @@ const envSchema = z.object({
   AVM_ADDRESS: z.string().min(1, "AVM_ADDRESS (SBP directory payTo wallet) is required"),
   FACILITATOR_URL: z.string().url(),
 
+  // Base/Solana via PdcUnifiedPaymentGate (feat/unified-payment-gate). All
+  // six fields below are optional and default to both chains staying
+  // disabled — unlike AVM_ADDRESS/FACILITATOR_URL above, none of these can
+  // be required-at-boot (P4's "fail fast" posture), because this feature
+  // must be able to ship fully dormant: PDC_BASE_ENABLED/PDC_SOLANA_ENABLED
+  // must stay "false" in every committed env file (see .env.example) until
+  // explicitly turned on per environment, after the request-shadowing
+  // concern this gate was specifically built to avoid is verified live.
+  //
+  // PAYAI_FACILITATOR_URL is deliberately a separate facilitator from
+  // FACILITATOR_URL above — GoPlausible (FACILITATOR_URL) only ever
+  // registered the Algorand/AVM exact scheme; PayAI is this gate's
+  // facilitator for the two new chains (shared by both — see
+  // PdcUnifiedGateConfig.payaiFacilitatorUrl's doc comment).
+  PAYAI_FACILITATOR_URL: z.string().url().optional(),
+  // No default — SOLANA_RPC_URL being unset is itself one of the three
+  // conditions that keeps Solana disabled (see PdcUnifiedGateConfig).
+  SOLANA_RPC_URL: z.string().url().optional(),
+  PDC_BASE_ENABLED: z.enum(["true", "false"]).default("false"),
+  PDC_SOLANA_ENABLED: z.enum(["true", "false"]).default("false"),
+  // SBP's Base (EVM) and Solana payTo addresses — distinct wallets from
+  // AVM_ADDRESS above, on different chains entirely. Optional: a missing
+  // address is one of the three conditions that keeps that chain's gate
+  // inactive, not a boot failure, for a feature that is off by default.
+  PDC_BASE_MERCHANT_ADDRESS: z.string().optional(),
+  PDC_SOLANA_MERCHANT_ADDRESS: z.string().optional(),
+
   // Session 26 — public Algorand address of apps/sbp-agent's operational
   // wallet, published on /health so a third party can cross-reference the
   // agent's own hourly monitoring transactions against Mainnet leaderboard
