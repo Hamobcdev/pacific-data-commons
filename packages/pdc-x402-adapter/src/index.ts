@@ -32,6 +32,11 @@ export {
 export * from "./schemes/algorand.js";
 export { verifyAndSettleBase } from "./schemes/evm-base.js";
 export { verifyAndSettleSolana } from "./schemes/solana.js";
+export {
+  PdcUnifiedPaymentGate,
+  type PdcUnifiedGateConfig,
+  type SettledUnifiedPayment,
+} from "./schemes/unified-gate.js";
 
 export const SUPPORTED_CHAINS = ["algorand", "base", "solana"] as const;
 

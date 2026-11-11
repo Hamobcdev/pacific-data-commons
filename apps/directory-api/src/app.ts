@@ -1,5 +1,5 @@
 import { Hono, type Context } from "hono";
-import { PdcPaymentGate, installBazaarAjvWorkersLogFilter } from "@pdc/x402-adapter";
+import { PdcUnifiedPaymentGate, installBazaarAjvWorkersLogFilter, type SettledUnifiedPayment } from "@pdc/x402-adapter";
 import { logger } from "./lib/logger.js";
 import { paidRoutes, categorizeRoute, PDC_MERCHANT_INFO } from "./routeSchemas.js";
 import { declarePaymentIdentifierExtension } from "@x402-avm/extensions/payment-identifier";
@@ -175,13 +175,27 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
 
   const supabase = createSupabaseClient(env);
 
-  const paymentGate = new PdcPaymentGate({
-    payToAddress: env.AVM_ADDRESS,
-    facilitatorUrl: env.FACILITATOR_URL,
-    network: env.ALGORAND_NETWORK,
-    merchantIdentity: {
+  // feat/unified-payment-gate: Algorand + Base + Solana behind one
+  // x402ResourceServer, one accepts[] per route, one middleware mount — see
+  // packages/pdc-x402-adapter/src/schemes/unified-gate.ts's header comment
+  // for why this supersedes the earlier (abandoned, never committed)
+  // three-separate-gates design. Base/Solana are enabled only when their
+  // flags AND required config are all present — PDC_BASE_ENABLED and
+  // PDC_SOLANA_ENABLED must stay "false" in every committed env file (see
+  // .env.example) until that's explicitly turned on per environment.
+  const unifiedGate = new PdcUnifiedPaymentGate({
+    algorandNetwork: env.ALGORAND_NETWORK,
+    algorandFacilitatorUrl: env.FACILITATOR_URL,
+    algorandMerchantAddress: env.AVM_ADDRESS,
+    enableBase: env.PDC_BASE_ENABLED === "true",
+    baseMerchantAddress: env.PDC_BASE_MERCHANT_ADDRESS as `0x${string}` | undefined,
+    payaiFacilitatorUrl: env.PAYAI_FACILITATOR_URL,
+    enableSolana: env.PDC_SOLANA_ENABLED === "true",
+    solanaMerchantAddress: env.PDC_SOLANA_MERCHANT_ADDRESS,
+    solanaRpcUrl: env.SOLANA_RPC_URL,
+    merchant: {
       serviceName: "Pacific Data Commons",
-      description: "Sovereign data marketplace for Pacific Island nations and institutions. Payment-gated endpoints delivering climate, fisheries, trade, and economic data for AI agents and researchers. Built on Algorand. Data sovereignty enforced — providers control their own infrastructure.",
+      description: "Sovereign data marketplace for Pacific Island nations and institutions. Payment-gated endpoints delivering climate, fisheries, trade, and economic data for AI agents and researchers. Data sovereignty enforced — providers control their own infrastructure.",
       url: "https://pdc.synergybcpacific.com",
       iconUrl: "https://pdc.synergybcpacific.com/images/sbp-logo.png",
       tags: ["data-marketplace", "pacific", "sovereign-infrastructure", "ai-agents", "sids", "climate-data", "fisheries"],
@@ -192,6 +206,19 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   // see that file's doc comment and apps/pilot-endpoint/src/routeSchemas.ts
   // for why (routeSchemas.test.ts calls ajv.compile() on every route's
   // discovery.schema directly in Node at test time).
+  //
+  // route.payToAddress is deliberately the only payTo field read here —
+  // every occurrence in routeSchemas.ts resolves to AVM_ADDRESS (an
+  // Algorand wallet) or an AVM_ADDRESS-derived *_PAYTO constant (confirmed
+  // by reading every occurrence in that file, not assumed), so it only
+  // ever reaches PdcUnifiedPaymentGate.addRoute()'s Algorand-specific
+  // payToAddress field — never evmPayToAddress/svmPayToAddress, which
+  // nothing in routeSchemas.ts sets. Base/Solana routes therefore all use
+  // the gate's own baseMerchantAddress/solanaMerchantAddress uniformly.
+  //
+  // No separate HEAD-workaround loop here (x402-foundation/x402#3796) —
+  // PdcUnifiedPaymentGate.addRoute() now does that internally for every
+  // registered GET route, same fix, one fewer place to apply it.
   for (const route of paidRoutes) {
     // x402-merchant + payment-identifier (fix/x402-route-headers) — declared
     // on every paid route alongside the existing bazaar extension, so
@@ -201,7 +228,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
     // comes from @x402-avm/extensions (already a directory-api dependency,
     // GoPlausible's own fork — not the generic @x402/extensions package,
     // which isn't installed here).
-    const routeConfig = {
+    unifiedGate.addRoute({
       method: route.method,
       path: route.path,
       priceUsdc: route.priceUsdc ?? DIRECTORY_QUERY_PRICE_USDC,
@@ -218,24 +245,30 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
         "x402-merchant": { info: { ...PDC_MERCHANT_INFO, categories: categorizeRoute(route.path) } },
         "payment-identifier": declarePaymentIdentifierExtension(),
       },
-    };
-    paymentGate.addRoute(routeConfig);
-
-    // HEAD workaround (x402-foundation/x402#3796, fix/x402-route-headers) —
-    // @x402/hono keys its route table by exact "METHOD path", so a HEAD
-    // request against a registered GET route never matches and falls
-    // through ungated, answering 200 with no payment check once Hono's own
-    // router auto-handles HEAD from the GET handler. Registering the same
-    // RouteConfig under a second "HEAD path" key closes that gap without
-    // touching the adapter — addRoute() already accepts an arbitrary
-    // method string.
-    if (route.method === "GET") {
-      paymentGate.addRoute({ ...routeConfig, method: "HEAD" });
-    }
+    });
   }
 
-  paymentGate.onSettled(async (payment) => {
-    await logSettledDirectoryQuery(supabase, payment);
+  unifiedGate.onSettled(async (payment: SettledUnifiedPayment) => {
+    if (payment.chain === "algorand") {
+      // Backward compat: logSettledDirectoryQuery + its Supabase table are
+      // typed against SettledPdcPayment (algoTxId/network columns) — build
+      // that exact shape from the chain-agnostic event rather than
+      // changing that function or its schema.
+      await logSettledDirectoryQuery(supabase, {
+        method: payment.method,
+        path: payment.path,
+        algoTxId: payment.algoTxId ?? payment.txId,
+        payerAddress: payment.payerAddress || undefined,
+        amountUsdc: String(payment.amountUsdc),
+        network: payment.network ?? env.ALGORAND_NETWORK,
+        responseBody: payment.responseBody,
+      });
+      return;
+    }
+    // Base/Solana: structured-log only for now — a chain-agnostic
+    // settlement table is a future build, deliberately not created in
+    // this PR (see PR description).
+    logger.info("directory_payment_settled", { ...payment });
   });
 
   const app = new Hono<AppBindings>();
@@ -252,7 +285,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.use("*", async (c, next) => {
     c.set("env", env);
     c.set("supabase", supabase);
-    c.set("paymentGate", paymentGate);
+    c.set("paymentGate", unifiedGate);
     c.set("cryptoPricesKv", cryptoPricesKv);
     await next();
   });
@@ -288,11 +321,14 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
 
   // Payment gate is mounted globally but only intercepts the paths
   // registered via addRoute() above — everything else passes through.
+  // One mount, one middleware — unifiedGate's accepts[] already lists
+  // every enabled chain per route, so there is nothing left to mount
+  // "alongside" (see unified-gate.ts's header for what this replaces).
   // Wrapped (not called directly) so the SBP website's dashboard key can
   // skip payment on exactly the 5 financial endpoints it needs — see
   // middleware/dashboardBypass.ts for why this wrapping, not an earlier
   // skip-next() middleware, is the only way to do that in Hono's model.
-  app.use("*", withDashboardBypass(paymentGate.middleware(), env.DASHBOARD_INTERNAL_KEY));
+  app.use("*", withDashboardBypass(unifiedGate.middleware(), env.DASHBOARD_INTERNAL_KEY));
 
   app.route("/", healthRoute);
   app.route("/", brandingRoute);

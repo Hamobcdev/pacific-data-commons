@@ -15,18 +15,11 @@
  * short-form CAIP-2 id GoPlausible and the rest of the ecosystem expect).
  * Bump the pin here, once, when upgrading again.
  */
-import { paymentMiddleware } from "@x402/hono";
-import {
-  x402ResourceServer,
-  HTTPFacilitatorClient,
-  type FacilitatorClient,
-  type RouteConfig,
-  type RoutesConfig,
-} from "@x402/core/server";
+import { x402ResourceServer, type RouteConfig } from "@x402/core/server";
 import { x402Client } from "@x402/core/client";
 import { decodePaymentResponseHeader, type PaymentOption } from "@x402/core/http";
 import { wrapFetchWithPayment } from "@x402/fetch";
-import type { Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedResponse, VerifyResponse } from "@x402/core/types";
+import type { Network } from "@x402/core/types";
 import {
   ALGORAND_MAINNET_CAIP2,
   ALGORAND_TESTNET_CAIP2,
@@ -42,53 +35,38 @@ import type { MiddlewareHandler } from "hono";
 import algosdk from "algosdk";
 import type { AlgorandPaymentProof, PdcSettlementResult } from "../types.js";
 import { splitProviderAndSbp } from "../types.js";
+import {
+  COMPETITION_TAG,
+  buildGuardedMiddleware,
+  createGuardedFacilitator,
+  parseJsonSafely,
+  type PdcMerchantIdentity,
+} from "./gate-shared.js";
+
+export {
+  FacilitatorTimeoutError,
+  PaymentGateTimeoutError,
+  raceWithTimeout,
+  type PdcMerchantIdentity,
+} from "./gate-shared.js";
 
 export type PdcAlgorandNetwork = "mainnet" | "testnet";
 
 /**
- * Required on every accepts[] entry for every PDC payment route (CLAUDE.md
- * Section 14, Competition Context: "All endpoints tagged x402-global-challenge
- * in extra field"). Applied centrally in addRoute() below so no call site can
- * forget it — this is a platform-wide, non-negotiable requirement, not a
- * per-route opt-in.
+ * @deprecated Superseded by PdcUnifiedGateConfig + PdcUnifiedPaymentGate
+ * (schemes/unified-gate.ts, feat/unified-payment-gate) — one resource
+ * server advertising Algorand + Base + Solana in a single accepts[] per
+ * route, instead of one gate per chain racing for the same paths. This
+ * type and PdcPaymentGate are unchanged and fully supported — existing
+ * callers do not need to migrate, and nothing here is removed.
  */
-const COMPETITION_TAG = "x402-global-challenge";
-
-/**
- * Session 24 — how a facilitator dashboard (GoPlausible's merchant list)
- * shows something better than a raw payTo address ("LN745U...N3YY") for a
- * service. There is no separate account-level "merchant profile" object
- * anywhere in the installed @x402/core (2.19.x): RouteConfig itself carries
- * `serviceName` / `iconUrl` / `tags` per route — confirmed by reading
- * @x402/core's own RouteConfig type, not assumed. Set this once on the gate
- * and every route registered via addRoute() gets the same identity, so
- * callers don't repeat it per route.
- *
- * `description` and `url` have no matching RouteConfig field at all in this
- * SDK version — carried in accepts[].extra instead (explicitly untyped/
- * arbitrary), so a facilitator that does read custom extra fields still
- * gets them, without fabricating spec fields @x402/core doesn't define.
- */
-export interface PdcMerchantIdentity {
-  /** -> RouteConfig.serviceName */
-  serviceName: string;
-  /** -> RouteConfig.iconUrl */
-  iconUrl?: string;
-  /** -> RouteConfig.tags */
-  tags?: string[];
-  /** -> accepts[].extra.merchant_description (no RouteConfig field exists for this) */
-  description?: string;
-  /** -> accepts[].extra.merchant_url (no RouteConfig field exists for this) */
-  url?: string;
-}
-
 export interface PdcX402GateConfig {
   /** SBP's Algorand payTo address for this service (directory query fee lands here). */
   payToAddress: string;
   /** x402 facilitator base URL (GoPlausible per CLAUDE.md Section 6). */
   facilitatorUrl: string;
   network: PdcAlgorandNetwork;
-  /** Applied to every route registered via addRoute() — see PdcMerchantIdentity's doc comment. */
+  /** Applied to every route registered via addRoute() — see PdcMerchantIdentity's doc comment (gate-shared.ts). */
   merchantIdentity?: PdcMerchantIdentity;
 }
 
@@ -110,6 +88,22 @@ export interface PdcPaidRouteSpec {
    * are unaffected.
    */
   payToAddress?: string;
+  /**
+   * Base (EVM) payTo override for this route only, read by
+   * PdcUnifiedPaymentGate (schemes/unified-gate.ts) — ignored by the
+   * Algorand-only PdcPaymentGate above. Falls back to the unified gate's
+   * config.baseMerchantAddress when omitted. Not meaningful without
+   * PdcUnifiedGateConfig.enableBase.
+   */
+  evmPayToAddress?: `0x${string}`;
+  /**
+   * Solana payTo override for this route only, read by
+   * PdcUnifiedPaymentGate (schemes/unified-gate.ts) — ignored by the
+   * Algorand-only PdcPaymentGate above. Falls back to the unified gate's
+   * config.solanaMerchantAddress when omitted. Not meaningful without
+   * PdcUnifiedGateConfig.enableSolana.
+   */
+  svmPayToAddress?: string;
   /**
    * Route-specific metadata merged into accepts[].extra alongside the
    * mandatory competition tag (e.g. { service, category, tier } for a
@@ -195,150 +189,6 @@ function toAtomicUsdc(priceUsdc: number): string {
 }
 
 /**
- * GoPlausible (the pinned facilitator, CLAUDE.md Section 6) is a
- * documented SPOF. Traced live 10-25s hangs on /finance/*, /search, and
- * /algorand/wallet-balance (production smoke test, 2026-10-03) to
- * @x402/core's HTTPFacilitatorClient: its verify/settle/getSupported()
- * each call a bare fetch() with no timeout or AbortController at all
- * (confirmed by reading the vendored source in node_modules/@x402/core —
- * third-party code, not something this repo can edit directly).
- * x402ResourceServer.initialize() calls getSupported() once per cold
- * Workers isolate (worker.ts caches the built app for the isolate's
- * lifetime, so this only runs on the first paid-route request after a
- * cold start, not every request) — when GoPlausible is slow, or 429-rate-
- * limits that call (getSupported() itself retries with exponential
- * backoff, uncapped by any overall deadline), that one unlucky request
- * hangs with zero bytes sent instead of failing cleanly.
- *
- * FACILITATOR_TIMEOUT_MS bounds every call this adapter makes through the
- * facilitator client it constructs (the one place in this package that
- * does so) to a hard ceiling. This races the call rather than aborting it:
- * HTTPFacilitatorClient's fetch() accepts no signal parameter, so there is
- * nothing to cancel from the outside. Racing achieves the same outcome
- * that matters — this service stops waiting and responds — even though
- * the abandoned in-flight request isn't torn down at the network level;
- * either the Workers isolate recycles it or it completes uselessly in the
- * background, both harmless once we've given up on it.
- */
-const FACILITATOR_TIMEOUT_MS = 8000;
-
-export class FacilitatorTimeoutError extends Error {
-  constructor(operation: string, timeoutMs: number) {
-    super(`Facilitator ${operation} did not respond within ${timeoutMs}ms`);
-    this.name = "FacilitatorTimeoutError";
-  }
-}
-
-/**
- * Races `run()` against a timer, rejecting with whatever `onTimeout()`
- * builds if the timer wins. Shared by withFacilitatorTimeout (below) and
- * PdcPaymentGate.middleware()'s outer deadline (PAYMENT_GATE_TIMEOUT_MS) —
- * same "race, don't abort" rationale as withFacilitatorTimeout's doc
- * comment: neither the facilitator client's fetch() nor @x402/hono's
- * middleware chain accepts a signal to cancel, so giving up on waiting is
- * the only lever available. Exported for direct unit testing of the race
- * logic in isolation (see packages/pdc-x402-adapter's facilitatorTimeout
- * test) — the real-world trigger for the outer deadline (the Bazaar/Ajv
- * discovery-schema self-check hanging under Cloudflare Workers' runtime
- * restrictions, see bazaarAjvWorkersLogFilter.ts) only reproduces inside
- * workerd, not Node, so it can't be forced to hang deterministically in a
- * Node test — this lets the race mechanism itself be verified instead.
- */
-export function raceWithTimeout<T>(timeoutMs: number, run: () => Promise<T>, onTimeout: () => Error): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(onTimeout()), timeoutMs);
-    run().then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-}
-
-function withFacilitatorTimeout<T>(operation: string, run: () => Promise<T>): Promise<T> {
-  return raceWithTimeout(FACILITATOR_TIMEOUT_MS, run, () => new FacilitatorTimeoutError(operation, FACILITATOR_TIMEOUT_MS));
-}
-
-/**
- * Outer safety net for PdcPaymentGate.middleware(): bounds the *entire*
- * @x402/hono request-processing call, not just the facilitator client calls
- * TimeoutGuardedFacilitatorClient already bounds to FACILITATOR_TIMEOUT_MS.
- *
- * Confirmed root cause (live diagnosis, 2026-10-12): @x402/hono's Bazaar/Ajv
- * discovery-schema self-check (triggered once per cold Worker isolate by any
- * route registered with extensions.bazaar — see bazaarAjvWorkersLogFilter.ts)
- * hangs under Cloudflare Workers' runtime restrictions with no timeout bound
- * of its own, producing multi-minute hangs on the first request a newly
- * cold isolate serves. FACILITATOR_TIMEOUT_MS does not cover this code path
- * — it only wraps calls this adapter routes through TimeoutGuardedFacilitator
- * Client, and the Bazaar self-check never touches the facilitator client.
- *
- * Set higher than FACILITATOR_TIMEOUT_MS (8000ms) so a genuine facilitator
- * hang is still reported as the more specific `payment_facilitator_
- * unavailable` 503 via findFacilitatorTimeoutError below, rather than being
- * preempted by this more generic one.
- *
- * Raised from 12000 to 30000 — this is a single global ceiling shared by
- * every paid route (middleware() is mounted once for the whole app, keyed
- * by routesConfig entries that include dynamic segments like /provider/:id
- * and /verify/:certHash, so there is no cheap way to look up a per-route
- * override from inside this closure without building real path-pattern
- * matching into payment-critical code). GET /intelligence/pacific-brief's
- * own handler (pacificIntelligenceService.ts) runs 3 parallel sub-payments
- * — each of which can itself sleep for a 503 retry_after (default 5s) —
- * plus a Claude synthesis call, all inside this same outer deadline; 12s
- * was too tight for that handler's worst case and was tripping this timeout
- * instead of letting the inner retry logic do its job. 30s stays comfortably
- * above FACILITATOR_TIMEOUT_MS so the more specific facilitator-timeout
- * branch below still wins on a genuine facilitator hang.
- */
-const PAYMENT_GATE_TIMEOUT_MS = 30000;
-
-export class PaymentGateTimeoutError extends Error {
-  constructor(timeoutMs: number) {
-    super(`Payment gate did not complete within ${timeoutMs}ms`);
-    this.name = "PaymentGateTimeoutError";
-  }
-}
-
-/**
- * @x402/core's x402ResourceServer.initialize() catches whatever its
- * facilitator client's getSupported() throws and rethrows its own generic
- * Error with `{ cause: <original error> }` rather than propagating it
- * directly — so a FacilitatorTimeoutError thrown during the cold-start
- * sync path arrives here one level removed. Checks both the error itself
- * and one level of `.cause` rather than assuming which shape a given call
- * site produces.
- */
-function findFacilitatorTimeoutError(error: unknown): FacilitatorTimeoutError | undefined {
-  if (error instanceof FacilitatorTimeoutError) return error;
-  if (error instanceof Error && error.cause instanceof FacilitatorTimeoutError) return error.cause;
-  return undefined;
-}
-
-/** Wraps a real FacilitatorClient so every call this adapter makes is bounded by FACILITATOR_TIMEOUT_MS. */
-class TimeoutGuardedFacilitatorClient implements FacilitatorClient {
-  constructor(private readonly inner: FacilitatorClient) {}
-
-  verify(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<VerifyResponse> {
-    return withFacilitatorTimeout("verify", () => this.inner.verify(paymentPayload, paymentRequirements));
-  }
-
-  settle(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): Promise<SettleResponse> {
-    return withFacilitatorTimeout("settle", () => this.inner.settle(paymentPayload, paymentRequirements));
-  }
-
-  getSupported(): Promise<SupportedResponse> {
-    return withFacilitatorTimeout("getSupported", () => this.inner.getSupported());
-  }
-}
-
-/**
  * A payment gate wraps one x402ResourceServer (one facilitator + one
  * registered scheme/network) and the set of paid routes protected by it.
  * One instance per app (e.g. one for the directory API) is the expected
@@ -359,8 +209,7 @@ export class PdcPaymentGate {
     this.payToAddress = config.payToAddress;
     this.merchantIdentity = config.merchantIdentity;
 
-    const facilitator = new TimeoutGuardedFacilitatorClient(new HTTPFacilitatorClient({ url: config.facilitatorUrl }));
-    this.resourceServer = new x402ResourceServer(facilitator).register(
+    this.resourceServer = new x402ResourceServer(createGuardedFacilitator(config.facilitatorUrl)).register(
       this.caip2Network,
       new ExactAvmScheme(),
     );
@@ -422,64 +271,7 @@ export class PdcPaymentGate {
 
   /** Hono middleware — mount globally; only paths registered via addRoute() are gated. */
   middleware(): MiddlewareHandler {
-    const inner = paymentMiddleware(this.routesConfig as RoutesConfig, this.resourceServer);
-    // @x402/hono's own middleware rethrows a facilitator getSupported()/
-    // verify() failure that isn't a FacilitatorResponseError (it only
-    // special-cases that one type) rather than converting it to a
-    // response itself — this catches the FacilitatorTimeoutError variant
-    // of that and turns it into a clean 503 instead of letting it reach
-    // this app's generic error handler as an unlabelled 500. A settle()
-    // timeout never reaches here: @x402/hono's own settlement try/catch
-    // already converts any thrown error there to a 402 without
-    // rethrowing — the FACILITATOR_TIMEOUT_MS bound still applies, it
-    // just surfaces through that existing path instead of this one.
-    //
-    // findFacilitatorTimeoutError also checks error.cause: the cold-start
-    // getSupported() path (x402ResourceServer.initialize(), vendored in
-    // @x402/core) catches our FacilitatorTimeoutError internally and
-    // rethrows its own generic Error with `{ cause: <our error> }` rather
-    // than propagating the original — confirmed by actually hitting this
-    // while testing this fix, not assumed.
-    //
-    // The whole `inner(c, next)` call is additionally raced against
-    // PAYMENT_GATE_TIMEOUT_MS (see that constant's doc comment) — a safety
-    // net for hangs outside the facilitator-client calls the inner timeout
-    // already covers, confirmed live to include @x402/hono's Bazaar/Ajv
-    // self-check under Cloudflare Workers. Checked first in the catch below
-    // only in the sense that PaymentGateTimeoutError and
-    // FacilitatorTimeoutError are mutually exclusive outcomes of the same
-    // race — a facilitator-side hang still resolves via
-    // findFacilitatorTimeoutError below at the shorter 8s mark, since that
-    // rejection reaches this catch before the 12s outer timer ever fires.
-    return async (c, next) => {
-      try {
-        return await raceWithTimeout(PAYMENT_GATE_TIMEOUT_MS, () => inner(c, next), () => new PaymentGateTimeoutError(PAYMENT_GATE_TIMEOUT_MS));
-      } catch (error) {
-        if (error instanceof PaymentGateTimeoutError) {
-          // eslint-disable-next-line no-console
-          console.error("x402_payment_gate_timeout", { message: error.message, path: c.req.path, method: c.req.method });
-          c.header("Retry-After", "5");
-          return c.json({ error: "payment_gate_timeout", retry_after: 5 }, 503);
-        }
-        const timeoutError = findFacilitatorTimeoutError(error);
-        if (timeoutError) {
-          // eslint-disable-next-line no-console
-          console.error("x402_facilitator_timeout", { message: timeoutError.message, path: c.req.path, method: c.req.method });
-          c.header("Retry-After", "10");
-          return c.json({ error: "payment_facilitator_unavailable", retry_after: 10 }, 503);
-        }
-        throw error;
-      }
-    };
-  }
-}
-
-function parseJsonSafely(buffer: Buffer | undefined): unknown {
-  if (!buffer || buffer.length === 0) return undefined;
-  try {
-    return JSON.parse(buffer.toString("utf-8"));
-  } catch {
-    return undefined;
+    return buildGuardedMiddleware(this.resourceServer, this.routesConfig);
   }
 }
 
@@ -499,7 +291,7 @@ export const usdcAtomicUnits = {
  */
 export async function checkFacilitatorHealth(facilitatorUrl: string): Promise<boolean> {
   try {
-    const facilitator = new TimeoutGuardedFacilitatorClient(new HTTPFacilitatorClient({ url: facilitatorUrl }));
+    const facilitator = createGuardedFacilitator(facilitatorUrl);
     await facilitator.getSupported();
     return true;
   } catch {
