@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AppBindings } from "../types.js";
+import { buildRootIndexResponse } from "./root.js";
 
 export const brandingRoute = new Hono<AppBindings>();
 
@@ -17,17 +18,20 @@ const PDC_WEB_URL = "https://pdc.synergybcpacific.com";
 
 /**
  * GET / — human/crawler-facing HTML with og:* tags (GoPlausible's Bazaar
- * scraper, link unfurling, etc.), left of the JSON API entirely. Only
- * responds when the request's Accept header actually prefers HTML; every
- * other Accept value (including none, e.g. a bare curl/agent call) falls
- * through to the app's existing notFoundHandler via c.notFound() — GET /
- * was never a defined JSON endpoint, so that 404 JSON response is
- * unchanged from before this route existed.
+ * scraper, link unfurling, etc.) when the request's Accept header actually
+ * prefers HTML; a JSON discovery index (feat/discoverability) otherwise —
+ * every other Accept value, including none (a bare curl/agent call, or
+ * PayAPI Market's/x402 Doctor's own root-URL check), used to fall through
+ * to the app's notFoundHandler, answering a bare JSON 404 for the one
+ * request shape external agents and discovery tools actually send. Not
+ * behind the payment gate: "/" has never been (and must never become) a
+ * paidRoutes entry, so the gate's middleware already passes it through
+ * via next() regardless of mount order.
  */
 brandingRoute.get("/", (c) => {
   const accept = c.req.header("accept") ?? "";
   if (!accept.includes("text/html")) {
-    return c.notFound();
+    return c.json(buildRootIndexResponse());
   }
 
   const publicUrl = c.get("env").PUBLIC_URL.replace(/\/$/, "");

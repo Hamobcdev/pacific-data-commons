@@ -567,7 +567,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/finance/samoa-cpi",
     humanDeliverable: true,
     description:
-      "Samoa Consumer Price Index and annual inflation rate, sourced from World Bank Open Data (FP.CPI.TOTL / FP.CPI.TOTL.ZG) — not a Samoa Bureau of Statistics- or government-certified feed, see the response's own attribution field. Optional ?years= (default 15, max 60). 24-hour cache — annual data, updated at most yearly upstream.",
+      "Samoa Consumer Price Index and annual inflation rate — unique World Bank-sourced CPI time series for Samoa, not available via any other x402 endpoint. Returns index values and inflation percentage per year. Optional ?years= (default 15, max 60).",
     priceUsdc: SAMOA_CPI_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
@@ -713,7 +713,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/finance/fiji-cpi",
     humanDeliverable: true,
     description:
-      "Fiji Consumer Price Index, transcribed from the Fiji Bureau of Statistics' own monthly CPI press releases — not a third-party-aggregated feed, see the response's own attribution field. Covers July-September 2026 (each month's own FBoS release page). Optional ?year= (4-digit), ?from=/?to= (YYYY-MM range). base_year is null — FBoS's releases state CPI weights are derived from the 2019/2020 Household Income and Expenditure Survey (HIES), not an index base period.",
+      "Fiji Consumer Price Index and annual inflation rate — transcribed directly from the Fiji Bureau of Statistics' own monthly CPI press releases, not a third-party-aggregated feed (not World Bank-sourced, unlike the Samoa CPI endpoint — see the response's own attribution field). Returns index values and inflation percentage. Optional ?year= (4-digit) or ?from=/?to= (YYYY-MM range); covers July-September 2026 at this release.",
     priceUsdc: FIJI_CPI_PRICE_USDC,
     payToAddress: FIJI_CPI_PAYTO,
     discovery: discoveryFor({
@@ -1309,7 +1309,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/climate/pacific-cyclone-history",
     humanDeliverable: true,
     description:
-      "Historical tropical cyclone tracks for the South Pacific basin (1960-present), sourced from IBTrACS v04r01 (NOAA/NCEI, public domain). Returns one record per storm with peak wind (kt), minimum pressure (mb), landfall flag, category (TD/C1-C5), and affected Pacific nation codes (FJ, WS, TO, VU, SB, PF, CK, TV, KI). Optional filters: ?season= (4-digit year), ?nation= (ISO-2 code), ?min_category= (td|c1|c2|c3|c4|c5), ?landfall=true, ?limit= (default 100, max 500). 1-hour cache. 851 storms indexed.",
+      "Historical Pacific cyclone track and intensity data — unique Pacific hazard dataset. Returns storm tracks, categories, and affected areas. No comparable x402 source exists.",
     priceUsdc: PACIFIC_CYCLONE_HISTORY_PRICE_USDC,
     payToAddress: PACIFIC_CYCLONE_HISTORY_PAYTO,
     discovery: discoveryFor({
@@ -1348,7 +1348,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/climate/pacific-sea-level",
     humanDeliverable: true,
     description:
-      "Pacific sea level monitoring — monthly mean sea level (mm, relative to each station's own local reference datum) for 8 UHSLC tide gauge stations: Apia (WS), Suva (FJ), Nuku'alofa (TO), Port Vila (VU), Honiara (SB), Tarawa/Betio (KI), Funafuti (TV), Port Moresby (PG). Source: University of Hawaii Sea Level Center (UHSLC), NOAA/NCEI co-sponsored — used instead of BoM SEAFRAME, whose licensing could not be confirmed. 7 stations current through July 2026 (preliminary Fast Delivery data); Port Moresby has no current UHSLC feed and is historical only (1991-1993, Research Quality data) — see each record's own data_quality field. Not directly comparable in absolute terms between stations (different local datums). Optional filters: ?station= (name substring), ?nation= (ISO-2 code), ?from=/?to= (YYYY-MM range). 24-hour cache.",
+      "Pacific sea level measurements from UHSLC tide gauge stations — unique Pacific Ocean monitoring data. Returns monthly aggregates per station. No comparable x402 source exists for Pacific sea level data.",
     priceUsdc: PACIFIC_SEA_LEVEL_PRICE_USDC,
     payToAddress: PACIFIC_SEA_LEVEL_PAYTO,
     discovery: discoveryFor({
@@ -1382,7 +1382,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/climate/pacific-enso-index",
     humanDeliverable: true,
     description:
-      "Pacific ENSO / El Nino index (MEI.v2) — bimonthly values 1979-present, sourced from NOAA PSL's Multivariate ENSO Index v2 (public domain). Positive values indicate El Nino conditions, negative values indicate La Nina. Each record's period approximates its bimonthly season to a single calendar month (e.g. the Dec-Jan DJ season maps to January) — see each record's own season field for the true 2-month window. Optional filters: ?year= (4-digit year), ?from=/?to= (4-digit year range), ?phase= (elnino|lanina|neutral, using the conventional +-0.5 MEI threshold). 24-hour cache. 572 records indexed.",
+      "NOAA MEI.v2 El Niño–Southern Oscillation index — critical seasonal climate signal for Pacific Island nations. Returns bimonthly MEI values. Essential context for Pacific climate and agriculture decisions.",
     priceUsdc: PACIFIC_ENSO_INDEX_PRICE_USDC,
     payToAddress: PACIFIC_ENSO_INDEX_PAYTO,
     discovery: discoveryFor({
@@ -1503,7 +1503,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/pacific/samoa-entity-setup",
     humanDeliverable: true,
     description:
-      "Samoa international entity formation requirements — structured regulatory intelligence for IBC, international trust, foundation, international banking licence, insurance, partnership, and mutual fund structures. Includes director/shareholder requirements, minimum capital, tax treatment, UBO disclosure obligations, formation timeline, and typical fee ranges. Query param: entity_type (ibc|trust|foundation|international_bank|insurance|partnership|mutual_fund|all). Source: SIFA Act 2005, International Companies Act 1987.",
+      "Step-by-step entity setup guide for Samoa jurisdiction — SBP-curated regulatory intelligence. Returns incorporation requirements, timelines, costs, and compliance steps. No comparable x402 jurisdiction intelligence source exists for Pacific nations.",
     priceUsdc: SAMOA_ENTITY_SETUP_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
@@ -1767,7 +1767,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/pacific/vanuatu-ibc-setup",
     humanDeliverable: true,
     description:
-      "Vanuatu International Company (IBC) formation requirements under the International Companies Act [CAP. 222], Consolidated Edition 2026 — formation and annual fees, long-term registration options, director/shareholder minimums, bearer-share prohibition, and FIAC applicability. Several fields are pending primary-source verification and are returned as null with a data_note — see data_quality.",
+      "Vanuatu International Business Company setup guide — SBP-curated IBC formation intelligence. Returns registration requirements, costs, timeline, and compliance obligations under VFSC.",
     priceUsdc: VANUATU_IBC_SETUP_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
@@ -2022,7 +2022,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/tourism/destination/:nation_code",
     humanDeliverable: false,
     description:
-      "Full tourism_destinations profile for one nation, plus LEFT-JOIN counts of its registered accommodations/activities/providers. Includes source_type and data_confidence. 404 if nation_code not found.",
+      "Full tourism destination profile for one Pacific nation — covers entry requirements, climate, casino status, UNESCO sites, travel advisories, connectivity. Unique structured Pacific tourism data for AI agents.",
     priceUsdc: TOURISM_DESTINATION_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
@@ -2230,7 +2230,7 @@ const paidRoutesBase: PaidRouteSpec[] = [
     path: "/tourism/dive/:nation_code",
     humanDeliverable: false,
     description:
-      "Full dive/snorkel site data for one nation (depth, visibility, water temp, current, certification, marine life, coral health, hazards, Survivor filming connections). Includes a coral_bleaching_join_hint describing the approximate reef_coordinate_lat/lng match (within 0.025 degrees of NOAA CoralTemp's 0.05-degree grid) against /intelligence/coral-bleaching — never exact coordinate equality.",
+      "Dive and snorkel site data for one Pacific nation — depth, visibility, marine life, coral health, hazards, certification requirements. Unique Pacific dive intelligence with NOAA coral bleaching cross-reference.",
     priceUsdc: TOURISM_DIVE_PRICE_USDC,
     payToAddress: process.env.AVM_ADDRESS ?? "",
     discovery: discoveryFor({
