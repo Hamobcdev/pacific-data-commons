@@ -36,9 +36,28 @@ describe("GET / (branding/og meta)", () => {
     expect(html).toContain('<link rel="icon" type="image/png" href="/logo.png">');
   });
 
-  it("falls through to the 404 JSON handler when Accept does not include text/html", async () => {
+  it("returns the JSON discovery index (200, not a 404) when Accept does not include text/html", async () => {
     const app = buildTestApp();
     const res = await app.request("/", { headers: { Accept: "application/json" } });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+
+    const body = (await res.json()) as { name: string; chains_accepted: string[] };
+    expect(body.name).toBe("Pacific Data Commons");
+    expect(body.chains_accepted).toEqual(["algorand", "base", "solana"]);
+  });
+
+  it("returns the same JSON discovery index for a bare request with no Accept header at all (agent/curl default)", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+  });
+
+  it("is not intercepted by the payment gate — no PAYMENT-REQUIRED header on the response", async () => {
+    const app = buildTestApp();
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("PAYMENT-REQUIRED")).toBeNull();
   });
 });
