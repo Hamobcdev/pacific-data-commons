@@ -98,10 +98,10 @@ export async function createApp(env: Env): Promise<Hono<AppBindings>> {
     "/full": { category: DATASET_METADATA.category },
     "/expert": { category: DATASET_METADATA.category },
     "/commission": { category: DATASET_METADATA.category },
-    "/research/law-before-code": { category: "governance", subCategory: "law_before_code" },
-    "/research/cryptographic-continuity": { category: "governance", subCategory: "cryptographic_continuity" },
+    "/research/law-before-code": { category: "research", subCategory: "law_before_code" },
+    "/research/cryptographic-continuity": { category: "research", subCategory: "cryptographic_continuity" },
     "/research/invisible-infrastructure": { category: "governance", subCategory: "invisible_infrastructure" },
-    "/pacific/blockchain-adoption": { category: "governance", subCategory: "blockchain_adoption" },
+    "/pacific/blockchain-adoption": { category: "research", subCategory: "blockchain_adoption" },
   };
 
   // Boot-time sanity check only (warn, never crash — same posture as the
