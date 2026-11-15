@@ -113,7 +113,7 @@ wellKnownX402Route.get("/.well-known/x402", (c) => {
           "/research/invisible-infrastructure",
           TIER_PRICING.summary,
           `Structured metadata for "${INVISIBLE_INFRASTRUCTURE.title}".`,
-          "governance",
+          "research",
           ["pacific", "governance", "dlt", "fraud", "standards"],
         ),
         entry(

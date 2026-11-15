@@ -100,7 +100,7 @@ export async function createApp(env: Env): Promise<Hono<AppBindings>> {
     "/commission": { category: DATASET_METADATA.category },
     "/research/law-before-code": { category: "research", subCategory: "law_before_code" },
     "/research/cryptographic-continuity": { category: "research", subCategory: "cryptographic_continuity" },
-    "/research/invisible-infrastructure": { category: "governance", subCategory: "invisible_infrastructure" },
+    "/research/invisible-infrastructure": { category: "research", subCategory: "invisible_infrastructure" },
     "/pacific/blockchain-adoption": { category: "research", subCategory: "blockchain_adoption" },
   };
 

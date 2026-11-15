@@ -169,7 +169,7 @@ export const paidRoutes: Array<{
     method: "GET",
     path: "/research/invisible-infrastructure",
     tier: "summary",
-    category: "governance",
+    category: "research",
     description: `Structured metadata for "${INVISIBLE_INFRASTRUCTURE.title}" — key arguments, fraudulent schemes documented, standards built on DLT, policy gaps, recommendations, citation. Supports ?tier=summary|slice|full.`,
     discovery: discoveryFor({
       method: "GET",
