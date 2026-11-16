@@ -90,6 +90,42 @@ describe("findMissingRequiredParamMessage (pure check)", () => {
     });
   });
 
+  describe("GET /tourism/transport/routes — two independently-required fields", () => {
+    it("flags it as missing (origin, checked first) when both origin and destination are absent", () => {
+      expect(findMissingRequiredParamMessage("GET", "/tourism/transport/routes", absent, undefined)).toBe("origin is required");
+    });
+
+    it("flags destination as missing when origin is present but destination is absent", () => {
+      const query = (name: string) => (name === "origin" ? "Apia" : undefined);
+      expect(findMissingRequiredParamMessage("GET", "/tourism/transport/routes", query, undefined)).toBe("destination is required");
+    });
+
+    it("passes through once both origin and destination are present, regardless of value correctness", () => {
+      const query = (name: string) => (name === "origin" ? "Apia" : name === "destination" ? "Nukuʻalofa" : undefined);
+      expect(findMissingRequiredParamMessage("GET", "/tourism/transport/routes", query, undefined)).toBeNull();
+    });
+  });
+
+  describe("GET /tourism/search — at least one query parameter required, no specific field", () => {
+    it("flags it as missing when no query parameters are present at all", () => {
+      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined)).not.toBeNull();
+    });
+
+    it("returns the exact message tourismSearchService.ts's parseSearchFilters already throws", () => {
+      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined)).toBe(
+        "At least one query parameter is required for /tourism/search",
+      );
+    });
+
+    it("passes through once at least one query parameter is present, regardless of which one", () => {
+      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined, () => true)).toBeNull();
+    });
+
+    it("defaults to 'missing' when hasAnyQueryParam is omitted, same as every other caller/test above", () => {
+      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined)).not.toBeNull();
+    });
+  });
+
   describe("POST Agent Dataset Gateway routes", () => {
     it.each([
       ["weather", "country"],
@@ -277,5 +313,60 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; message: string };
     expect(body.message).toBe('address is required, e.g. { "params": { "address": "ALGORAND_ADDRESS_58_CHARS" } }');
+  });
+
+  it("400s GET /tourism/transport/routes with no origin or destination, never reaching the route handler", async () => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "GET", path: "/tourism/transport/routes" }]);
+    const res = await app.request("/tourism/transport/routes");
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe("invalid_request");
+    expect(body.message).toBe("origin is required");
+  });
+
+  it("400s GET /tourism/transport/routes with origin present but destination missing, before the gate", async () => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "GET", path: "/tourism/transport/routes" }]);
+    const res = await app.request("/tourism/transport/routes?origin=Apia");
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.message).toBe("destination is required");
+  });
+
+  it("reaches the real gate and returns 402 with a PAYMENT-REQUIRED header when origin and destination are both present", async () => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "GET", path: "/tourism/transport/routes" }]);
+    const res = await app.request("/tourism/transport/routes?origin=Apia&destination=Nuku%CA%BBalofa");
+
+    expect(res.status).toBe(402);
+    expect(res.headers.get("payment-required")).toBeTruthy();
+  });
+
+  it("400s GET /tourism/search with no query parameters at all, never reaching the route handler", async () => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "GET", path: "/tourism/search" }]);
+    const res = await app.request("/tourism/search");
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe("invalid_request");
+    expect(body.message).toBe("At least one query parameter is required for /tourism/search");
+  });
+
+  it("reaches the real gate and returns 402 with a PAYMENT-REQUIRED header when at least one query parameter is present", async () => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "GET", path: "/tourism/search" }]);
+    const res = await app.request("/tourism/search?region=Polynesia");
+
+    expect(res.status).toBe(402);
+    expect(res.headers.get("payment-required")).toBeTruthy();
   });
 });

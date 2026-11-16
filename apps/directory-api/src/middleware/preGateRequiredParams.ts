@@ -12,18 +12,28 @@ import type { AppBindings } from "../types.js";
  * the 400 the handler would have thrown had it ever run.
  *
  * This middleware must be mounted before the payment gate's own
- * middleware. It is deliberately narrow: it checks only that each of the 7
- * affected routes' required field is PRESENT (a non-empty value), reusing
- * the exact param name and error message each route's own handler/service
+ * middleware. It is deliberately narrow: it checks only that each affected
+ * route's required field(s) are PRESENT (a non-empty value), reusing the
+ * exact param name(s) and error message(s) each route's own handler/service
  * already throws. It does not duplicate that handler's value-correctness
  * validation (country enum membership, year range, etc.) — that still runs
  * exactly as before, after payment, unchanged.
+ *
+ * Two shapes of "required" exist across the affected routes, each with its
+ * own map below:
+ *  - Named field(s): one or more specific query params, each independently
+ *    required (checked in the same order the real handler/service checks
+ *    them, so the first missing one's message matches what the handler
+ *    would have thrown first). GET_RULES.
+ *  - "At least one of any": the route has no specific required field, only
+ *    a requirement that the request carry at least one query parameter at
+ *    all (/tourism/search's `searchParams.size === 0` check). GET_ANY_PARAM_RULES.
  */
 
-interface RequiredParamRule {
+interface NamedParamCheck {
   /** Field name as it appears in the query string (GET) or the POST
    *  gateway's JSON body's `params` object — identical on both surfaces
-   *  for every one of these 7 routes. */
+   *  for every route that has a POST Agent Dataset Gateway counterpart. */
   param: string;
   /** Exact message the route's own GET handler/service already throws for
    *  a missing value — reused verbatim, not reworded. */
@@ -36,28 +46,49 @@ interface RequiredParamRule {
   postMessage?: string;
 }
 
-// GET path -> rule. Only the 7 routes the audit confirmed have a required
-// query param with no pre-gate validation appear here.
-const GET_RULES: ReadonlyMap<string, RequiredParamRule> = new Map([
-  ["/pacific/weather", { param: "country", message: "country is required, e.g. ?country=WS" }],
+// GET path -> ordered list of named-field checks. Most routes have exactly
+// one required field (a 1-element array); /tourism/transport/routes has two
+// (origin, destination), each independently required with its own message,
+// checked in the same order tourismTransportService.ts's queryTransportRoutes
+// checks them (origin first) — matches which message a request missing both
+// would have gotten from the real handler had it ever run.
+const GET_RULES: ReadonlyMap<string, NamedParamCheck[]> = new Map([
+  ["/pacific/weather", [{ param: "country", message: "country is required, e.g. ?country=WS" }]],
   [
     "/algorand/wallet-balance",
-    { param: "address", message: "address query parameter is required, e.g. ?address=ALGORAND_ADDRESS_58_CHARS" },
+    [{ param: "address", message: "address query parameter is required, e.g. ?address=ALGORAND_ADDRESS_58_CHARS" }],
   ],
-  ["/climate/ocean-temperature", { param: "country", message: "country is required, e.g. ?country=WS" }],
-  ["/finance/fiji-gdp", { param: "year", message: "year is required, e.g. ?year=2019" }],
-  ["/fisheries/pacific-purse-seine", { param: "year", message: "year is required, e.g. ?year=2020" }],
-  ["/finance/crypto-history", { param: "symbol", message: "symbol query parameter is required, e.g. ?symbol=ALGO" }],
-  ["/intelligence/pacific-travel", { param: "destination", message: "destination is required, e.g. ?destination=WS" }],
+  ["/climate/ocean-temperature", [{ param: "country", message: "country is required, e.g. ?country=WS" }]],
+  ["/finance/fiji-gdp", [{ param: "year", message: "year is required, e.g. ?year=2019" }]],
+  ["/fisheries/pacific-purse-seine", [{ param: "year", message: "year is required, e.g. ?year=2020" }]],
+  ["/finance/crypto-history", [{ param: "symbol", message: "symbol query parameter is required, e.g. ?symbol=ALGO" }]],
+  ["/intelligence/pacific-travel", [{ param: "destination", message: "destination is required, e.g. ?destination=WS" }]],
+  [
+    "/tourism/transport/routes",
+    [
+      { param: "origin", message: "origin is required" },
+      { param: "destination", message: "destination is required" },
+    ],
+  ],
+]);
+
+// GET path -> message, for a route whose requirement is "at least one query
+// parameter present at all" rather than any specific named field. Only
+// /tourism/search has this shape today (tourismSearchService.ts's
+// parseSearchFilters: `if (searchParams.size === 0) throw ...`).
+const GET_ANY_PARAM_RULES: ReadonlyMap<string, string> = new Map([
+  ["/tourism/search", "At least one query parameter is required for /tourism/search"],
 ]);
 
 // Agent Dataset Gateway dataset id (the :id in POST /api/v1/datasets/:id/query)
-// -> rule. Mirrors GET_RULES above — same 7 datasets, same param names (the
-// gateway's own switch-case in agentDatasetGateway.ts calls the identical
-// service parser with params?.<field> for 6 of these 7 datasets; only
-// wallet-balance has its own inline check with a body-shaped message,
-// carried here via postMessage).
-const POST_GATEWAY_RULES: ReadonlyMap<string, RequiredParamRule> = new Map([
+// -> rule. Mirrors the named-field half of GET_RULES above — same 7
+// datasets, same param names (the gateway's own switch-case in
+// agentDatasetGateway.ts calls the identical service parser with
+// params?.<field> for 6 of these 7 datasets; only wallet-balance has its own
+// inline check with a body-shaped message, carried here via postMessage).
+// /tourism/transport/routes and /tourism/search have no POST Agent Dataset
+// Gateway counterpart, so neither appears here.
+const POST_GATEWAY_RULES: ReadonlyMap<string, NamedParamCheck> = new Map([
   ["weather", { param: "country", message: "country is required, e.g. ?country=WS" }],
   [
     "wallet-balance",
@@ -91,19 +122,34 @@ function isPresent(value: unknown): boolean {
 /**
  * Pure check, exported for direct unit testing without a Hono Context.
  * Returns the message to reject the request with, or null if this request
- * needs no pre-gate check at all (not one of the 7 routes) or already has
- * its required value present.
+ * needs no pre-gate check at all (not one of the affected routes) or already
+ * has its required value(s) present.
+ *
+ * `hasAnyQueryParam` is only consulted for a path in GET_ANY_PARAM_RULES
+ * (currently just /tourism/search) — omitted (as every existing caller/test
+ * for the other routes does) it defaults to "no query params present",
+ * matching parseSearchFilters' own `searchParams.size === 0` check when a
+ * request genuinely has none.
  */
 export function findMissingRequiredParamMessage(
   method: string,
   path: string,
   query: (name: string) => string | undefined,
   jsonBodyParams: Record<string, unknown> | undefined,
+  hasAnyQueryParam?: () => boolean,
 ): string | null {
   if (method === "GET") {
-    const rule = GET_RULES.get(path);
-    if (!rule) return null;
-    return isPresent(query(rule.param)) ? null : rule.message;
+    const anyParamMessage = GET_ANY_PARAM_RULES.get(path);
+    if (anyParamMessage !== undefined) {
+      return hasAnyQueryParam?.() ? null : anyParamMessage;
+    }
+
+    const checks = GET_RULES.get(path);
+    if (!checks) return null;
+    for (const check of checks) {
+      if (!isPresent(query(check.param))) return check.message;
+    }
+    return null;
   }
 
   if (method === "POST") {
@@ -137,7 +183,13 @@ export function preGateRequiredParamValidation(): MiddlewareHandler<AppBindings>
       jsonBodyParams = (body as { params?: Record<string, unknown> } | undefined)?.params;
     }
 
-    const message = findMissingRequiredParamMessage(method, path, (name) => c.req.query(name), jsonBodyParams);
+    const message = findMissingRequiredParamMessage(
+      method,
+      path,
+      (name) => c.req.query(name),
+      jsonBodyParams,
+      () => Object.keys(c.req.query()).length > 0,
+    );
     if (message) {
       throw new ValidationError(message);
     }
