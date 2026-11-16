@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { PdcUnifiedPaymentGate, installBazaarAjvWorkersLogFilter, type SettledUnifiedPayment } from "@pdc/x402-adapter";
 import { logger } from "./lib/logger.js";
-import { paidRoutes, categorizeRoute, PDC_MERCHANT_INFO, PDC_MERCHANT_SCHEMA } from "./routeSchemas.js";
+import { paidRoutes, categorizeRoute, DIRECTORY_QUERY_PRICE_USDC, PDC_MERCHANT_INFO, PDC_MERCHANT_SCHEMA } from "./routeSchemas.js";
 import { declarePaymentIdentifierExtension } from "@x402-avm/extensions/payment-identifier";
 import type { Env } from "./lib/env.js";
 import { createSupabaseClient } from "./lib/supabase.js";
@@ -20,6 +20,7 @@ import { endpointRoute } from "./routes/endpoint.js";
 import { verifyRoute } from "./routes/verify.js";
 import { discoveryRoute } from "./routes/discovery.js";
 import { wellKnownX402Route } from "./routes/wellKnownX402.js";
+import { openapiRoute } from "./routes/openapi.js";
 import { agentDiscoveryRoute } from "./routes/agentDiscovery.js";
 import { logoRoute } from "./routes/logo.js";
 import { psrRoute } from "./routes/psr.js";
@@ -86,9 +87,7 @@ import { corsMiddleware } from "./middleware/cors.js";
 import type { AppBindings } from "./types.js";
 import type { KVNamespace } from "@cloudflare/workers-types";
 
-// Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
-// Errata (Section 12): $0.01, not the $0.001 in the original Part 3 draft.
-const DIRECTORY_QUERY_PRICE_USDC = 0.01;
+// DIRECTORY_QUERY_PRICE_USDC (Decision 8) now lives in ./routeSchemas.ts.
 
 // Remaining per-route prices (WALLET_BALANCE_PRICE_USDC, FX_PRICE_USDC,
 // PACIFIC_BRIEF_PRICE_USDC, EVENTS_PRICE_USDC, WEATHER_PRICE_USDC,
@@ -343,6 +342,7 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
   app.route("/", brandingRoute);
   app.route("/", discoveryRoute);
   app.route("/", wellKnownX402Route);
+  app.route("/", openapiRoute);
   app.route("/", agentDiscoveryRoute);
   app.route("/", logoRoute);
   app.route("/", psrRoute);

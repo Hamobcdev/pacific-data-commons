@@ -385,6 +385,21 @@ export class PdcUnifiedPaymentGate {
     }
   }
 
+  /**
+   * The chains this gate actually offers in every 402's accepts[] — the
+   * same baseActive/solanaActive conditions addRoute() uses, so discovery
+   * documents built from this can never advertise a chain the gate is not
+   * really accepting (e.g. a flag set without its merchant address).
+   */
+  acceptedNetworks(): Array<{ chain: "algorand" | "base" | "solana"; caip2: string }> {
+    const networks: Array<{ chain: "algorand" | "base" | "solana"; caip2: string }> = [
+      { chain: "algorand", caip2: this.algorandCaip2 },
+    ];
+    if (this.baseActive) networks.push({ chain: "base", caip2: BASE_MAINNET_CAIP2 });
+    if (this.solanaActive) networks.push({ chain: "solana", caip2: SOLANA_MAINNET_CAIP2 });
+    return networks;
+  }
+
   /** Fired once a protected route's payment has been verified and settled, on any enabled chain. */
   onSettled(listener: UnifiedSettleListener): void {
     this.settleListeners.push(listener);

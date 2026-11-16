@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { getCaip2Network } from "@pdc/x402-adapter";
 import { AGENT_REGISTRY } from "@pdc/shared-types";
 import { AGENT_DATASET_CATALOG, catalogCategoryToDataCategory } from "../lib/agentDatasetCatalog.js";
+import { paidRoutes } from "../routeSchemas.js";
 import type { AppBindings } from "../types.js";
 
 /**
@@ -64,6 +65,43 @@ function buildEndpoints(env: AppBindings["Variables"]["env"], publicUrl: string)
   ];
 }
 
+/**
+ * Example values substituted into path-parameter routes so every entry in
+ * `resources` is a URL a crawler can call as-is and receive a 402 from.
+ * Routes whose path param has no meaningful public example (provider,
+ * endpoint and certificate ids) are left out of `resources` rather than
+ * listed with a placeholder that would 404.
+ */
+const PATH_PARAM_EXAMPLES: Record<string, string> = {
+  nation_code: "WS",
+};
+
+/**
+ * `resources` — the flat list of payable URLs x402 crawlers (x402scan,
+ * x402 Doctor) read from /.well-known/x402 (x402 Doctor re-scan, Frits
+ * Zwager / Fizzl, 16 Nov 2026: "/.well-known/x402 has no list of
+ * resources"). Derived from routeSchemas.ts's paidRoutes — the same list
+ * the payment gate registers — so it can't drift from what is really
+ * gated. GET routes only: the POST Agent Dataset Gateway entries also
+ * require a registered agent wallet, which a generic crawler can't satisfy.
+ * Exported for direct unit testing.
+ */
+export function buildResources(publicUrl: string): string[] {
+  const urls: string[] = [];
+  for (const route of paidRoutes) {
+    if (route.method !== "GET") continue;
+    let path = route.path;
+    let resolvable = true;
+    path = path.replace(/:([A-Za-z_]+)/g, (_match, name: string) => {
+      const example = PATH_PARAM_EXAMPLES[name];
+      if (!example) resolvable = false;
+      return example ?? "";
+    });
+    if (resolvable) urls.push(`${publicUrl}${path}`);
+  }
+  return [...new Set(urls)];
+}
+
 function buildAgentCatalogue() {
   return Object.values(AGENT_REGISTRY).map((agent) => ({
     id: agent.slug,
@@ -80,17 +118,32 @@ wellKnownX402Route.get("/.well-known/x402", async (c) => {
   c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
   c.header("Access-Control-Allow-Origin", "*");
 
+  const resources = buildResources(publicUrl);
+  // Falls back to Algorand-only if no gate is bound (unit tests mounting
+  // this route alone) — Algorand is the one chain the gate always offers.
+  const acceptedNetworks = c.get("paymentGate")?.acceptedNetworks() ?? [
+    { chain: "algorand" as const, caip2: getCaip2Network(env.ALGORAND_NETWORK) },
+  ];
+  const chainNames = acceptedNetworks.map((n) => n.chain[0]!.toUpperCase() + n.chain.slice(1));
+  const chainList =
+    chainNames.length > 1 ? `${chainNames.slice(0, -1).join(", ")} or ${chainNames[chainNames.length - 1]}` : chainNames[0];
+
   return c.json({
     version: "1.0",
     provider: "Pacific Data Commons",
     operator: "Synergy Blockchain Pacific",
     description:
-      "36 live x402-paid endpoints for Pacific sovereign data — fisheries, climate, FX, jurisdiction intelligence, and " +
-      "orchestrated AI briefs on Algorand Mainnet. Orchestrator endpoints autonomously pay sub-endpoints via x402 and " +
-      "synthesise results with Claude. Built solo, self-funded, from Samoa. No accounts, no API keys — pay per query in USDC.",
+      `${resources.length} live x402-paid endpoints for Pacific sovereign data — fisheries, climate, FX, tourism, ` +
+      "jurisdiction intelligence, and orchestrated AI briefs. Orchestrator endpoints autonomously pay sub-endpoints via " +
+      `x402 and synthesise results with Claude. Built from Samoa. No accounts, no API keys — pay per query in USDC on ${chainList}.`,
     currency: "USDC",
+    // `network`/`caip2` kept for backwards compatibility (P6) — Algorand
+    // only, as before. `networks` lists every chain the gate really offers.
     network: `algorand-${env.ALGORAND_NETWORK}`,
     caip2: getCaip2Network(env.ALGORAND_NETWORK),
+    networks: acceptedNetworks,
+    resources,
+    openapi: `${publicUrl}/openapi.json`,
     facilitator: env.FACILITATOR_URL,
     leaderboard_tag: "x402-global-challenge",
     contact: "anthony@synergybcpacific.com",

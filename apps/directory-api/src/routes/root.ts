@@ -63,6 +63,7 @@ export function buildRootIndexResponse() {
     x402_info: {
       facilitator_algorand: "https://facilitator.goplausible.xyz",
       well_known: "https://api.synergybcpacific.com/.well-known/x402",
+      openapi: "https://api.synergybcpacific.com/openapi.json",
       docs: "https://pdc.synergybcpacific.com",
     },
   } as const;

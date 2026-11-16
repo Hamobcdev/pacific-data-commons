@@ -94,6 +94,15 @@ const PACIFIC_TRAVEL_PRICE_USDC = 0.5;
 // (lib/agentDatasetCatalog.ts, routes/agentDatasetGateway.ts) reuses this
 // exact value as its own paidRoutes entry's priceUsdc below, so the
 // gateway's pass-through price can never drift from this route's price.
+/**
+ * Directory query fee — Decision 8 / Revenue Model (CLAUDE.md Section 7).
+ * Errata (Section 12): $0.01, not the $0.001 in the original Part 3 draft.
+ * The gate's default price for any paidRoutes entry with no explicit
+ * priceUsdc. Lives here (not app.ts) so routes/openapi.ts can document the
+ * same price the gate charges without importing app.ts.
+ */
+export const DIRECTORY_QUERY_PRICE_USDC = 0.01;
+
 export const SAMOA_CPI_PRICE_USDC = 0.01;
 
 // Decision 59/60 — same Tier 1 cap, first-party wrappers over genuinely

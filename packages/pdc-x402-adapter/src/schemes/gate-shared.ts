@@ -24,6 +24,7 @@ import {
 } from "@x402/core/server";
 import type { Network, PaymentPayload, PaymentRequirements, SettleResponse, SupportedResponse, VerifyResponse } from "@x402/core/types";
 import { SettleError } from "@x402/core/types";
+import { decodePaymentRequiredHeader } from "@x402/core/http";
 import type { MiddlewareHandler } from "hono";
 
 /**
@@ -429,6 +430,43 @@ export function parseJsonSafely(buffer: Buffer | undefined): unknown {
  * runs and @x402/hono's own existing (pre-this-fix) handling applies,
  * since this fix is scoped to the timeout case only.
  */
+/**
+ * Mirrors a 402's PAYMENT-REQUIRED header into its JSON body (x402 Doctor
+ * re-scan, Frits Zwager / Fizzl, 16 Nov 2026: "The 402 carries the payment
+ * details only in the header; the JSON body doesn't mirror them").
+ *
+ * @x402/core 2.30.0's createHTTPResponse() answers an unpaid request with
+ * body `{ "error": "Payment required" }` and puts the full PaymentRequired
+ * object (x402Version, resource, accepts[] for every enabled chain,
+ * extensions) only in the base64 PAYMENT-REQUIRED header. Clients that read
+ * the body (x402 v1-style, curl users, some crawlers) see nothing they can
+ * pay. This decodes that same header with @x402/core's own decoder and
+ * returns it as the body, so header and body are byte-for-byte the same
+ * object and can never drift.
+ *
+ * Leaves the response untouched when: not a 402, no header, the body is not
+ * JSON (e.g. a browser paywall HTML page), or the header fails to decode.
+ * Exported for direct unit testing.
+ */
+export function mirrorPaymentRequiredIntoBody(res: Response): Response {
+  if (res.status !== 402) return res;
+  const header = res.headers.get("payment-required");
+  if (!header) return res;
+  if (!(res.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) return res;
+
+  let decoded: unknown;
+  try {
+    decoded = decodePaymentRequiredHeader(header);
+  } catch {
+    return res;
+  }
+  if (!decoded || typeof decoded !== "object") return res;
+
+  const headers = new Headers(res.headers);
+  headers.delete("content-length");
+  return new Response(JSON.stringify(decoded), { status: 402, headers });
+}
+
 export function buildGuardedMiddleware(resourceServer: x402ResourceServer, routesConfig: Record<string, RouteConfig>): MiddlewareHandler {
   const inner = paymentMiddleware(routesConfig as RoutesConfig, resourceServer);
 
@@ -461,7 +499,17 @@ export function buildGuardedMiddleware(resourceServer: x402ResourceServer, route
     }
 
     try {
-      return await raceWithTimeout(PAYMENT_GATE_TIMEOUT_MS, () => inner(c, next), () => new PaymentGateTimeoutError(PAYMENT_GATE_TIMEOUT_MS));
+      const returned = await raceWithTimeout(PAYMENT_GATE_TIMEOUT_MS, () => inner(c, next), () => new PaymentGateTimeoutError(PAYMENT_GATE_TIMEOUT_MS));
+      // @x402/hono returns the 402 Response directly for an unpaid request
+      // (and sets c.res itself on the paid path). Only a 402 is ever
+      // rewritten — a paid, settled response passes through untouched.
+      if (returned instanceof Response && returned.status === 402) {
+        return mirrorPaymentRequiredIntoBody(returned);
+      }
+      if (!returned && c.res?.status === 402) {
+        c.res = mirrorPaymentRequiredIntoBody(c.res);
+      }
+      return returned;
     } catch (error) {
       if (error instanceof PaymentGateTimeoutError) {
         // eslint-disable-next-line no-console

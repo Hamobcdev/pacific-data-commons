@@ -3,7 +3,25 @@ import { ValidationError } from "../lib/errors.js";
 import type { AppBindings } from "../types.js";
 
 /**
- * Closes the gap reported by Frits Zwager (Fizzl/x402 Doctor, 10 Nov 2026):
+ * 402-first revision (x402 Doctor re-scan, Frits Zwager / Fizzl, 16 Nov 2026):
+ * this check now runs ONLY on requests that already carry a payment (a
+ * PAYMENT-SIGNATURE header — the one header @x402/core 2.30.0's
+ * x402HTTPResourceServer.extractPayment() reads). An unpaid request with a
+ * missing param falls straight through to the gate and gets a normal 402
+ * with the full PAYMENT-REQUIRED challenge — agents and crawlers call a
+ * route's bare URL to discover it, and a 400 there hid 8 routes from them
+ * as paid routes. The original premise below (that the gate answers a
+ * bare request with a header-less 402) did not hold: the real gate returns
+ * a complete challenge for a bare URL, confirmed by this file's own test
+ * suite and a local scan of every paidRoutes entry on 16 Nov 2026.
+ *
+ * A paid request with a missing param is still rejected here, before the
+ * gate verifies anything — so the buyer is never charged for a request the
+ * handler would refuse. (@x402/hono 2.30.0 also cancels settlement for any
+ * handler response >= 400, so this is defence in depth, not the only
+ * guard.)
+ *
+ * Original note — closes the gap reported by Frits Zwager (Fizzl/x402 Doctor, 10 Nov 2026):
  * the x402 payment gate is mounted globally in app.ts, before any
  * app.route() handler is dispatched, so for a route with a required query
  * param, the gate always fires before that route's own handler gets a
@@ -139,6 +157,16 @@ export function findMissingRequiredParamMessage(
 }
 
 /**
+ * True when the request carries an x402 v2 payment — the same header, and
+ * only that header, @x402/core's extractPayment() reads (case-insensitive
+ * lookup via Hono's c.req.header). Exported for direct unit testing.
+ */
+export function hasPaymentSignature(header: (name: string) => string | undefined): boolean {
+  const value = header("payment-signature");
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/**
  * Must be mounted before paymentGate.middleware() in app.ts. Peeks at the
  * JSON body only for a POST request whose path matches the Agent Dataset
  * Gateway's query route for one of the 7 affected datasets — every other
@@ -151,6 +179,12 @@ export function preGateRequiredParamValidation(): MiddlewareHandler<AppBindings>
   return async (c: Context<AppBindings>, next) => {
     const method = c.req.method;
     const path = c.req.path;
+
+    // 402-first: unpaid requests always reach the gate (see doc comment).
+    if (!hasPaymentSignature((name) => c.req.header(name))) {
+      await next();
+      return;
+    }
 
     let jsonBodyParams: Record<string, unknown> | undefined;
     if (method === "POST" && AGENT_DATASET_GATEWAY_QUERY_PATH.test(path)) {

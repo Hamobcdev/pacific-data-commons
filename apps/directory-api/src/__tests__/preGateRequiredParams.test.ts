@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PdcPaymentGate } from "@pdc/x402-adapter";
-import { findMissingRequiredParamMessage, preGateRequiredParamValidation } from "../middleware/preGateRequiredParams.js";
+import { findMissingRequiredParamMessage, hasPaymentSignature, preGateRequiredParamValidation } from "../middleware/preGateRequiredParams.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 
 // Not a real wallet — same dummy Mainnet-shaped address already used in
@@ -153,6 +153,13 @@ describe("findMissingRequiredParamMessage (pure check)", () => {
  * PdcPaymentGate, so these exercise the actual mount order fixed in
  * app.ts, not just the pure function above.
  */
+/**
+ * Any non-empty PAYMENT-SIGNATURE marks a request as "paid" for the
+ * pre-gate's purposes — it rejects a missing param before the gate ever
+ * decodes or verifies the payload, so the value needn't be a real payment.
+ */
+const PAID = { "PAYMENT-SIGNATURE": "dGVzdA==" };
+
 function buildTestApp(routes: Array<{ method: "GET" | "POST"; path: string }>) {
   const paymentGate = new PdcPaymentGate({
     payToAddress: TEST_AVM_ADDRESS,
@@ -189,7 +196,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     vi.unstubAllGlobals();
   });
 
-  it("400s GET /pacific/weather with no country, never reaching the route handler", async () => {
+  it("400s a PAID GET /pacific/weather with no country, never reaching the gate or route handler", async () => {
     // PdcPaymentGate fires its own background /supported warm-up fetch on
     // construction, independent of any request — not what this test is
     // about, so stub it rather than asserting on fetch call count. What
@@ -198,7 +205,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "GET", path: "/pacific/weather" }]);
-    const res = await app.request("/pacific/weather");
+    const res = await app.request("/pacific/weather", { headers: PAID });
 
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; message: string };
@@ -220,7 +227,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "GET", path: "/algorand/wallet-balance" }]);
-    const res = await app.request("/algorand/wallet-balance");
+    const res = await app.request("/algorand/wallet-balance", { headers: PAID });
 
     expect(res.status).toBe(400);
   });
@@ -229,7 +236,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "GET", path: "/finance/fiji-gdp" }]);
-    const res = await app.request("/finance/fiji-gdp");
+    const res = await app.request("/finance/fiji-gdp", { headers: PAID });
 
     expect(res.status).toBe(400);
   });
@@ -249,7 +256,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     const app = buildTestApp([{ method: "POST", path: "/api/v1/datasets/weather/query" }]);
     const res = await app.request("/api/v1/datasets/weather/query", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PAID },
       body: JSON.stringify({ params: {} }),
     });
 
@@ -263,7 +270,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "POST", path: "/api/v1/datasets/weather/query" }]);
-    const res = await app.request("/api/v1/datasets/weather/query", { method: "POST" });
+    const res = await app.request("/api/v1/datasets/weather/query", { method: "POST", headers: PAID });
 
     expect(res.status).toBe(400);
   });
@@ -286,7 +293,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     const app = buildTestApp([{ method: "POST", path: "/api/v1/datasets/wallet-balance/query" }]);
     const res = await app.request("/api/v1/datasets/wallet-balance/query", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PAID },
       body: JSON.stringify({ params: {} }),
     });
 
@@ -299,7 +306,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "GET", path: "/tourism/transport/routes" }]);
-    const res = await app.request("/tourism/transport/routes");
+    const res = await app.request("/tourism/transport/routes", { headers: PAID });
 
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; message: string };
@@ -311,7 +318,7 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "GET", path: "/tourism/transport/routes" }]);
-    const res = await app.request("/tourism/transport/routes?origin=Apia");
+    const res = await app.request("/tourism/transport/routes?origin=Apia", { headers: PAID });
 
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; message: string };
@@ -336,5 +343,49 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
 
     expect(res.status).toBe(402);
     expect(res.headers.get("payment-required")).toBeTruthy();
+  });
+
+  // 402-first (x402 Doctor re-scan, 16 Nov 2026): an UNPAID bare call to
+  // each of the 8 routes Frits listed — no params at all — must get the
+  // gate's full 402 challenge, not a 400. Agents and crawlers discover a
+  // paid route by calling its listed URL as-is.
+  it.each([
+    "/pacific/weather",
+    "/intelligence/pacific-travel",
+    "/algorand/wallet-balance",
+    "/finance/crypto-history",
+    "/fisheries/pacific-purse-seine",
+    "/finance/fiji-gdp",
+    "/climate/ocean-temperature",
+    "/tourism/transport/routes",
+  ])("returns 402 with a PAYMENT-REQUIRED header for an unpaid bare GET %s", async (path) => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "GET", path }]);
+    const res = await app.request(path);
+
+    expect(res.status).toBe(402);
+    expect(res.headers.get("payment-required")).toBeTruthy();
+  });
+
+  it("returns 402 for an unpaid POST /api/v1/datasets/weather/query with no params, not 400", async () => {
+    stubSupportedFacilitatorResponse();
+
+    const app = buildTestApp([{ method: "POST", path: "/api/v1/datasets/weather/query" }]);
+    const res = await app.request("/api/v1/datasets/weather/query", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ params: {} }),
+    });
+
+    expect(res.status).toBe(402);
+  });
+});
+
+describe("hasPaymentSignature", () => {
+  it("is true only for a non-empty PAYMENT-SIGNATURE header", () => {
+    expect(hasPaymentSignature(() => "abc")).toBe(true);
+    expect(hasPaymentSignature(() => "  ")).toBe(false);
+    expect(hasPaymentSignature(() => undefined)).toBe(false);
   });
 });

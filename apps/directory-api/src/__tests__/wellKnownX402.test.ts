@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
-import { wellKnownX402Route } from "../routes/wellKnownX402.js";
+import { buildResources, wellKnownX402Route } from "../routes/wellKnownX402.js";
 import { AGENT_DATASET_CATALOG } from "../lib/agentDatasetCatalog.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import type { AppBindings } from "../types.js";
@@ -8,7 +8,7 @@ import type { Env } from "../lib/env.js";
 
 const TEST_AVM_ADDRESS = "LN745UCDQNFIBDY6JFW7FNK333MADQZQVQFMCVR3GXXUTB52O2NYPZN3YY";
 
-function buildTestApp(envOverrides: Partial<Env> = {}) {
+function buildTestApp(envOverrides: Partial<Env> = {}, acceptedNetworks?: Array<{ chain: string; caip2: string }>) {
   const app = new Hono<AppBindings>();
   const env = {
     PUBLIC_URL: "https://api.synergybcpacific.com",
@@ -21,6 +21,9 @@ function buildTestApp(envOverrides: Partial<Env> = {}) {
 
   app.use("*", async (c, next) => {
     c.set("env", env);
+    if (acceptedNetworks) {
+      c.set("paymentGate", { acceptedNetworks: () => acceptedNetworks } as unknown as AppBindings["Variables"]["paymentGate"]);
+    }
     await next();
   });
 
@@ -97,5 +100,44 @@ describe("GET /.well-known/x402", () => {
     const res = await app.request("/.well-known/x402", { method: "OPTIONS" });
     expect(res.status).toBe(204);
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  });
+});
+
+describe("/.well-known/x402 resources and networks (x402 Doctor re-scan, 16 Nov 2026)", () => {
+  it("lists a flat resources[] of callable URLs, matching the description's count", async () => {
+    const app = buildTestApp();
+    const body = (await (await app.request("/.well-known/x402")).json()) as { resources: string[]; description: string };
+    expect(body.resources.length).toBeGreaterThan(50);
+    expect(body.resources).toContain("https://api.synergybcpacific.com/pacific/weather");
+    expect(body.resources).toContain("https://api.synergybcpacific.com/tourism/destination/WS");
+    expect(body.resources.every((u) => u.startsWith("https://api.synergybcpacific.com/") && !u.includes(":", 7))).toBe(true);
+    expect(body.description.startsWith(`${body.resources.length} live`)).toBe(true);
+  });
+
+  it("leaves out routes whose path param has no public example (provider/endpoint/verify ids)", () => {
+    const resources = buildResources("https://x.test");
+    expect(resources.some((u) => u.includes("/provider/") || u.includes("/endpoint/") || u.includes("/verify/"))).toBe(false);
+  });
+
+  it("does not list the POST Agent Dataset Gateway routes", () => {
+    expect(buildResources("https://x.test").some((u) => u.includes("/api/v1/datasets/"))).toBe(false);
+  });
+
+  it("reports every chain the gate accepts in networks[], and names them in the description", async () => {
+    const networks = [
+      { chain: "algorand", caip2: "algorand:mainnet-test" },
+      { chain: "base", caip2: "eip155:8453" },
+      { chain: "solana", caip2: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" },
+    ];
+    const app = buildTestApp({}, networks);
+    const body = (await (await app.request("/.well-known/x402")).json()) as { networks: unknown; description: string; network: string };
+    expect(body.networks).toEqual(networks);
+    expect(body.description).toContain("Algorand, Base or Solana");
+    expect(body.network).toBe("algorand-mainnet");
+  });
+
+  it("falls back to Algorand only when no gate is bound", async () => {
+    const body = (await (await buildTestApp().request("/.well-known/x402")).json()) as { networks: Array<{ chain: string }> };
+    expect(body.networks.map((n) => n.chain)).toEqual(["algorand"]);
   });
 });
