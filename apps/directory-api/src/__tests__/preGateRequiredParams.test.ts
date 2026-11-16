@@ -106,26 +106,6 @@ describe("findMissingRequiredParamMessage (pure check)", () => {
     });
   });
 
-  describe("GET /tourism/search — at least one query parameter required, no specific field", () => {
-    it("flags it as missing when no query parameters are present at all", () => {
-      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined)).not.toBeNull();
-    });
-
-    it("returns the exact message tourismSearchService.ts's parseSearchFilters already throws", () => {
-      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined)).toBe(
-        "At least one query parameter is required for /tourism/search",
-      );
-    });
-
-    it("passes through once at least one query parameter is present, regardless of which one", () => {
-      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined, () => true)).toBeNull();
-    });
-
-    it("defaults to 'missing' when hasAnyQueryParam is omitted, same as every other caller/test above", () => {
-      expect(findMissingRequiredParamMessage("GET", "/tourism/search", absent, undefined)).not.toBeNull();
-    });
-  });
-
   describe("POST Agent Dataset Gateway routes", () => {
     it.each([
       ["weather", "country"],
@@ -348,23 +328,11 @@ describe("preGateRequiredParamValidation — mounted before the real payment gat
     expect(res.headers.get("payment-required")).toBeTruthy();
   });
 
-  it("400s GET /tourism/search with no query parameters at all, never reaching the route handler", async () => {
+  it("reaches the real gate and returns 402 with a PAYMENT-REQUIRED header for GET /tourism/search even with no query parameters (pre-gate no longer guards this route)", async () => {
     stubSupportedFacilitatorResponse();
 
     const app = buildTestApp([{ method: "GET", path: "/tourism/search" }]);
     const res = await app.request("/tourism/search");
-
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string; message: string };
-    expect(body.error).toBe("invalid_request");
-    expect(body.message).toBe("At least one query parameter is required for /tourism/search");
-  });
-
-  it("reaches the real gate and returns 402 with a PAYMENT-REQUIRED header when at least one query parameter is present", async () => {
-    stubSupportedFacilitatorResponse();
-
-    const app = buildTestApp([{ method: "GET", path: "/tourism/search" }]);
-    const res = await app.request("/tourism/search?region=Polynesia");
 
     expect(res.status).toBe(402);
     expect(res.headers.get("payment-required")).toBeTruthy();

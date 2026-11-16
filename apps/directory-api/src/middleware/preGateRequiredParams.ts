@@ -19,15 +19,10 @@ import type { AppBindings } from "../types.js";
  * validation (country enum membership, year range, etc.) — that still runs
  * exactly as before, after payment, unchanged.
  *
- * Two shapes of "required" exist across the affected routes, each with its
- * own map below:
- *  - Named field(s): one or more specific query params, each independently
- *    required (checked in the same order the real handler/service checks
- *    them, so the first missing one's message matches what the handler
- *    would have thrown first). GET_RULES.
- *  - "At least one of any": the route has no specific required field, only
- *    a requirement that the request carry at least one query parameter at
- *    all (/tourism/search's `searchParams.size === 0` check). GET_ANY_PARAM_RULES.
+ * Required fields across the affected routes are named query params, each
+ * independently required (checked in the same order the real handler/
+ * service checks them, so the first missing one's message matches what the
+ * handler would have thrown first). GET_RULES.
  */
 
 interface NamedParamCheck {
@@ -70,14 +65,6 @@ const GET_RULES: ReadonlyMap<string, NamedParamCheck[]> = new Map([
       { param: "destination", message: "destination is required" },
     ],
   ],
-]);
-
-// GET path -> message, for a route whose requirement is "at least one query
-// parameter present at all" rather than any specific named field. Only
-// /tourism/search has this shape today (tourismSearchService.ts's
-// parseSearchFilters: `if (searchParams.size === 0) throw ...`).
-const GET_ANY_PARAM_RULES: ReadonlyMap<string, string> = new Map([
-  ["/tourism/search", "At least one query parameter is required for /tourism/search"],
 ]);
 
 // Agent Dataset Gateway dataset id (the :id in POST /api/v1/datasets/:id/query)
@@ -124,26 +111,14 @@ function isPresent(value: unknown): boolean {
  * Returns the message to reject the request with, or null if this request
  * needs no pre-gate check at all (not one of the affected routes) or already
  * has its required value(s) present.
- *
- * `hasAnyQueryParam` is only consulted for a path in GET_ANY_PARAM_RULES
- * (currently just /tourism/search) — omitted (as every existing caller/test
- * for the other routes does) it defaults to "no query params present",
- * matching parseSearchFilters' own `searchParams.size === 0` check when a
- * request genuinely has none.
  */
 export function findMissingRequiredParamMessage(
   method: string,
   path: string,
   query: (name: string) => string | undefined,
   jsonBodyParams: Record<string, unknown> | undefined,
-  hasAnyQueryParam?: () => boolean,
 ): string | null {
   if (method === "GET") {
-    const anyParamMessage = GET_ANY_PARAM_RULES.get(path);
-    if (anyParamMessage !== undefined) {
-      return hasAnyQueryParam?.() ? null : anyParamMessage;
-    }
-
     const checks = GET_RULES.get(path);
     if (!checks) return null;
     for (const check of checks) {
@@ -183,13 +158,7 @@ export function preGateRequiredParamValidation(): MiddlewareHandler<AppBindings>
       jsonBodyParams = (body as { params?: Record<string, unknown> } | undefined)?.params;
     }
 
-    const message = findMissingRequiredParamMessage(
-      method,
-      path,
-      (name) => c.req.query(name),
-      jsonBodyParams,
-      () => Object.keys(c.req.query()).length > 0,
-    );
+    const message = findMissingRequiredParamMessage(method, path, (name) => c.req.query(name), jsonBodyParams);
     if (message) {
       throw new ValidationError(message);
     }
