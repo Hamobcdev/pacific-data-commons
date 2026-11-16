@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { PdcUnifiedPaymentGate, installBazaarAjvWorkersLogFilter, type SettledUnifiedPayment } from "@pdc/x402-adapter";
 import { logger } from "./lib/logger.js";
-import { paidRoutes, categorizeRoute, PDC_MERCHANT_INFO } from "./routeSchemas.js";
+import { paidRoutes, categorizeRoute, PDC_MERCHANT_INFO, PDC_MERCHANT_SCHEMA } from "./routeSchemas.js";
 import { declarePaymentIdentifierExtension } from "@x402-avm/extensions/payment-identifier";
 import type { Env } from "./lib/env.js";
 import { createSupabaseClient } from "./lib/supabase.js";
@@ -228,6 +228,12 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
     // comes from @x402-avm/extensions (already a directory-api dependency,
     // GoPlausible's own fork — not the generic @x402/extensions package,
     // which isn't installed here).
+    //
+    // x402-merchant's `schema` block (x402 Doctor / Fizzl, 2026-11-16) —
+    // the spec expects info + schema on every extension; this one only
+    // ever sent info. PDC_MERCHANT_SCHEMA (routeSchemas.ts) describes the
+    // info object's own shape, same pattern payment-identifier already
+    // uses via declarePaymentIdentifierExtension()'s paymentIdentifierSchema.
     unifiedGate.addRoute({
       method: route.method,
       path: route.path,
@@ -242,7 +248,10 @@ export function createApp(env: Env, cryptoPricesKv?: KVNamespace) {
       ...(route.payToAddress ? { payToAddress: route.payToAddress } : {}),
       extensions: {
         ...(route.discovery ? { bazaar: route.discovery } : {}),
-        "x402-merchant": { info: { ...PDC_MERCHANT_INFO, categories: categorizeRoute(route.path) } },
+        "x402-merchant": {
+          info: { ...PDC_MERCHANT_INFO, categories: categorizeRoute(route.path) },
+          schema: PDC_MERCHANT_SCHEMA,
+        },
         "payment-identifier": declarePaymentIdentifierExtension(),
       },
     });

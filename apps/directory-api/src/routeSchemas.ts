@@ -322,6 +322,36 @@ export const PDC_MERCHANT_INFO = {
 } as const;
 
 /**
+ * x402-merchant extension's `schema` block (x402 Doctor / Fizzl, confirmed
+ * live on every PDC endpoint, 2026-11-16) — the x402 v2 spec expects every
+ * extension to declare both `info` and `schema`; this extension only ever
+ * declared `info` (above). Same JSON Schema draft 2020-12 shape already
+ * used elsewhere in this codebase for the identical purpose — compare
+ * @x402-avm/extensions' own paymentIdentifierSchema (the payment-identifier
+ * extension's schema, `{$schema, type: "object", properties, required}`)
+ * and discoveryFor()'s Bazaar discovery.schema above. Describes the shape
+ * of the `info` object this extension actually sends — app.ts builds that
+ * object as `{ ...PDC_MERCHANT_INFO, categories: categorizeRoute(path) }`,
+ * so all four fields are always present, hence all four are `required`
+ * here (unlike paymentIdentifierSchema's `id`, which is genuinely
+ * optional there and so isn't).
+ */
+export const PDC_MERCHANT_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    website: { type: "string", format: "uri" },
+    logo: { type: "string", format: "uri" },
+    categories: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: ["name", "website", "logo", "categories"],
+} as const;
+
+/**
  * Best-effort data_category tag for the x402-merchant extension's
  * `categories` field. Unlike DB-driven provider endpoints (which carry a
  * real `data_category` column), directory-api's own first-party routes
