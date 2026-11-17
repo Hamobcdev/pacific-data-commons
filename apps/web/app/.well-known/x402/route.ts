@@ -203,12 +203,11 @@ interface ManifestEndpoint {
 }
 
 // PR #147 — every entry shares the same service identity and icon;
-// declared once rather than repeated per entry. ICON_URL points at the real
-// logo asset (apps/web/public/images/sbp-logo.png) — the same file
-// apps/directory-api/src/routes/branding.ts already uses for its own
-// og:image, not a nonexistent /og-image.png.
+// declared once rather than repeated per entry. ICON_URL points at the PDC
+// logo asset (apps/web/public/images/logos/pdc-logo-blue-bg.png), not a
+// nonexistent /og-image.png.
 const SERVICE_NAME = "Pacific Data Commons";
-const ICON_URL = `${APP_URL}/images/sbp-logo.png`;
+const ICON_URL = `${APP_URL}/images/logos/pdc-logo-blue-bg.png`;
 
 /**
  * Wallet addresses are read from the database (providers.wallet_address),

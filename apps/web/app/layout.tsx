@@ -18,21 +18,23 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://pdc.synergybcpacific.com"),
   title: "Pacific Data Commons",
-  description: "Sovereign data exchange infrastructure for the Pacific.",
+  description:
+    "Pacific Data. Pacific Value. — Sovereign data marketplace for Pacific Island nations and AI agents.",
   openGraph: {
     siteName: "Pacific Data Commons",
     title: "Pacific Data Commons",
-    description: "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers. Built on Algorand.",
+    description: "Pacific Data. Pacific Value.",
     url: "https://pdc.synergybcpacific.com",
-    images: [{ url: "https://pdc.synergybcpacific.com/images/sbp-logo.png" }],
+    images: [{ url: "/images/logos/pdc-logo-blue-bg.png" }],
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Pacific Data Commons",
-    description: "Sovereign Pacific data directory — x402-gated endpoints for AI agents and researchers.",
-    images: ["https://pdc.synergybcpacific.com/images/sbp-logo.png"],
+    description: "Pacific Data. Pacific Value.",
+    images: ["/images/logos/pdc-logo-blue-bg.png"],
   },
 };
 
